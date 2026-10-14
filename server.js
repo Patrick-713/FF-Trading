@@ -5,6 +5,7 @@ import { mkdirSync, readFileSync } from 'node:fs';
 import { dirname, resolve, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { players, slots, initialRoster, teams, validateRoster, tradeAmounts, nextPrice } from './market.js';
+import { createSleeperClient } from './sleeper.js';
 
 const root = dirname(fileURLToPath(import.meta.url));
 const dbPath = process.env.DB_PATH || resolve(root, 'data/ff-trading.sqlite');
@@ -15,7 +16,41 @@ db.exec(`PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;
   CREATE TABLE IF NOT EXISTS quotes (account TEXT NOT NULL REFERENCES accounts(id), team TEXT NOT NULL, price INTEGER NOT NULL, previous INTEGER NOT NULL, points REAL NOT NULL, wins INTEGER NOT NULL, losses INTEGER NOT NULL, PRIMARY KEY(account, team));
   CREATE TABLE IF NOT EXISTS holdings (account TEXT NOT NULL REFERENCES accounts(id), team TEXT NOT NULL, shares INTEGER NOT NULL, cost INTEGER NOT NULL, PRIMARY KEY(account, team));
   CREATE TABLE IF NOT EXISTS trades (id TEXT PRIMARY KEY, account TEXT NOT NULL REFERENCES accounts(id), team TEXT NOT NULL, side TEXT NOT NULL, quantity INTEGER NOT NULL, price INTEGER NOT NULL, created TEXT NOT NULL);
-  CREATE TABLE IF NOT EXISTS history (account TEXT NOT NULL REFERENCES accounts(id), team TEXT NOT NULL, week INTEGER NOT NULL, price INTEGER NOT NULL, PRIMARY KEY(account, team, week));`);
+  CREATE TABLE IF NOT EXISTS history (account TEXT NOT NULL REFERENCES accounts(id), team TEXT NOT NULL, week INTEGER NOT NULL, price INTEGER NOT NULL, PRIMARY KEY(account, team, week));
+  CREATE TABLE IF NOT EXISTS market_teams (account TEXT NOT NULL REFERENCES accounts(id), team TEXT NOT NULL, data TEXT NOT NULL, PRIMARY KEY(account,team));
+  CREATE TABLE IF NOT EXISTS sleeper_links (account TEXT NOT NULL REFERENCES accounts(id), league TEXT NOT NULL, market TEXT NOT NULL REFERENCES accounts(id), data TEXT NOT NULL, PRIMARY KEY(account,league));
+  CREATE TABLE IF NOT EXISTS active_links (account TEXT PRIMARY KEY REFERENCES accounts(id), league TEXT NOT NULL);
+  CREATE TABLE IF NOT EXISTS sleeper_cache (path TEXT PRIMARY KEY, expires INTEGER NOT NULL, data TEXT NOT NULL);`);
+const sleeper = createSleeperClient({ cache: {
+  get(path) { const row = db.prepare('SELECT expires,data FROM sleeper_cache WHERE path=?').get(path); return row ? { expires: row.expires, data: JSON.parse(row.data) } : undefined; },
+  set(path, value) { db.prepare('INSERT INTO sleeper_cache VALUES (?,?,?) ON CONFLICT(path) DO UPDATE SET expires=excluded.expires,data=excluded.data').run(path, value.expires, JSON.stringify(value.data)); }
+} });
+function connection(id) { const row = db.prepare('SELECT l.* FROM sleeper_links l JOIN active_links a ON a.account=l.account AND a.league=l.league WHERE a.account=?').get(id); return row ? { ...row, data: JSON.parse(row.data) } : null; }
+function marketId(id) { return connection(id)?.market || id; }
+const linkRequests = new Map();
+async function importSleeper(id, username, leagueId) {
+  if (linkRequests.has(id)) throw new Error('A Sleeper import is already running. Please wait.');
+  linkRequests.set(id, true);
+  try {
+    const snapshot = await sleeper.snapshot(username, leagueId);
+    transaction(() => {
+      const previous = db.prepare('SELECT market FROM sleeper_links WHERE account=? AND league=?').get(id, leagueId);
+      const key = previous?.market || randomUUID();
+      if (!previous) db.prepare('INSERT INTO accounts (id,cash,week,roster) VALUES (?,?,?,?)').run(key, 2500000, snapshot.settledWeek, JSON.stringify(snapshot.roster));
+      db.prepare('UPDATE accounts SET week=?,roster=? WHERE id=?').run(snapshot.settledWeek, JSON.stringify(snapshot.roster), key);
+      // Rebuild deterministic prices from the same baseline; repeat syncs never compound a week twice.
+      for (const team of snapshot.teams) {
+        db.prepare('INSERT INTO market_teams VALUES (?,?,?) ON CONFLICT(account,team) DO UPDATE SET data=excluded.data').run(key, team.id, JSON.stringify(team));
+        db.prepare('INSERT INTO quotes VALUES (?,?,?,?,?,?,?) ON CONFLICT(account,team) DO UPDATE SET price=excluded.price,previous=excluded.previous,points=excluded.points,wins=excluded.wins,losses=excluded.losses').run(key, team.id, team.price, team.previous, team.points, team.wins, team.losses);
+        db.prepare('DELETE FROM history WHERE account=? AND team=?').run(key, team.id);
+        for (const h of team.history) db.prepare('INSERT INTO history VALUES (?,?,?,?)').run(key, team.id, h.week, h.price);
+      }
+      db.prepare('INSERT INTO sleeper_links VALUES (?,?,?,?) ON CONFLICT(account,league) DO UPDATE SET data=excluded.data').run(id, leagueId, key, JSON.stringify(snapshot));
+      db.prepare('INSERT INTO active_links VALUES (?,?) ON CONFLICT(account) DO UPDATE SET league=excluded.league').run(id, leagueId);
+    });
+    return state(id);
+  } finally { linkRequests.delete(id); }
+}
 function transaction(fn) { db.exec('BEGIN IMMEDIATE'); try { const r = fn(); db.exec('COMMIT'); return r; } catch (e) { db.exec('ROLLBACK'); throw e; } }
 function session(req, res) {
   let id = /(?:^|;\s*)ff_session=([a-f0-9-]{36})(?:;|$)/.exec(req.headers.cookie || '')?.[1];
@@ -38,13 +73,18 @@ function session(req, res) {
   return id;
 }
 function state(id) {
-  const account = db.prepare('SELECT cash,week,roster FROM accounts WHERE id=?').get(id);
-  const quotes = db.prepare('SELECT * FROM quotes WHERE account=?').all(id).map(q => ({ ...teams.find(t => t.id === q.team), ...q, account: undefined, history: db.prepare('SELECT week,price FROM history WHERE account=? AND team=? ORDER BY week').all(id, q.team) }));
-  const holdings = db.prepare('SELECT team,shares,cost FROM holdings WHERE account=? AND shares>0').all(id);
-  const trades = db.prepare('SELECT team,side,quantity,price,created FROM trades WHERE account=? ORDER BY rowid DESC LIMIT 30').all(id);
+  const link = connection(id), key = link?.market || id;
+  const account = db.prepare('SELECT cash,week,roster FROM accounts WHERE id=?').get(key);
+  const quotes = db.prepare('SELECT * FROM quotes WHERE account=?').all(key).map(q => {
+    const metadata = db.prepare('SELECT data FROM market_teams WHERE account=? AND team=?').get(key, q.team);
+    return { ...(metadata ? JSON.parse(metadata.data) : teams.find(t => t.id === q.team)), ...q, account: undefined, history: db.prepare('SELECT week,price FROM history WHERE account=? AND team=? ORDER BY week').all(key, q.team) };
+  });
+  const holdings = db.prepare('SELECT team,shares,cost FROM holdings WHERE account=? AND shares>0').all(key);
+  const trades = db.prepare('SELECT team,side,quantity,price,created FROM trades WHERE account=? ORDER BY rowid DESC LIMIT 30').all(key);
   const invested = holdings.reduce((sum, h) => sum + h.shares * quotes.find(t => t.id === h.team).price, 0);
   const basis = holdings.reduce((sum, h) => sum + h.shares * h.cost, 0);
-  return { account: { ...account, roster: JSON.parse(account.roster), invested, equity: account.cash + invested, gain: invested - basis }, teams: quotes, holdings, trades, players, slots };
+  return { account: { ...account, roster: JSON.parse(account.roster), invested, equity: account.cash + invested, gain: invested - basis }, teams: quotes, holdings, trades,
+    players: link?.data.players || players, slots: link?.data.slots || slots, ownTeam: link?.data.ownTeam || 'grid', connection: link?.data || null };
 }
 async function body(req) {
   let text = ''; for await (const chunk of req) { text += chunk; if (text.length > 8192) throw new Error('Request too large.'); }
@@ -60,27 +100,48 @@ const server = http.createServer(async (req, res) => {
       if (req.method !== 'GET' && req.headers.origin && req.headers.origin !== `http://${req.headers.host}`) return json(res, 403, { error: 'Origin not allowed.' });
       const id = session(req, res);
       if (req.method === 'GET' && url.pathname === '/api/state') return json(res, 200, state(id));
+      if (req.method === 'POST' && url.pathname === '/api/sleeper/lookup') {
+        const { username, season } = await body(req);
+        return json(res, 200, await sleeper.lookup(username, season));
+      }
+      if (req.method === 'POST' && url.pathname === '/api/sleeper/link') {
+        const { username, leagueId } = await body(req);
+        return json(res, 200, await importSleeper(id, username, leagueId));
+      }
+      if (req.method === 'POST' && url.pathname === '/api/sleeper/sync') {
+        const link = connection(id);
+        if (!link) throw new Error('Link a Sleeper league first.');
+        return json(res, 200, await importSleeper(id, link.data.user.id, link.league));
+      }
+      if (req.method === 'POST' && url.pathname === '/api/sleeper/disconnect') {
+        if (linkRequests.has(id)) throw new Error('Wait for the Sleeper import to finish.');
+        db.prepare('DELETE FROM active_links WHERE account=?').run(id);
+        return json(res, 200, state(id));
+      }
       if (req.method === 'POST' && url.pathname === '/api/trades') {
         const order = await body(req);
+        const key = marketId(id);
         transaction(() => {
-          const quote = db.prepare('SELECT price FROM quotes WHERE account=? AND team=?').get(id, order.team);
+          const quote = db.prepare('SELECT price FROM quotes WHERE account=? AND team=?').get(key, order.team);
           if (!quote) throw new Error('Unknown team.');
-          const account = db.prepare('SELECT cash FROM accounts WHERE id=?').get(id);
-          const holding = db.prepare('SELECT shares,cost FROM holdings WHERE account=? AND team=?').get(id, order.team) || { shares: 0, cost: 0 };
+          const account = db.prepare('SELECT cash FROM accounts WHERE id=?').get(key);
+          const holding = db.prepare('SELECT shares,cost FROM holdings WHERE account=? AND team=?').get(key, order.team) || { shares: 0, cost: 0 };
           const result = tradeAmounts(order.side, order.quantity, quote.price, account.cash, holding.shares);
           const cost = order.side === 'buy' ? Math.round((holding.shares * holding.cost + result.total) / result.shares) : holding.cost;
-          db.prepare('UPDATE accounts SET cash=? WHERE id=?').run(result.cash, id);
-          db.prepare('INSERT INTO holdings VALUES (?,?,?,?) ON CONFLICT(account,team) DO UPDATE SET shares=excluded.shares,cost=excluded.cost').run(id, order.team, result.shares, cost);
-          db.prepare('INSERT INTO trades VALUES (?,?,?,?,?,?,?)').run(randomUUID(), id, order.team, order.side, order.quantity, quote.price, new Date().toISOString());
+          db.prepare('UPDATE accounts SET cash=? WHERE id=?').run(result.cash, key);
+          db.prepare('INSERT INTO holdings VALUES (?,?,?,?) ON CONFLICT(account,team) DO UPDATE SET shares=excluded.shares,cost=excluded.cost').run(key, order.team, result.shares, cost);
+          db.prepare('INSERT INTO trades VALUES (?,?,?,?,?,?,?)').run(randomUUID(), key, order.team, order.side, order.quantity, quote.price, new Date().toISOString());
         });
         return json(res, 200, state(id));
       }
       if (req.method === 'PUT' && url.pathname === '/api/roster') {
+        if (connection(id)) throw new Error('Manage your linked lineup in Sleeper, then sync here.');
         const { roster } = await body(req); validateRoster(roster);
         db.prepare('UPDATE accounts SET roster=? WHERE id=?').run(JSON.stringify(roster), id);
         return json(res, 200, state(id));
       }
       if (req.method === 'POST' && url.pathname === '/api/simulate') {
+        if (connection(id)) throw new Error('Linked leagues use real Sleeper results. Sync instead of simulating.');
         transaction(() => {
           const account = db.prepare('SELECT week,roster FROM accounts WHERE id=?').get(id);
           if (account.week >= 18) throw new Error('Demo season complete. Start a new season to keep playing.');
@@ -97,11 +158,18 @@ const server = http.createServer(async (req, res) => {
         return json(res, 200, state(id));
       }
       if (req.method === 'POST' && url.pathname === '/api/reset') {
+        if (connection(id) || linkRequests.has(id)) throw new Error('Return to the demo before resetting it.');
         transaction(() => {
           for (const table of ['trades', 'holdings', 'history', 'quotes']) db.prepare(`DELETE FROM ${table} WHERE account=?`).run(id);
-          db.prepare('DELETE FROM accounts WHERE id=?').run(id);
+          db.prepare('UPDATE accounts SET cash=2500000,week=8,roster=? WHERE id=?').run(JSON.stringify(initialRoster), id);
+          for (const t of teams) {
+            db.prepare('INSERT INTO quotes VALUES (?,?,?,?,?,?,?)').run(id,t.id,t.price,t.previous,t.points,t.wins,t.losses);
+            for (let week=1;week<=8;week++) db.prepare('INSERT INTO history VALUES (?,?,?,?)').run(id,t.id,week,week===8?t.price:Math.round(t.price*(0.78+week*0.025+Math.sin(week+t.price)*0.035)));
+          }
+          db.prepare('INSERT INTO holdings VALUES (?,?,?,?)').run(id,'grid',20,11000);
+          db.prepare('INSERT INTO holdings VALUES (?,?,?,?)').run(id,'blitz',10,13700);
         });
-        session(req, res); return json(res, 200, { ok: true });
+        return json(res, 200, { ok: true });
       }
       return json(res, 404, { error: 'Endpoint not found.' });
     }
