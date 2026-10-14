@@ -1,4 +1,4 @@
-let state, view = 'overview', selected = 'grid', side = 'buy', busy = false, lookupResult = null;
+let state, view = 'overview', selected = 'grid', side = 'buy', busy = false, lookupResult = null, authMode = 'register';
 const $ = s => document.querySelector(s);
 const money = cents => new Intl.NumberFormat('en-US', { style: 'decimal', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(cents / 100);
 const pct = t => (t.price - t.previous) / t.previous * 100;
@@ -37,24 +37,30 @@ function activity() {
   return `${intro('Every move, recorded.', 'Executed orders at the price you traded.', false)}<section class="panel"><div class="panel-heading"><h2>Recent trades</h2><span class="muted">Last 30 orders</span></div><div class="table-scroll"><table><thead><tr><th>TEAM</th><th>SIDE</th><th>SHARES</th><th>EXECUTED PRICE</th><th>TOTAL</th><th>TIME</th></tr></thead><tbody>${state.trades.map(t => `<tr><td>${esc(state.teams.find(x => x.id === t.team)?.name || t.team)}</td><td><span class="pill ${t.side === 'buy' ? 'positive' : 'negative'}">${t.side.toUpperCase()}</span></td><td>${t.quantity}</td><td>${money(t.price)} CR</td><td>${money(t.price * t.quantity)} CR</td><td>${esc(new Date(t.created).toLocaleString())}</td></tr>`).join('') || '<tr><td colspan="6" class="empty">Your first move starts here. Place a trade to see it recorded.</td></tr>'}</tbody></table></div></section>`;
 }
 function render() {
-  const names = { overview: 'Overview', market: 'Team market', roster: 'My roster', portfolio: 'Portfolio', activity: 'Trade activity', sleeper: 'Link Sleeper' };
+  const names = { overview: 'Overview', market: 'Team market', roster: 'My roster', portfolio: 'Portfolio', activity: 'Trade activity', sleeper: 'Link Sleeper', account:'Your account' };
   $('#page-name').textContent = names[view]; $('#week').textContent = `WEEK ${state.account.week}`;
   $('#season-label').textContent = state.connection ? `${state.connection.league.season} · SLEEPER` : 'DEMO SEASON';
   const own = state.teams.find(t => t.id === state.ownTeam);
   $('#profile-team').textContent = own.name;
   $('#profile-avatar').textContent = own.ticker.slice(0, 2);
-  $('#profile-mode').textContent = state.connection ? 'Sleeper linked · paper market' : 'Demo manager';
+  $('#profile-mode').textContent = state.user ? `Signed in · ${state.user.name}` : 'Guest · save with an account';
+  $('#account-button').textContent = state.user ? 'My account' : 'Sign up / Log in';
   $('#footer-disclaimer').textContent = state.connection ? 'Data from Sleeper. Demo-credit market. Refresh with Sync Sleeper.' : 'Fictional players. Simulated performance. Demo credits.';
   $('#reset').hidden = Boolean(state.connection);
   document.querySelectorAll('.nav').forEach(n => { n.classList.toggle('active', n.dataset.view === view); n.setAttribute('aria-current', n.dataset.view === view ? 'page' : 'false'); });
   $('#ticker').innerHTML = state.teams.map(t => `<button data-trade="${t.id}"><strong>${esc(t.ticker)}</strong> <span>${money(t.price)}</span> ${change(t)}</button>`).join('');
   const banner = state.connection && view !== 'sleeper' ? `<div class="connection-banner"><span><span class="dot"></span> ${esc(state.connection.league.name)} · Scores through week ${state.account.week} · Synced ${esc(new Date(state.connection.syncedAt).toLocaleString())}</span><button class="trade-button" data-view="sleeper">Manage link →</button></div>` : '';
-  $('#main').innerHTML = banner + (view === 'overview' ? overview() : view === 'market' ? `${intro('Find your next winner.', 'Buy and sell shares in fantasy teams across the league.')}<section class="panel">${marketTable()}</section>` : view === 'roster' ? roster() : view === 'portfolio' ? portfolio() : view === 'sleeper' ? sleeperView() : activity());
+  $('#main').innerHTML = banner + (view === 'overview' ? overview() : view === 'market' ? `${intro('Find your next winner.', 'Buy and sell shares in fantasy teams across the league.')}<section class="panel">${marketTable()}</section>` : view === 'roster' ? roster() : view === 'portfolio' ? portfolio() : view === 'sleeper' ? sleeperView() : view==='account' ? accountView() : activity());
   if (state.connection && view === 'overview') {
     $('.feature-card p').textContent = 'Your Sleeper lineup. Your league’s scores. A new way to follow every week.';
     $('.feature-card .light-button').textContent = 'View your Sleeper roster →';
     $('.live-label').textContent = 'LINKED PAPER MARKET';
   }
+}
+function accountView() {
+  if(state.user) return `${intro('Your league. Your account.','Your linked leagues and portfolios are saved to your FF Trading account.',false)}<section class="panel account-panel"><div class="panel-heading"><h2>${esc(state.user.name)}</h2><span class="pill positive">SIGNED IN</span></div><div class="link-content"><p>${esc(state.user.email)}</p><p>Log in from another browser using the same FF Trading server to access this portfolio. Your Sleeper import is separate from this login.</p><p class="muted">Email is your sign-in identifier; email verification and emailed resets are not enabled. Keep your recovery code somewhere safe.</p><div class="link-actions"><button class="primary" data-view="sleeper">Manage Sleeper link</button><button class="trade-button" id="logout">Log out</button></div><p id="auth-error" class="error" role="alert"></p></div></section>`;
+  const signup=authMode==='register', recovery=authMode==='recover';
+  return `${intro('Keep your edge.','Create a free FF Trading account to save your leagues and portfolios.',false)}<div class="roster-layout"><section class="panel"><div class="panel-heading"><h2>${signup?'Create account':recovery?'Recover your account':'Welcome back'}</h2><span class="pill">FREE</span></div><div class="link-content"><div class="segmented"><button data-auth-mode="register" class="${signup?'selected':''}">Sign up</button><button data-auth-mode="login" class="${authMode==='login'?'selected':''}">Log in</button></div><form id="auth-form">${signup?'<label for="auth-name">Display name</label><input id="auth-name" name="name" autocomplete="nickname" minlength="2" maxlength="60" required>':''}<label for="auth-email">Email</label><input id="auth-email" name="email" type="email" autocomplete="username" maxlength="254" required>${recovery?'<label for="auth-recovery">Saved recovery code</label><input id="auth-recovery" name="recoveryCode" autocomplete="off" maxlength="48" required>':''}<label for="auth-password">${recovery?'New password':'Password'}</label><input id="auth-password" name="password" type="password" autocomplete="${signup||recovery?'new-password':'current-password'}" minlength="12" maxlength="128" required><p class="fine-print">Use 12–128 characters. ${signup?'Your current guest portfolio and league links will be saved to this account.':'Logging in opens the saved portfolio for that account.'}</p><button class="primary full" id="auth-submit">${signup?'Create free account':recovery?'Reset password':'Log in'}</button><p id="auth-error" class="error" role="alert"></p></form><button class="trade-button" data-auth-mode="recover">Forgot password? Use a recovery code</button></div></section><section class="feature-card link-explainer"><span class="eyebrow">YOUR FF TRADING IDENTITY</span><h2>One login.<br>Your portfolios.</h2><p>Sign up once. Keep your roster imports, demo credits, holdings, and trade history.</p><p>Your FF Trading password is separate from Sleeper. We never ask for your Sleeper password.</p><h3>Save your recovery code.</h3><p>You’ll receive a recovery code once at sign-up. It lets you reset a forgotten password without an email service. Email verification and email delivery aren’t enabled.</p><p>This app is currently hosted on this computer. Cross-device access becomes available when the same app and database are hosted online.</p></section></div>`;
 }
 function playerRow(id, slot) {
   const p = state.players.find(p => p.id === id);
@@ -83,6 +89,12 @@ function orderUpdate() {
   $('#submit-order').textContent = `Place ${side} order`; $('#order-error').textContent = '';
 }
 document.addEventListener('click', async e => {
+  const mode=e.target.closest('[data-auth-mode]');if(mode && !busy){authMode=mode.dataset.authMode;render();}
+  if(e.target.closest('#logout') && !busy) {
+    busy=true;
+    try {await api('auth/logout','POST'); lookupResult=null;state=await api('state');view='account';authMode='login';render();toast('Logged out. Your portfolio is saved.');}
+    catch(error){$('#auth-error').textContent=error.message;}finally{busy=false;}
+  }
   const close = e.target.closest('[data-close]'); if (close) close.closest('dialog').close();
   const nav = e.target.closest('[data-view]'); if (nav && state && !busy) { view = nav.dataset.view; render(); }
   const trade = e.target.closest('[data-trade]'); if (trade && state && !busy) { selected = trade.dataset.trade; side = 'buy'; $('#quantity').value = 1; orderUpdate(); $('#trade-dialog').showModal(); }
@@ -120,6 +132,16 @@ $('#trade-form').onsubmit = async e => {
   try { state = await api('trades', 'POST', { team: selected, side, quantity: Number($('#quantity').value) }); $('#trade-dialog').close(); render(); toast('Order filled. Your portfolio is updated.'); } catch (error) { $('#order-error').textContent = error.message; } finally { busy = false; $('#submit-order').disabled = false; }
 };
 document.addEventListener('submit', async e => {
+  if(e.target.id==='auth-form') {
+    e.preventDefault();if(busy)return;busy=true;$('#auth-submit').disabled=true;$('#auth-error').textContent='';
+    try {
+      const input=Object.fromEntries(new FormData(e.target));const result=await api(`auth/${authMode}`,'POST',input);
+      const recoveryCode=result.recoveryCode;delete result.recoveryCode;state=result;lookupResult=null;render();
+      if(recoveryCode){$('#recovery-code').textContent=recoveryCode;$('#recovery-dialog').showModal();}
+      toast(authMode==='register'?'Account created. Your portfolio is saved.':'You are signed in.');
+    }catch(error){$('#auth-error').textContent=error.message;$('#auth-submit').disabled=false;}finally{busy=false;}
+    return;
+  }
   if (e.target.id === 'sleeper-lookup') {
     e.preventDefault(); if (busy) return; busy = true; $('#lookup-submit').disabled = true; $('#lookup-submit').textContent = 'Finding leagues…'; $('#link-error').textContent = '';
     // Clear old results so a new username can never import a previously looked-up user’s team.

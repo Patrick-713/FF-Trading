@@ -6,6 +6,7 @@ import { dirname, resolve, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { players, slots, initialRoster, teams, validateRoster, tradeAmounts, nextPrice } from './market.js';
 import { createSleeperClient } from './sleeper.js';
+import { createAuth } from './auth.js';
 
 const root = dirname(fileURLToPath(import.meta.url));
 const dbPath = process.env.DB_PATH || resolve(root, 'data/ff-trading.sqlite');
@@ -21,6 +22,7 @@ db.exec(`PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;
   CREATE TABLE IF NOT EXISTS sleeper_links (account TEXT NOT NULL REFERENCES accounts(id), league TEXT NOT NULL, market TEXT NOT NULL REFERENCES accounts(id), data TEXT NOT NULL, PRIMARY KEY(account,league));
   CREATE TABLE IF NOT EXISTS active_links (account TEXT PRIMARY KEY REFERENCES accounts(id), league TEXT NOT NULL);
   CREATE TABLE IF NOT EXISTS sleeper_cache (path TEXT PRIMARY KEY, expires INTEGER NOT NULL, data TEXT NOT NULL);`);
+const auth = createAuth(db);
 const sleeper = createSleeperClient({ cache: {
   get(path) { const row = db.prepare('SELECT expires,data FROM sleeper_cache WHERE path=?').get(path); return row ? { expires: row.expires, data: JSON.parse(row.data) } : undefined; },
   set(path, value) { db.prepare('INSERT INTO sleeper_cache VALUES (?,?,?) ON CONFLICT(path) DO UPDATE SET expires=excluded.expires,data=excluded.data').run(path, value.expires, JSON.stringify(value.data)); }
@@ -53,8 +55,10 @@ async function importSleeper(id, username, leagueId) {
 }
 function transaction(fn) { db.exec('BEGIN IMMEDIATE'); try { const r = fn(); db.exec('COMMIT'); return r; } catch (e) { db.exec('ROLLBACK'); throw e; } }
 function session(req, res) {
+  const signedIn=auth.identify(req);
+  if(signedIn) return signedIn.account;
   let id = /(?:^|;\s*)ff_session=([a-f0-9-]{36})(?:;|$)/.exec(req.headers.cookie || '')?.[1];
-  if (!id || !db.prepare('SELECT id FROM accounts WHERE id=?').get(id)) {
+  if (!id || !db.prepare('SELECT id FROM accounts WHERE id=?').get(id) || auth.profile(id) || db.prepare('SELECT market FROM sleeper_links WHERE market=?').get(id)) {
     id = randomUUID();
     transaction(() => {
       db.prepare('INSERT INTO accounts (id,cash,roster) VALUES (?,?,?)').run(id, 2500000, JSON.stringify(initialRoster));
@@ -84,7 +88,7 @@ function state(id) {
   const invested = holdings.reduce((sum, h) => sum + h.shares * quotes.find(t => t.id === h.team).price, 0);
   const basis = holdings.reduce((sum, h) => sum + h.shares * h.cost, 0);
   return { account: { ...account, roster: JSON.parse(account.roster), invested, equity: account.cash + invested, gain: invested - basis }, teams: quotes, holdings, trades,
-    players: link?.data.players || players, slots: link?.data.slots || slots, ownTeam: link?.data.ownTeam || 'grid', connection: link?.data || null };
+    players: link?.data.players || players, slots: link?.data.slots || slots, ownTeam: link?.data.ownTeam || 'grid', connection: link?.data || null, user: auth.profile(id) };
 }
 async function body(req) {
   let text = ''; for await (const chunk of req) { text += chunk; if (text.length > 8192) throw new Error('Request too large.'); }
@@ -97,8 +101,25 @@ const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, `http://${req.headers.host}`);
     if (url.pathname.startsWith('/api/')) {
-      if (req.method !== 'GET' && req.headers.origin && req.headers.origin !== `http://${req.headers.host}`) return json(res, 403, { error: 'Origin not allowed.' });
+      if(req.method!=='GET') {
+        const origin=process.env.APP_ORIGIN || `http://${req.headers.host}`;
+        if((req.headers.origin && req.headers.origin!==origin) || req.headers['sec-fetch-site']==='cross-site') return json(res,403,{error:'Origin not allowed.'});
+        if(!req.headers['content-type']?.startsWith('application/json')) return json(res,415,{error:'Use application/json.'});
+      }
+      if(req.method==='POST' && url.pathname==='/api/auth/logout') {
+        auth.logout(req,res); return json(res,200,{ok:true});
+      }
+      if(req.method==='POST' && url.pathname==='/api/auth/login') {
+        const account=await auth.login(req,res,await body(req)); return json(res,200,state(account));
+      }
+      if(req.method==='POST' && url.pathname==='/api/auth/recover') {
+        const result=await auth.recover(req,res,await body(req)); return json(res,200,{...state(result.account),recoveryCode:result.recoveryCode});
+      }
       const id = session(req, res);
+      if(req.method==='POST' && url.pathname==='/api/auth/register') {
+        if(linkRequests.has(id)) throw new Error('Wait for your league import to finish before signing up.');
+        const result=await auth.register(req,res,await body(req),id);return json(res,200,{...state(result.account),recoveryCode:result.recoveryCode});
+      }
       if (req.method === 'GET' && url.pathname === '/api/state') return json(res, 200, state(id));
       if (req.method === 'POST' && url.pathname === '/api/sleeper/lookup') {
         const { username, season } = await body(req);
@@ -178,6 +199,6 @@ const server = http.createServer(async (req, res) => {
     const file = files[url.pathname]; if (!file) return json(res, 404, { error: 'Not found.' });
     res.writeHead(200, { 'Content-Type': ({ '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css' })[extname(file)] });
     res.end(readFileSync(resolve(root, 'public', file)));
-  } catch (e) { json(res, 400, { error: e.message }); }
+  } catch (e) { json(res, e.status || 400, { error: e.message }); }
 });
 server.listen(Number(process.env.PORT || 3000), process.env.HOST || '127.0.0.1', () => console.log(`FF Trading running at http://${process.env.HOST || '127.0.0.1'}:${process.env.PORT || 3000}`));

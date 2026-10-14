@@ -25,7 +25,19 @@ Open http://127.0.0.1:3000. `npm run dev` restarts the server on source changes.
 - Import real starters, bench/IR/taxi players, team names, records, and completed weekly scores
 - Manually sync Sleeper without counting the same scoring week twice
 
-## Link Sleeper
+## Free user accounts
+
+Open **Account** or **Sign up / Log in**. Sign-up asks for a display name, email identifier, and a 12–128 character password. It claims the current guest portfolio and saved Sleeper leagues without resetting credits or holdings. Logins from another browser on the same server restore the same saved account. Logging in to an existing account does not merge an unrelated guest portfolio.
+
+The authentication implementation runs on our existing Node/SQLite backend, with no paid provider, API keys, dependency installation, or email delivery. Passwords use salted scrypt (`N=131072`, `r=8`, `p=1`); random 256-bit session tokens are stored only as SHA-256 hashes in SQLite and expire after 30 days. Sign-in attempts are throttled per socket IP and email identifier. The server rejects cross-origin mutations and requires JSON requests.
+
+Save the one-time recovery code shown at sign-up in a password manager. **Forgot password? Use a recovery code** resets the password, revokes old login sessions, and issues a replacement recovery code. A recovery code can be used once. Email is not verified and no password-reset emails are sent. There is no account recovery without the password or saved recovery code in this version.
+
+For a public deployment, serve behind HTTPS, set `APP_ORIGIN` to the exact HTTPS origin and `COOKIE_SECURE=true`, keep the database on persistent storage, and back it up. This feature is free to run locally; online hosting and email service pricing are separate. Cross-device access requires the same hosted backend/database, not independent local copies.
+
+Auth endpoints: `POST /api/auth/register` (`name`, `email`, `password`), `/api/auth/login` (`email`, `password`), `/api/auth/logout`, and `/api/auth/recover` (`email`, `recoveryCode`, `password`). Registration and recovery return a recovery code once; normal state responses expose only the signed-in user's name and email.
+
+## Sleeper connection steps
 
 1. Start the app and open **Link Sleeper** in the navigation.
 2. Enter your Sleeper username. Optionally enter an older season; blank uses the current NFL season returned by Sleeper.
@@ -66,8 +78,8 @@ During the regular season, the current NFL `leg` is excluded: scores settle afte
 
 ## Scope and next milestones
 
-This is a local full-stack prototype with a fictional simulation and a separate Sleeper import mode. Each browser has an isolated exchange. There is no real-money trading, verified Sleeper ownership, shared market, login, or account recovery. Clearing cookies creates a new account. Keep the default loopback host for local use.
+This is a local full-stack prototype with a fictional simulation and a separate Sleeper import mode. Guests have browser-based portfolios; registered users have saved portfolios accessible by signing in on the same server. There is no real-money trading, verified Sleeper ownership, or shared multiplayer market. Keep the default loopback host for local use.
 
-Before a public launch: add authenticated accounts and account recovery, shared leagues and ownership rules, appropriate commercial data licensing, production sessions/HTTPS, rate limiting and operational monitoring, and database migration/backup tooling. Node's built-in SQLite API is experimental in Node 24. `fixtures/sleeper-fetch.mjs` is only preloaded explicitly by integration tests, never by the normal server.
+Before a public launch: add shared leagues and ownership rules, appropriate commercial data licensing, HTTPS deployment, account abuse controls and email verification if needed, operational monitoring, and database migration/backup tooling. Node's built-in SQLite API is experimental in Node 24. `fixtures/sleeper-fetch.mjs` is only preloaded explicitly by integration tests, never by the normal server.
 
 Suggested product direction: users manage a fantasy roster while other league members invest in its shares; weekly scoring drives valuation and league standings. Decide share issuance, liquidity, roster trading rules, and whether roster moves require a salary cap before adding multiplayer.
