@@ -33,7 +33,7 @@ export function buildSnapshot(user, league, rosters, members, catalog, weeks, nf
   const imported = rosters.map(r => {
     const member = members.find(m => String(m.user_id) === String(r.owner_id));
     const name = String(member?.metadata?.team_name || member?.display_name || member?.username || `Team ${r.roster_id}`).slice(0, 100);
-    return { id: `sl_${r.roster_id}`, ticker: `TM${r.roster_id}`, name, manager: String(member?.display_name || member?.username || 'Unclaimed team').slice(0, 80), rosterId: r.roster_id,
+    return { id: `sl_${r.roster_id}`, ticker: `TM${r.roster_id}`, name, manager: String(member?.display_name || member?.username || 'Unclaimed team').slice(0, 80), rosterId: r.roster_id, playerIds: [...new Set([...(r.players||[]),...(r.reserve||[]),...(r.taxi||[])])],
       wins: Number(r.settings?.wins || 0), losses: Number(r.settings?.losses || 0), ties: Number(r.settings?.ties || 0),
       price: 10000, previous: 10000, points: 0, history: [{ week: 0, price: 10000 }] };
   });
@@ -63,7 +63,7 @@ export function buildSnapshot(user, league, rosters, members, catalog, weeks, nf
       position: String(p?.position || '?'), club: String(p?.team || 'FA'), injury: p?.injury_status ? String(p.injury_status) : null };
   });
   return { user: { id: String(user.user_id), username: String(user.username || user.user_id), name: String(user.display_name || user.username || user.user_id) },
-    league: { id: String(league.league_id), name: String(league.name || 'Sleeper league').slice(0, 120), season: String(league.season), status: league.status },
+    league: { id: String(league.league_id), name: String(league.name || 'Sleeper league').slice(0, 120), season: String(league.season), status: league.status, type: Number(league.settings?.type||0), draftRounds: Number(league.settings?.draft_rounds||0), scoring: league.scoring_settings||{} },
     ownTeam: `sl_${own.roster_id}`, roster: own.starters || [], bench: playerIds.filter(id => !(own.starters || []).includes(id)), players, slots,
     teams: imported, settledWeek, currentWeek: Number(nfl.week || 0), skippedWeeks, syncedAt: new Date().toISOString() };
 }
@@ -117,5 +117,5 @@ export function createSleeperClient({ fetcher = globalThis.fetch, cache = new Ma
     }
     return buildSnapshot(user, league, rosters, members, catalog, weeks, nfl);
   }
-  return { lookup, snapshot };
+  return { lookup, snapshot, get };
 }

@@ -7,6 +7,8 @@ import { fileURLToPath } from 'node:url';
 import { players, slots, initialRoster, teams, validateRoster, tradeAmounts, nextPrice } from './market.js';
 import { createSleeperClient } from './sleeper.js';
 import { createAuth } from './auth.js';
+import { createFantasy } from './fantasy.js';
+import { analyzeTrade } from './valuation.js';
 
 const root = dirname(fileURLToPath(import.meta.url));
 const dbPath = process.env.DB_PATH || resolve(root, 'data/ff-trading.sqlite');
@@ -23,6 +25,7 @@ db.exec(`PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;
   CREATE TABLE IF NOT EXISTS active_links (account TEXT PRIMARY KEY REFERENCES accounts(id), league TEXT NOT NULL);
   CREATE TABLE IF NOT EXISTS sleeper_cache (path TEXT PRIMARY KEY, expires INTEGER NOT NULL, data TEXT NOT NULL);`);
 const auth = createAuth(db);
+const fantasy = createFantasy(db);
 const sleeper = createSleeperClient({ cache: {
   get(path) { const row = db.prepare('SELECT expires,data FROM sleeper_cache WHERE path=?').get(path); return row ? { expires: row.expires, data: JSON.parse(row.data) } : undefined; },
   set(path, value) { db.prepare('INSERT INTO sleeper_cache VALUES (?,?,?) ON CONFLICT(path) DO UPDATE SET expires=excluded.expires,data=excluded.data').run(path, value.expires, JSON.stringify(value.data)); }
@@ -35,6 +38,7 @@ async function importSleeper(id, username, leagueId) {
   linkRequests.set(id, true);
   try {
     const snapshot = await sleeper.snapshot(username, leagueId);
+    if(snapshot.league.type===2) snapshot.tradedPicks=await sleeper.get(`league/${leagueId}/traded_picks`);
     transaction(() => {
       const previous = db.prepare('SELECT market FROM sleeper_links WHERE account=? AND league=?').get(id, leagueId);
       const key = previous?.market || randomUUID();
@@ -90,6 +94,19 @@ function state(id) {
   return { account: { ...account, roster: JSON.parse(account.roster), invested, equity: account.cash + invested, gain: invested - basis }, teams: quotes, holdings, trades,
     players: link?.data.players || players, slots: link?.data.slots || slots, ownTeam: link?.data.ownTeam || 'grid', connection: link?.data || null, user: auth.profile(id) };
 }
+async function analysis(id,input) {
+  const link=connection(id);
+  let snapshot=link?structuredClone(link.data):null,catalog={};
+  const cached=path=>{const row=db.prepare('SELECT data FROM sleeper_cache WHERE path=?').get(path);return row?JSON.parse(row.data):null;};
+  if(snapshot){
+    catalog=cached('players/nfl')||{};
+    const raw=cached(`league/${link.league}`),rosters=cached(`league/${link.league}/rosters`);
+    if(raw){snapshot.league.type=Number(raw.settings?.type||0);snapshot.league.draftRounds=Number(raw.settings?.draft_rounds||0);snapshot.league.scoring=raw.scoring_settings||{};}
+    snapshot.teams=snapshot.teams.map(t=>({...t,playerIds:t.playerIds||rosters?.find(r=>r.roster_id===t.rosterId)?.players||(t.id===snapshot.ownTeam?snapshot.players.map(p=>p.id):[])}));
+    if(snapshot.league.type===2&&!snapshot.tradedPicks)snapshot.tradedPicks=await sleeper.get(`league/${link.league}/traded_picks`);
+  }
+  return fantasy.model(id,snapshot,catalog,input);
+}
 async function body(req) {
   let text = ''; for await (const chunk of req) { text += chunk; if (text.length > 8192) throw new Error('Request too large.'); }
   try { return JSON.parse(text); } catch { throw new Error('Invalid JSON request.'); }
@@ -121,6 +138,18 @@ const server = http.createServer(async (req, res) => {
         const result=await auth.register(req,res,await body(req),id);return json(res,200,{...state(result.account),recoveryCode:result.recoveryCode});
       }
       if (req.method === 'GET' && url.pathname === '/api/state') return json(res, 200, state(id));
+      if(req.method==='GET'&&url.pathname==='/api/analysis')return json(res,200,await analysis(id));
+      if(req.method==='PUT'&&url.pathname==='/api/analysis/settings')return json(res,200,await analysis(id,await body(req)));
+      if(req.method==='POST'&&url.pathname==='/api/analysis/trade'){
+        const input=await body(req),model=await analysis(id);if(!model.data.ready)throw new Error('Load statistics before analyzing a trade.');
+        return json(res,200,analyzeTrade(model,input));
+      }
+      if(req.method==='POST'&&url.pathname==='/api/analysis/save'){
+        const input=await body(req),model=await analysis(id);if(!model.data.ready)throw new Error('Load statistics before saving a trade.');
+        const result=analyzeTrade(model,input);const title=String(input.title||'Trade scenario').trim().slice(0,80);
+        db.prepare('INSERT INTO trade_scenarios VALUES (?,?,?,?)').run(randomUUID(),id,JSON.stringify({title,input:{teamA:input.teamA,teamB:input.teamB,sendA:input.sendA,sendB:input.sendB},result,league:connection(id)?.league||'demo'}),new Date().toISOString());
+        return json(res,200,await analysis(id));
+      }
       if (req.method === 'POST' && url.pathname === '/api/sleeper/lookup') {
         const { username, season } = await body(req);
         return json(res, 200, await sleeper.lookup(username, season));

@@ -1,9 +1,15 @@
 {
   "name": "ff-trading",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
-  "description": "Fantasy football meets a paper stock exchange",
-  "engines": { "node": ">=24" },
-  "scripts": { "start": "node server.js", "dev": "node --watch server.js", "test": "node --test" }
+  "description": "Fantasy player valuation and trade analysis for dynasty and redraft",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node --test"
+  }
 }
