@@ -14,20 +14,20 @@ test('real rosters map players, empty slots, bench, and league-specific position
   assert.equal(data.ownTeam,'sl_1'); assert.deepEqual(data.bench,['102']);
   assert.equal(data.players[0].name,'First Player');
   assert.equal(data.teams[0].name,'Team One');
-  assert.equal(data.teams[0].price,9975);
+  assert.equal(data.teams[0].points,100);assert.equal('price' in data.teams[0],false);
   assert.equal(data.settledWeek,2);
 });
-test('repeat sync is idempotent and commissioner overrides change valuations',()=>{
+test('repeat sync is idempotent and commissioner overrides change saved points',()=>{
   const a = buildSnapshot(user,league,rosters,members,catalog,structuredClone(weeks),nfl);
   const b = buildSnapshot(user,league,rosters,members,catalog,structuredClone(weeks),nfl);
   assert.deepEqual(a.teams,b.teams);
-  const corrected = structuredClone(weeks); corrected[0].matchups[0].custom_points=100;
+  const corrected = structuredClone(weeks); corrected[1].matchups[0].custom_points=175;
   const c = buildSnapshot(user,league,rosters,members,catalog,corrected,nfl);
-  assert.equal(c.teams[0].history[1].price,10000); assert.equal(c.teams[0].price,9500);
+  assert.equal(c.teams[0].points,175);
 });
 test('zero-score weeks stay flat; incomplete scoring is skipped',()=>{
   const data = buildSnapshot(user,league,rosters,members,catalog,[{week:1,matchups:[{roster_id:1,points:0},{roster_id:2,points:0}]},{week:2,matchups:[{roster_id:1,points:100}]}],nfl);
-  assert.equal(data.teams[0].price,10000); assert.equal(data.settledWeek,1); assert.deepEqual(data.skippedWeeks,[2]);
+  assert.equal(data.teams[0].points,0); assert.equal(data.settledWeek,1); assert.deepEqual(data.skippedWeeks,[2]);
 });
 test('current partial weeks excluded; pre-draft and historical seasons handled',()=>{
   assert.equal(completedWeeks(league,nfl),2);

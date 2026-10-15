@@ -1,3 +1,5 @@
+import {MODEL_VERSION} from './model-version.js';
+import {invalid} from './errors.js';
 import {lineup, pickValue} from './valuation.js';
 const round=n=>Math.round(n*10)/10;
 const sum=(list,key='value')=>list.reduce((s,a)=>s+(a[key]||0),0);
@@ -6,13 +8,13 @@ const verdict=n=>Math.abs(n)<=10?'Balanced':n>0?'Favors you':'Favors partner';
 
 function assumptionsFor(input,assets) {
   const source=input.assumptions??{};
-  if(!source||typeof source!=='object'||Array.isArray(source)||Object.keys(source).length>40)throw new Error('Invalid scenario assumptions.');
+  if(!source||typeof source!=='object'||Array.isArray(source)||Object.keys(source).length>40)throw invalid('Invalid scenario assumptions.');
   const result={};
   for(const [id,a] of Object.entries(source)) {
     const asset=assets.find(p=>p.id===id);
-    if(!asset||!a||typeof a!=='object'||Array.isArray(a))throw new Error('Assumptions must refer to selected assets.');
+    if(!asset||!a||typeof a!=='object'||Array.isArray(a))throw invalid('Assumptions must refer to selected assets.');
     const workload=a.workload??1,development=a.development??1,tier=a.tier??'mid';
-    if(typeof workload!=='number'||!Number.isFinite(workload)||workload<.5||workload>1.5||typeof development!=='number'||!Number.isFinite(development)||development<.5||development>1.5||!['early','mid','late'].includes(tier))throw new Error('Use workload/development multipliers from 0.5–1.5 and early, mid, or late picks.');
+    if(typeof workload!=='number'||!Number.isFinite(workload)||workload<.5||workload>1.5||typeof development!=='number'||!Number.isFinite(development)||development<.5||development>1.5||!['early','mid','late'].includes(tier))throw invalid('Use workload/development multipliers from 0.5–1.5 and early, mid, or late picks.');
     result[id]={workload,development,tier};
   }
   return result;
@@ -67,13 +69,13 @@ function compare(model,input,assumptions) {
   return {sent:a,received:b,give,get,difference,teamA:rosterReport(model,assets,input.teamA,a,b,options),teamB:rosterReport(model,assets,input.teamB,b,a,options)};
 }
 export function analyzeTrade(model,input,{sensitivity=true}={}) {
-  if(!input||input.teamA===input.teamB||!model.teams.some(t=>t.id===input.teamA)||!model.teams.some(t=>t.id===input.teamB))throw new Error('Choose two different teams.');
+  if(!input||input.teamA===input.teamB||!model.teams.some(t=>t.id===input.teamA)||!model.teams.some(t=>t.id===input.teamB))throw invalid('Choose two different teams.');
   const {sendA,sendB}=input;
-  if(!Array.isArray(sendA)||!Array.isArray(sendB)||!sendA.length||!sendB.length||sendA.length+sendB.length>40)throw new Error('Select at least one asset on each side (maximum 40).');
+  if(!Array.isArray(sendA)||!Array.isArray(sendB)||!sendA.length||!sendB.length||sendA.length+sendB.length>40)throw invalid('Select at least one asset on each side (maximum 40).');
   const ids=[...sendA,...sendB],assets=[...model.players,...model.picks];
-  if(ids.some(id=>typeof id!=='string')||new Set(ids).size!==ids.length)throw new Error('An asset can appear only once.');
-  for(const [list,owner] of [[sendA,input.teamA],[sendB,input.teamB]])for(const id of list){const asset=assets.find(a=>a.id===id&&a.owner===owner);if(!asset)throw new Error('An asset is no longer on the selected team. Refresh your league.');if(asset.kind==='pick'&&model.settings.mode!=='dynasty')throw new Error('Draft picks are only valued in dynasty mode.');}
-  if(input.includeWaivers!==undefined&&typeof input.includeWaivers!=='boolean')throw new Error('Invalid waiver setting.');
+  if(ids.some(id=>typeof id!=='string')||new Set(ids).size!==ids.length)throw invalid('An asset can appear only once.');
+  for(const [list,owner] of [[sendA,input.teamA],[sendB,input.teamB]])for(const id of list){const asset=assets.find(a=>a.id===id&&a.owner===owner);if(!asset)throw invalid('An asset is no longer on the selected team. Refresh your league.');if(asset.kind==='pick'&&model.settings.mode!=='dynasty')throw invalid('Draft picks are only valued in dynasty mode.');}
+  if(input.includeWaivers!==undefined&&typeof input.includeWaivers!=='boolean')throw invalid('Invalid waiver setting.');
   const assumptions=assumptionsFor(input,assets.filter(a=>ids.includes(a.id))),r=compare(model,input,assumptions);
   const base=Object.keys(assumptions).length?compare(model,input,{}):r;
   let cases=[];
@@ -85,14 +87,14 @@ export function analyzeTrade(model,input,{sensitivity=true}={}) {
     const outcome=compare(model,input,changed);
     return {label:direction<0?'Adverse for you':'Favorable for you',difference:outcome.difference,verdict:verdict(outcome.difference),paceChange:outcome.teamA.paceChange,futureChange:outcome.teamA.future.change};
   });
-  return {...r,settings:model.settings,assumptions,baseline:{difference:base.difference,paceChange:base.teamA.paceChange,futureChange:base.teamA.future.change},sensitivity:cases,verdict:verdict(r.difference),verdictFlips:cases.some(c=>c.verdict!==verdict(r.difference)),summary:Math.abs(r.difference)<=10?'Values are within 10%':r.difference>0?'You receive more model value':'Your partner receives more model value',
+  return {...r,modelVersion:MODEL_VERSION,dataSnapshot:{refreshedAt:model.data?.refreshedAt||null,statsFetched:model.data?.fetched||null,season:model.data?.season||model.season,throughWeek:model.data?.throughWeek??null},settings:model.settings,assumptions,baseline:{difference:base.difference,paceChange:base.teamA.paceChange,futureChange:base.teamA.future.change},sensitivity:cases,verdict:verdict(r.difference),verdictFlips:cases.some(c=>c.verdict!==verdict(r.difference)),summary:Math.abs(r.difference)<=10?'Values are within 10%':r.difference>0?'You receive more model value':'Your partner receives more model value',
     notes:['A hypothetical comparison only. Nothing is submitted to Sleeper.','Starter pace uses past weekly production, not a rest-of-season forecast.','Cuts minimize starter-pace loss, then model value. Waiver suggestions assume availability and are not claims. Incoming players use active spots; IR/taxi eligibility needs review.',...(!r.teamA.roster.capacity||!r.teamB.roster.capacity?['Active roster capacity is unavailable for at least one team; required cuts cannot be verified.']:[]),'Sensitivity cases are assumption bounds, not probabilities. Workload scales pace/current value; development scales dynasty value only.']};
 }
 
 export const tradeGoals=['WR','RB','QB','TE','younger','picks','contend','rebuild'];
 export function findTrades(model,input={}) {
-  const goal=input.goal||'WR';if(!tradeGoals.includes(goal))throw new Error('Choose a valid trade goal.');
-  if(goal==='picks'&&model.settings.mode!=='dynasty')throw new Error('Switch to dynasty to collect draft picks.');
+  const goal=input.goal||'WR';if(!tradeGoals.includes(goal))throw invalid('Choose a valid trade goal.');
+  if(goal==='picks'&&model.settings.mode!=='dynasty')throw invalid('Switch to dynasty to collect draft picks.');
   const assets=[...model.players,...model.picks],own=assets.filter(a=>a.owner===model.ownTeam);
   const candidates=[];
   const score=r=>{

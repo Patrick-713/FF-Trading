@@ -1,18 +1,19 @@
-import { nextPrice } from './market.js';
+import {invalid,provider} from './errors.js';
+
 
 const BASE = 'https://api.sleeper.app/v1';
 export function validUsername(value) {
   const name = String(value || '').trim();
-  if (!/^[a-zA-Z0-9_-]{1,40}$/.test(name)) throw new Error('Enter a Sleeper username, not an email or password.');
+  if (!/^[a-zA-Z0-9_-]{1,40}$/.test(name)) throw invalid('Enter a Sleeper username, not an email or password.');
   return name;
 }
 export function validLeague(value) {
-  if (typeof value !== 'string' || !/^\d{6,30}$/.test(value)) throw new Error('Choose a valid Sleeper league.');
+  if (typeof value !== 'string' || !/^\d{6,30}$/.test(value)) throw invalid('Choose a valid Sleeper league.');
   return value;
 }
 export function validSeason(value) {
   const season = String(value);
-  if (!/^20\d{2}$/.test(season) || Number(season) < 2017 || Number(season) > 2100) throw new Error('Choose a season from 2017 onward.');
+  if (!/^20\d{2}$/.test(season) || Number(season) < 2017 || Number(season) > 2100) throw invalid('Choose a season from 2017 onward.');
   return season;
 }
 export function completedWeeks(league, nfl) {
@@ -24,11 +25,11 @@ export function completedWeeks(league, nfl) {
   return Math.min(18, Math.max(0, Number(nfl.leg ?? nfl.week ?? 1) - 1));
 }
 export function buildSnapshot(user, league, rosters, members, catalog, weeks, nfl) {
-  if (!Array.isArray(rosters) || !rosters.length || !Array.isArray(members)) throw new Error('Sleeper has not created rosters for this league yet.');
-  if (rosters.length > 100 || rosters.some(r => !Number.isSafeInteger(r.roster_id) || r.roster_id < 1) || new Set(rosters.map(r => r.roster_id)).size !== rosters.length) throw new Error('Sleeper returned invalid roster identifiers.');
-  if (!members.some(m => String(m.user_id) === String(user.user_id))) throw new Error('That username is not a member of this league.');
+  if (!Array.isArray(rosters) || !rosters.length || !Array.isArray(members)) throw invalid('Sleeper has not created rosters for this league yet.');
+  if (rosters.length > 100 || rosters.some(r => !Number.isSafeInteger(r.roster_id) || r.roster_id < 1) || new Set(rosters.map(r => r.roster_id)).size !== rosters.length) throw invalid('Sleeper returned invalid roster identifiers.');
+  if (!members.some(m => String(m.user_id) === String(user.user_id))) throw invalid('That username is not a member of this league.');
   const own = rosters.find(r => String(r.owner_id) === String(user.user_id) || r.co_owners?.map(String).includes(String(user.user_id)));
-  if (!own) throw new Error('This user has no team roster in the selected league.');
+  if (!own) throw invalid('This user has no team roster in the selected league.');
   const slots = (league.roster_positions || []).filter(p => !['BN', 'IR', 'TAXI'].includes(p));
   const imported = rosters.map(r => {
     const member = members.find(m => String(m.user_id) === String(r.owner_id));
@@ -36,7 +37,7 @@ export function buildSnapshot(user, league, rosters, members, catalog, weeks, nf
     return { id: `sl_${r.roster_id}`, ticker: `TM${r.roster_id}`, name, manager: String(member?.display_name || member?.username || 'Unclaimed team').slice(0, 80), rosterId: r.roster_id, playerIds: [...new Set([...(r.players||[]),...(r.reserve||[]),...(r.taxi||[])])],
       protectedIds: [...new Set([...(r.reserve||[]),...(r.taxi||[])])],
       wins: Number(r.settings?.wins || 0), losses: Number(r.settings?.losses || 0), ties: Number(r.settings?.ties || 0),
-      price: 10000, previous: 10000, points: 0, history: [{ week: 0, price: 10000 }] };
+      points: 0 };
   });
   let settledWeek = 0;
   const skippedWeeks = [];
@@ -48,12 +49,8 @@ export function buildSnapshot(user, league, rosters, members, catalog, weeks, nf
       return raw === null || raw === undefined ? null : Number(raw);
     });
     if (scores.some(s => s === null || !Number.isFinite(s))) { skippedWeeks.push(week); continue; }
-    const average = scores.reduce((sum, score) => sum + score, 0) / scores.length;
     imported.forEach((t, i) => {
-      t.previous = t.price;
-      t.price = average > 0 ? nextPrice(t.price, scores[i], average) : t.price;
       t.points = scores[i];
-      t.history.push({ week, price: t.price });
     });
     settledWeek = week;
   }
@@ -77,10 +74,10 @@ export function createSleeperClient({ fetcher = globalThis.fetch, cache = new Ma
     const work = (async () => {
       let response;
       try { response = await fetcher(`${BASE}/${path}`, { signal: AbortSignal.timeout(15000), headers: { Accept: 'application/json' }, redirect: 'error' }); }
-      catch { throw new Error('Sleeper is unreachable right now. Try again shortly; your saved market is unchanged.'); }
-      if (response.status === 429) throw new Error('Sleeper is receiving too many requests. Wait a minute and try again.');
-      if (!response.ok) throw new Error(`Sleeper could not load this data (${response.status}). Try again shortly.`);
-      let data; try { data = await response.json(); } catch { throw new Error('Sleeper returned an unreadable response. Try again shortly.'); }
+      catch { throw provider('Sleeper is unreachable right now. Your saved league is unchanged.'); }
+      if (response.status === 429) throw provider('Sleeper is receiving too many requests. Wait a minute and try again.');
+      if (!response.ok) throw provider(`Sleeper could not load this data (${response.status}). Try again shortly.`);
+      let data; try { data = await response.json(); } catch { throw provider('Sleeper returned an unreadable response. Try again shortly.'); }
       cache.set(path, { data, expires: clock() + ttl });
       return data;
     })();
@@ -89,25 +86,25 @@ export function createSleeperClient({ fetcher = globalThis.fetch, cache = new Ma
   }
   async function userFor(username) {
     const user = await get(`user/${encodeURIComponent(validUsername(username))}`);
-    if (!user?.user_id) throw new Error('Sleeper username not found. Check the spelling and try again.');
+    if (!user?.user_id) throw invalid('Sleeper username not found. Check the spelling and try again.');
     return user;
   }
   async function lookup(username, season) {
     const user = await userFor(username), nfl = await get('state/nfl');
     const year = validSeason(season || nfl.season);
     const leagues = await get(`user/${user.user_id}/leagues/nfl/${year}`);
-    if (!Array.isArray(leagues)) throw new Error('Sleeper could not list leagues for this user.');
+    if (!Array.isArray(leagues)) throw invalid('Sleeper could not list leagues for this user.');
     return { user: { id: String(user.user_id), username: user.username, name: user.display_name || user.username }, season: year,
       leagues: leagues.filter(l => l.sport === 'nfl').map(l => ({ id: String(l.league_id), name: String(l.name), season: String(l.season), teams: l.total_rosters, status: l.status })) };
   }
   async function snapshot(username, leagueId) {
     validLeague(leagueId);
     const [user, league, nfl] = await Promise.all([userFor(username), get(`league/${leagueId}`), get('state/nfl')]);
-    if (!league || league.sport !== 'nfl' || String(league.league_id) !== leagueId) throw new Error('This is not an NFL league on Sleeper.');
+    if (!league || league.sport !== 'nfl' || String(league.league_id) !== leagueId) throw invalid('This is not an NFL league on Sleeper.');
     const [rosters, members] = await Promise.all([get(`league/${leagueId}/rosters`), get(`league/${leagueId}/users`)]);
-    if (!Array.isArray(members) || !members.some(m => String(m.user_id) === String(user.user_id))) throw new Error('That username is not a member of this league.');
+    if (!Array.isArray(members) || !members.some(m => String(m.user_id) === String(user.user_id))) throw invalid('That username is not a member of this league.');
     const catalog = await get('players/nfl', 86400000);
-    if (!catalog || typeof catalog !== 'object' || Array.isArray(catalog)) throw new Error('Sleeper player data is unavailable.');
+    if (!catalog || typeof catalog !== 'object' || Array.isArray(catalog)) throw invalid('Sleeper player data is unavailable.');
     const weeks = [], limit = completedWeeks(league, nfl);
     for (let start = 1; start <= limit; start += 3) {
       const batch = await Promise.all(Array.from({ length: Math.min(3, limit - start + 1) }, async (_, index) => {

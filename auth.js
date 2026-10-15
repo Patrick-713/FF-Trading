@@ -1,14 +1,15 @@
+import {invalid} from './errors.js';
 import { randomBytes, randomUUID, createHash, scrypt, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
 const derive = promisify(scrypt);
 const options = { N: 131072, r: 8, p: 1, maxmem: 160 * 1024 * 1024 };
 export const digest = value => createHash('sha256').update(value).digest('hex');
 function emailFor(value) {
-  if (typeof value !== 'string' || value.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) throw new Error('Enter a valid email address.');
+  if (typeof value !== 'string' || value.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) throw invalid('Enter a valid email address.');
   return value.trim().toLowerCase();
 }
 function passwordFor(value) {
-  if (typeof value !== 'string' || value.length < 12 || value.length > 128) throw new Error('Use a password with 12–128 characters.');
+  if (typeof value !== 'string' || value.length < 12 || value.length > 128) throw invalid('Use a password with 12–128 characters.');
   return value;
 }
 async function hashPassword(password, salt = randomBytes(16).toString('hex')) {
@@ -21,7 +22,7 @@ export function createAuth(db) {
     CREATE TABLE IF NOT EXISTS auth_limits (key TEXT PRIMARY KEY, attempts INTEGER NOT NULL, expires INTEGER NOT NULL);`);
   let hashing = 0;
   async function limitedHash(password,salt) {
-    if (hashing >= 2) throw Object.assign(new Error('Sign-in is busy. Please try again shortly.'),{status:429});
+    if (hashing >= 2) throw Object.assign(invalid('Sign-in is busy. Please try again shortly.'),{status:429});
     hashing++; try { return await hashPassword(password,salt); } finally { hashing--; }
   }
   const cookieOptions = `HttpOnly; SameSite=Strict; Path=/; Max-Age=2592000${process.env.COOKIE_SECURE === 'true' ? '; Secure' : ''}`;
@@ -45,7 +46,7 @@ export function createAuth(db) {
     db.prepare('DELETE FROM auth_limits WHERE expires<=?').run(now);
     for(const key of [`ip:${req.socket.remoteAddress}:${route}`,`email:${digest(email)}:${route}`]) {
       const row=db.prepare('SELECT attempts FROM auth_limits WHERE key=?').get(key);
-      if(row?.attempts>=10) throw Object.assign(new Error('Too many attempts. Try again in 15 minutes.'),{status:429});
+      if(row?.attempts>=10) throw Object.assign(invalid('Too many attempts. Try again in 15 minutes.'),{status:429});
       db.prepare('INSERT INTO auth_limits VALUES (?,1,?) ON CONFLICT(key) DO UPDATE SET attempts=attempts+1').run(key,now+15*60000);
     }
   }
@@ -53,15 +54,15 @@ export function createAuth(db) {
   async function register(req,res,input,account) {
     const email=emailFor(input.email), password=passwordFor(input.password);
     const name=String(input.name || '').trim();
-    if(name.length<2 || name.length>60) throw new Error('Use a display name with 2–60 characters.');
+    if(name.length<2 || name.length>60) throw invalid('Use a display name with 2–60 characters.');
     throttle(req,email,'register');
-    if(profile(account)) throw new Error('Log out before creating another account.');
-    if(db.prepare('SELECT id FROM users WHERE email=?').get(email)) throw new Error('This email is already registered. Try logging in.');
+    if(profile(account)) throw invalid('Log out before creating another account.');
+    if(db.prepare('SELECT id FROM users WHERE email=?').get(email)) throw invalid('This email is already registered. Try logging in.');
     const credentials=await limitedHash(password), recoveryCode=randomBytes(24).toString('hex'), userId=randomUUID();
     db.exec('BEGIN IMMEDIATE');
     try {
       // Recheck after hashing: concurrent registration cannot claim the same guest account.
-      if(profile(account) || db.prepare('SELECT id FROM users WHERE email=?').get(email)) throw new Error('Account already registered. Try logging in.');
+      if(profile(account) || db.prepare('SELECT id FROM users WHERE email=?').get(email)) throw invalid('Account already registered. Try logging in.');
       db.prepare('INSERT INTO users VALUES (?,?,?,?,?,?,?,?)').run(userId,email,name,account,credentials.salt,credentials.hash,digest(recoveryCode),new Date().toISOString());
       issue(res,userId); db.exec('COMMIT');
     } catch(error) {db.exec('ROLLBACK');throw error;}
@@ -73,7 +74,7 @@ export function createAuth(db) {
     const user=db.prepare('SELECT * FROM users WHERE email=?').get(email);
     const candidate=await limitedHash(password,user?.salt || '00000000000000000000000000000000');
     const current=user && db.prepare('SELECT hash FROM users WHERE id=?').get(user.id);
-    if(!current || !timingSafeEqual(Buffer.from(candidate.hash,'hex'),Buffer.from(current.hash,'hex'))) throw Object.assign(new Error('Email or password is incorrect.'),{status:401});
+    if(!current || !timingSafeEqual(Buffer.from(candidate.hash,'hex'),Buffer.from(current.hash,'hex'))) throw Object.assign(invalid('Email or password is incorrect.'),{status:401});
     issue(res,user.id); return user.account;
   }
   async function recover(req,res,input) {
@@ -81,12 +82,12 @@ export function createAuth(db) {
     throttle(req,email,'recover');
     const code=typeof input.recoveryCode==='string'?input.recoveryCode.trim():'';
     const user=db.prepare('SELECT * FROM users WHERE email=?').get(email);
-    if(!user || !/^[a-f0-9]{48}$/.test(code) || !timingSafeEqual(Buffer.from(digest(code),'hex'),Buffer.from(user.recovery,'hex'))) throw Object.assign(new Error('Email or recovery code is incorrect.'),{status:401});
+    if(!user || !/^[a-f0-9]{48}$/.test(code) || !timingSafeEqual(Buffer.from(digest(code),'hex'),Buffer.from(user.recovery,'hex'))) throw Object.assign(invalid('Email or recovery code is incorrect.'),{status:401});
     const credentials=await limitedHash(password), recoveryCode=randomBytes(24).toString('hex');
     db.exec('BEGIN IMMEDIATE');
     try {
       const updated=db.prepare('UPDATE users SET salt=?,hash=?,recovery=? WHERE id=? AND recovery=?').run(credentials.salt,credentials.hash,digest(recoveryCode),user.id,user.recovery);
-      if(updated.changes!==1) throw new Error('Recovery code was already used.');
+      if(updated.changes!==1) throw invalid('Recovery code was already used.');
       db.prepare('DELETE FROM login_sessions WHERE user=?').run(user.id);
       issue(res,user.id); db.exec('COMMIT');
     } catch(error){db.exec('ROLLBACK');throw error;}

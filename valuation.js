@@ -1,3 +1,4 @@
+import {invalid} from './errors.js';
 import {prospectProfile} from './prospects.js';
 // FF Trading model v1: transparent heuristic values, not market prices or calibrated forecasts.
 export function parseCSV(text) {
@@ -11,7 +12,7 @@ const round=(v,p=1)=>Math.round(v*10**p)/10**p;
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 export function settingsFor(input={},defaults={}) {
   const out={mode:input.mode||defaults.mode||'redraft',scoring:input.scoring||defaults.scoring||'ppr',superflex:input.superflex??defaults.superflex??false,tePremium:num(input.tePremium??defaults.tePremium??0),passTD:num(input.passTD??defaults.passTD??4)};
-  if(!['dynasty','redraft'].includes(out.mode)||!['ppr','half','standard'].includes(out.scoring)||typeof out.superflex!=='boolean'||![4,6].includes(out.passTD)||![0,0.5,1].includes(out.tePremium))throw new Error('Choose valid league format and scoring settings.');
+  if(!['dynasty','redraft'].includes(out.mode)||!['ppr','half','standard'].includes(out.scoring)||typeof out.superflex!=='boolean'||![4,6].includes(out.passTD)||![0,0.5,1].includes(out.tePremium))throw invalid('Choose valid league format and scoring settings.');
   return out;
 }
 export function pointsFor(row,s) {

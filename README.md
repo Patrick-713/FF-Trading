@@ -26,7 +26,7 @@ The **Redraft / Dynasty** switch changes valuation, not the real league. Scoring
 
 ## Data and valuation model v1
 
-Sleeper supplies league rosters, player IDs, positions, age/status metadata, scoring context, and traded-pick ownership. nflverse supplies weekly player statistics and NFL player metadata, matched primarily by GSIS ID. An exact normalized name/position match is used only when unambiguous. Weekly statistics are cached in SQLite for six hours; NFL player metadata and Sleeper's player catalog for 24 hours. Historical seasons can use the current player metadata; this is not a historical age-at-season replay.
+Sleeper supplies league rosters, player IDs, positions, age/status metadata, scoring context, and traded-pick ownership. nflverse supplies weekly player statistics and NFL player metadata, matched primarily by GSIS ID. An exact normalized name/position match is used only when unambiguous. Refresh requests use a six-hour statistics cache and a 24-hour NFL metadata/player-catalog cache. League imports save frozen analysis inputs; reads and trade calculations never fetch providers. Historical seasons can use metadata from the refresh date; this is not a historical age-at-season replay. Metadata age/experience calculations use the snapshot date until refreshed.
 
 Stats include fantasy points/game, recent points/game, targets and carries/game, target share, WOPR, average depth of target, yards/touch, EPA per opportunity, and a consistency estimate. Only completed imported weeks are used for the selected season. A previous-season file may be used if a current-season file is unavailable, and the UI identifies that source season. The demo uses explicitly fictional statistics.
 
@@ -82,13 +82,15 @@ For online access, host the same server and persistent database behind HTTPS, se
 | PUT | `/api/analysis/settings` | `mode`, `scoring`, `superflex`, `tePremium`, `passTD` |
 | POST | `/api/analysis/trade` | `teamA`, `teamB`, `sendA`, `sendB` asset IDs; optional `assumptions` keyed by selected asset ID (`workload`, `development`, `tier`) and `includeWaivers` boolean |
 | POST | `/api/analysis/find` | `goal`: `WR`, `RB`, `QB`, `TE`, `younger`, `picks`, `contend`, or `rebuild`; optional `includeWaivers` |
+| POST | `/api/analysis/refresh` | Explicitly refresh the active league and freeze its analysis inputs |
 | POST | `/api/analysis/save` | Same selections plus optional `title` |
 | POST | `/api/sleeper/lookup` | `username`, optional `season` |
 | POST | `/api/sleeper/link` | `username`, `leagueId` |
 | POST | `/api/sleeper/sync` | Refresh active league |
+| POST | `/api/sleeper/activate` | Select an already-linked `leagueId` owned by the current account, without fetching providers |
 | POST | `/api/sleeper/disconnect` | Return to the fictional demo |
 
-Account endpoints are `/api/auth/register`, `/login`, `/logout`, and `/recover`. Existing `/api/state` and old paper-market data are retained for migration compatibility; the product UI does not expose share trading. SQLite files in `data/` are ignored by Git. All added tables are additive, preserving existing accounts, sessions, and league links.
+Account endpoints are `/api/auth/register`, `/login`, `/logout`, and `/recover`. `/api/state` returns the current account identity, user profile and active league connection. Stock trading routes, tables and runtime calculations have been removed. See [BACKEND.md](BACKEND.md) for migrations, refresh behavior, model evaluation and errors. SQLite files and backups under `data/` are ignored by Git.
 
 ## Sources and limits
 

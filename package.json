@@ -1,6 +1,6 @@
 {
   "name": "ff-trading",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "description": "Fantasy player valuation and trade analysis for dynasty and redraft",
@@ -10,6 +10,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "test": "node --test"
+    "test": "node --test",
+    "evaluate": "node evaluate-model.js"
   }
 }
