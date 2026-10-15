@@ -33,12 +33,22 @@ Stats include fantasy points/game, recent points/game, targets and carries/game,
 Values are **relative model units, not currency, token prices, consensus rankings, or calibrated forecasts**. Model v1 is a transparent heuristic:
 
 - Redraft uses 60% recent four-game scoring pace and 40% season pace, positional replacement baselines, opportunity/usage, target share, WOPR, efficiency, and consistency.
-- Dynasty adds position-specific age curves, NFL draft-round priors, and superflex QB scarcity. Missing metadata uses neutral adjustments; players without matched weekly statistics have low-confidence estimates.
+- Dynasty adds position-specific age curves, NFL draft capital, fading prospect priors, and superflex QB scarcity. Missing metadata is labeled; players without matched weekly statistics have low-confidence estimates.
 - Listed injury statuses apply a simple availability discount; this does not predict injury duration.
 - Starter scoring pace uses a maximum-weight slot assignment, never counting a player twice. It reflects past weekly production under the selected scoring settings, **not a rest-of-season projection**.
 - League-specific yardage/first-down/long-play bonuses, exact team D/ST scoring, schedules, route participation, snap counts, and opponent adjustments are not modeled. D/ST and other unmatched assets are explicitly estimates; don't treat their estimated values or pace as stats-backed rankings.
 
 ## Dynasty draft picks
+
+### Young-player valuation
+
+Players in their first three NFL seasons are identified by NFL draft year or season-adjusted experience, never age alone. Prospect starting values use overall NFL selection when available (top 10: 2,400; other first round: 2,100), otherwise round (2: 1,650; 3: 1,200; 4: 750; 5: 500; 6: 325; 7: 225), or a clearly labeled limited-metadata prior of 350. These are model units, not consensus rankings.
+
+Completed rookie-only Sleeper drafts add league context when **every pick** can be verified as a rookie and no keeper picks are present. Startup/mixed/unknown drafts are excluded. Up to four drafts from the selected league season are checked. Rookie draft position is normalized to 12 teams: 1st 2,600; 2–3 2,300; 4–6 1,950; 7–12 1,550; 13–24 850; 25–36 450; later 250. When NFL capital is known, league context contributes only 25% of the prospect prior. When it is missing, the verified league selection contributes 80% and the limited-metadata prior 20%. This is not a global rookie ADP feed. Unavailable draft history never blocks league analysis or invents a 1.01 ranking.
+
+The prospect weight is `tenure × (0.90 − 0.55 × exposure)`, with tenure multipliers 1.0, 0.55 and 0.20 in NFL seasons one, two and three. Exposure is the larger of games/17 or opportunities/threshold, capped at one. Thresholds are 450 QB attempts, 200 RB carries+targets, and 150 WR/TE carries+targets. The dynasty base is the larger of the established-production estimate and its weighted blend with the prospect prior, then receives the existing age/QB-format adjustment. A breakout can exceed the prior; a slow start does not erase draft capital. Protection fades with sustained NFL evidence and tenure, disappearing in year four. Redraft values and starter pace remain production-based.
+
+Player details show the prior's source, starting value, retained weight, opportunities and verified league selection when present. Current league draft history is read through Sleeper's documented [draft and pick endpoints](https://docs.sleeper.com/#drafts). NFL metadata now includes overall selection and draft year where supplied by nflverse, with the previous metadata cache available as a fallback. Historical experience is adjusted to the selected season; age remains current as documented above.
 
 For Sleeper dynasty leagues (`settings.type=2`), pick inventory starts with original picks using the league's configured draft-round count for the next three seasons. Known traded-pick entries override the owner and can extend the horizon to five years. Unknown pick slots use mid-round estimates with early/late ranges; no exact future pick number is claimed. If draft rounds are unavailable, no pick inventory is fabricated.
 

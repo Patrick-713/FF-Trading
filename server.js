@@ -1,3 +1,4 @@
+import {loadRookieDrafts} from './prospects.js';
 import http from 'node:http';
 import { DatabaseSync } from 'node:sqlite';
 import { randomUUID, randomInt } from 'node:crypto';
@@ -105,6 +106,7 @@ async function analysis(id,input) {
     snapshot.teams=snapshot.teams.map(t=>({...t,protectedIds:t.protectedIds||[...(rosters?.find(r=>r.roster_id===t.rosterId)?.reserve||[]),...(rosters?.find(r=>r.roster_id===t.rosterId)?.taxi||[])],playerIds:t.playerIds||rosters?.find(r=>r.roster_id===t.rosterId)?.players||(t.id===snapshot.ownTeam?snapshot.players.map(p=>p.id):[])}));
     if(snapshot.league.type===2&&!snapshot.tradedPicks)snapshot.tradedPicks=await sleeper.get(`league/${link.league}/traded_picks`);
   }
+  if(snapshot)snapshot.rookieDrafts=await loadRookieDrafts(sleeper.get,snapshot.league,Number(snapshot.league.season),catalog);
   return fantasy.model(id,snapshot,catalog,input);
 }
 async function body(req) {

@@ -1,3 +1,4 @@
+import {prospectProfile} from './prospects.js';
 // FF Trading model v1: transparent heuristic values, not market prices or calibrated forecasts.
 export function parseCSV(text) {
   const rows=[];let row=[],field='',quoted=false;
@@ -17,7 +18,7 @@ export function pointsFor(row,s) {
   const rec=s.scoring==='ppr'?1:s.scoring==='half'?0.5:0;
   return num(row.passing_yards)*.04+num(row.passing_tds)*s.passTD-num(row.passing_interceptions)*2+num(row.rushing_yards)*.1+num(row.rushing_tds)*6+num(row.receiving_yards)*.1+num(row.receiving_tds)*6+num(row.receptions)*(rec+(row.position==='TE'?s.tePremium:0))-(num(row.rushing_fumbles_lost)+num(row.receiving_fumbles_lost)+num(row.sack_fumbles_lost))*2+(num(row.passing_2pt_conversions)+num(row.rushing_2pt_conversions)+num(row.receiving_2pt_conversions))*2+num(row.special_teams_tds)*6+num(row.fg_made)*3+num(row.pat_made)+num(row.def_tackles_solo)+num(row.def_tackle_assists)*.5+num(row.def_sacks)*3+num(row.def_interceptions)*3+num(row.def_pass_defended)+num(row.def_tds)*6+num(row.def_fumbles_forced)*2;
 }
-export function valuePlayer(player,rows,s) {
+export function valuePlayer(player,rows,s,season=new Date().getUTCFullYear()) {
   const games=rows.length,score=rows.map(r=>pointsFor(r,s)),ppg=games?score.reduce((a,b)=>a+b,0)/games:0;
   const recent=score.slice(-4),recentPPG=recent.length?recent.reduce((a,b)=>a+b,0)/recent.length:0;
   const sum=k=>rows.reduce((a,r)=>a+num(r[k]),0),avg=k=>{const available=rows.filter(r=>r[k]!==''&&r[k]!=null);return available.length?available.reduce((a,r)=>a+num(r[k]),0)/available.length:null;};
@@ -40,12 +41,15 @@ export function valuePlayer(player,rows,s) {
   const decay=({QB:.04,RB:.10,WR:.065,TE:.055})[player.position]??.07;
   const ageFactor=age==null?1:clamp(1+Math.max(0,peak-age)*.035-Math.max(0,age-peak)*decay,.35,1.22);
   const qbPremium=player.position==='QB'?(s.superflex?1.6:.85):1;
-  const dynasty=Math.round(Math.max(10,((redraft*.85+prior*.35)*sampleWeight+prior*(1-sampleWeight))*ageFactor*qbPremium));
+  const established=(redraft*.85+prior*.35)*sampleWeight+prior*(1-sampleWeight);
+  const prospect=prospectProfile(player,rows,season);
+  const longTerm=prospect?Math.max(established,established*(1-prospect.priorWeight)+prospect.capital*prospect.priorWeight):established;
+  const dynasty=Math.round(Math.max(10,longTerm*ageFactor*qbPremium));
   const confidence=games>=8?'Higher sample':games>=4?'Moderate sample':games?'Small sample':'Prospect / metadata estimate';
-  return {...player,redraft,dynasty,value:s.mode==='dynasty'?dynasty:redraft,pace:round(pace),confidence,games,
+  return {...player,redraft,dynasty,value:s.mode==='dynasty'?dynasty:redraft,pace:round(pace),confidence,games,prospect,
     stats:{ppg:round(ppg),recentPPG:round(recentPPG),targetsPerGame:games?round(targets/games):null,carriesPerGame:games?round(carries/games):null,targetShare:avg('target_share')===null?null:round(avg('target_share')*100),wopr:avg('wopr')===null?null:round(avg('wopr'),2),adot:targets?round(sum('receiving_air_yards')/targets):null,epaPerOpportunity:epa===null?null:round(epa,2),consistency:cv===null?null:round(clamp(1-cv,0,1)*100),yardsPerTouch:(carries+sum('receptions'))?round((sum('rushing_yards')+sum('receiving_yards'))/(carries+sum('receptions'))):null},
     breakdown:{production:Math.round(production),opportunity:Math.round(usage),efficiency:Math.round(efficiency),consistency:Math.round(consistency),ageFactor:round(ageFactor,2),draftPrior:prior},
-    notes:[...(!games?['No matched weekly stats: value is a low-confidence metadata estimate.']:[]),...(age==null?['Age unavailable; neutral dynasty age adjustment.']:[]),...(player.draftRound==null?['NFL draft round unavailable; neutral draft prior.']:[]),...(injury?[`Availability adjustment for listed status: ${player.injury}.`]:[])]};
+    notes:[...(prospect?[`Prospect prior: ${prospect.source}; ${Math.round(prospect.priorWeight*100)}% retained weight. Limited NFL production does not erase draft capital.`]:[]),...(!games?['No matched weekly stats: value is a low-confidence metadata estimate.']:[]),...(age==null?['Age unavailable; neutral dynasty age adjustment.']:[]),...(player.draftRound==null?['NFL draft round unavailable; neutral draft prior.']:[]),...(injury?[`Availability adjustment for listed status: ${player.injury}.`]:[])]};
 }
 export function pickValue(pick,settings,season,tier='mid') {
   if(settings.mode!=='dynasty')return 0;
