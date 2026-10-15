@@ -72,8 +72,8 @@ function eligible(position,slot) {
   return position===slot||(slot==='DEF'&&position==='DST');
 }
 // Hungarian assignment with dummy empty spots: optimizes weekly pace without using a player twice.
-export function lineupPace(players,slots) {
-  const n=slots.length,m=players.length+n;if(!n)return 0;
+export function lineup(players,slots) {
+  const n=slots.length,m=players.length+n;if(!n)return {pace:0,starters:[],bench:players};
   const u=Array(n+1).fill(0),v=Array(m+1).fill(0),p=Array(m+1).fill(0),way=Array(m+1).fill(0);
   const cost=(i,j)=>j>players.length?0:eligible(players[j-1].position,slots[i-1])?-players[j-1].pace:1e6;
   for(let i=1;i<=n;i++){p[0]=i;let j0=0;const min=Array(m+1).fill(Infinity),used=Array(m+1).fill(false);
@@ -82,22 +82,9 @@ export function lineupPace(players,slots) {
     }while(p[j0]!==0);
     do{const j1=way[j0];p[j0]=p[j1];j0=j1;}while(j0!==0);
   }
-  return round(players.reduce((sum,player,j)=>sum+(p[j+1]&&eligible(player.position,slots[p[j+1]-1])?player.pace:0),0));
+  const starters=slots.map((slot,i)=>({slot,player:players.find((player,j)=>p[j+1]===i+1&&eligible(player.position,slot))||null}));
+  const usedIds=new Set(starters.filter(s=>s.player).map(s=>s.player.id));
+  return {pace:round(starters.reduce((sum,s)=>sum+(s.player?.pace||0),0)),starters,bench:players.filter(p=>!usedIds.has(p.id))};
 }
-export function analyzeTrade(model,input) {
-  const {teamA,teamB,sendA,sendB}=input;
-  if(teamA===teamB||!model.teams.some(t=>t.id===teamA)||!model.teams.some(t=>t.id===teamB))throw new Error('Choose two different teams.');
-  if(!Array.isArray(sendA)||!Array.isArray(sendB)||!sendA.length||!sendB.length||sendA.length+sendB.length>40)throw new Error('Select at least one asset on each side (maximum 40).');
-  const ids=[...sendA,...sendB];if(ids.some(id=>typeof id!=='string')||new Set(ids).size!==ids.length)throw new Error('An asset can appear only once.');
-  const assets=[...model.players,...model.picks];
-  const selected=(list,owner)=>list.map(id=>{const a=assets.find(a=>a.id===id&&a.owner===owner);if(!a)throw new Error('An asset is no longer on the selected team. Refresh your league.');if(a.kind==='pick'&&model.settings.mode!=='dynasty')throw new Error('Draft picks are only valued in dynasty mode.');return a;});
-  const a=selected(sendA,teamA),b=selected(sendB,teamB),sum=list=>list.reduce((s,a)=>s+a.value,0);
-  const report=(id,outgoing,incoming)=>{
-    const before=assets.filter(a=>a.owner===id&&(model.settings.mode==='dynasty'||a.kind!=='pick'));
-    const after=[...before.filter(a=>!outgoing.some(o=>o.id===a.id)),...incoming];
-    const beforePace=lineupPace(before.filter(a=>a.kind!=='pick'),model.slots),afterPace=lineupPace(after.filter(a=>a.kind!=='pick'),model.slots);
-    return {team:id,beforeValue:sum(before),afterValue:sum(after),valueChange:sum(incoming)-sum(outgoing),beforePace,afterPace,paceChange:round(afterPace-beforePace),positions:Object.fromEntries(['QB','RB','WR','TE'].map(pos=>[pos,{before:before.filter(a=>a.position===pos).length,after:after.filter(a=>a.position===pos).length}]))};
-  };
-  const give=sum(a),get=sum(b),difference=round((get-give)/Math.max((get+give)/2,1)*100);
-  return {settings:model.settings,sent:a,received:b,give,get,difference,teamA:report(teamA,a,b),teamB:report(teamB,b,a),summary:Math.abs(difference)<=10?'Values are within 10%':difference>0?'Team A receives more model value':'Team B receives more model value',notes:['A hypothetical comparison only. Nothing is submitted to Sleeper.','Starter pace uses past weekly production, not a rest-of-season forecast.','Values are additive: roster limits, league bonuses, and future pick outcomes still need your judgment.']};
-}
+export function lineupPace(players,slots){return lineup(players,slots).pace;}
+export { analyzeTrade, findTrades } from './trade-engine.js';

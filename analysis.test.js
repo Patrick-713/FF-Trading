@@ -19,7 +19,16 @@ test('analysis API supports both formats, persists scenarios, and never executes
     const dynasty=await request('analysis/settings',guest.cookie,'PUT',{mode:'dynasty',superflex:true});assert.equal(dynasty.status,200);assert.equal(dynasty.data.picks.length,18);
     const pick=dynasty.data.picks.find(p=>p.owner==='demo_a');
     const picks=await request('analysis/trade',guest.cookie,'POST',{...input,sendA:[pick.id]});assert.equal(picks.status,200);
-    const saved=await request('analysis/save',guest.cookie,'POST',{...input,title:'Test comparison'});assert.equal(saved.data.saved.length,1);
+    const adjusted={...input,includeWaivers:false,assumptions:{demo_7:{workload:.85,development:1.3}}};
+    const saved=await request('analysis/save',guest.cookie,'POST',{...adjusted,title:'Test comparison'});assert.equal(saved.data.saved.length,1);
+    assert.deepEqual(saved.data.saved[0].input.assumptions.demo_7,{workload:.85,development:1.3,tier:'mid'});
+    assert.equal(saved.data.saved[0].input.includeWaivers,false);
+    assert.ok(saved.data.saved[0].result.teamA.afterLineup);
+    assert.equal(saved.data.saved[0].result.sensitivity.length,2);
+    const ideas=await request('analysis/find',guest.cookie,'POST',{goal:'WR'});assert.equal(ideas.status,200);assert.ok(Array.isArray(ideas.data.offers));
+    assert.equal((await request('analysis/find',guest.cookie,'POST',{goal:'invalid'})).status,400);
+    assert.equal((await request('analysis/trade',guest.cookie,'POST',{...input,assumptions:{demo_0:{workload:1}}})).status,400);
+    const script=await fetch(`http://127.0.0.1:${port}/trade-tools.js`);assert.equal(script.status,200);assert.match(script.headers.get('content-type'),/javascript/);
     const other=await request('state');assert.equal((await request('analysis',other.cookie)).data.saved.length,0);
     await request('analysis/settings',guest.cookie,'PUT',{mode:'redraft'});
     assert.equal((await request('analysis/trade',guest.cookie,'POST',{...input,sendA:[pick.id]})).status,400);

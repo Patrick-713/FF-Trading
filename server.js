@@ -8,7 +8,7 @@ import { players, slots, initialRoster, teams, validateRoster, tradeAmounts, nex
 import { createSleeperClient } from './sleeper.js';
 import { createAuth } from './auth.js';
 import { createFantasy } from './fantasy.js';
-import { analyzeTrade } from './valuation.js';
+import { analyzeTrade, findTrades } from './valuation.js';
 
 const root = dirname(fileURLToPath(import.meta.url));
 const dbPath = process.env.DB_PATH || resolve(root, 'data/ff-trading.sqlite');
@@ -101,8 +101,8 @@ async function analysis(id,input) {
   if(snapshot){
     catalog=cached('players/nfl')||{};
     const raw=cached(`league/${link.league}`),rosters=cached(`league/${link.league}/rosters`);
-    if(raw){snapshot.league.type=Number(raw.settings?.type||0);snapshot.league.draftRounds=Number(raw.settings?.draft_rounds||0);snapshot.league.scoring=raw.scoring_settings||{};}
-    snapshot.teams=snapshot.teams.map(t=>({...t,playerIds:t.playerIds||rosters?.find(r=>r.roster_id===t.rosterId)?.players||(t.id===snapshot.ownTeam?snapshot.players.map(p=>p.id):[])}));
+    if(raw){snapshot.league.type=Number(raw.settings?.type||0);snapshot.league.draftRounds=Number(raw.settings?.draft_rounds||0);snapshot.league.scoring=raw.scoring_settings||{};snapshot.rosterLimit=(raw.roster_positions||[]).filter(p=>!['IR','TAXI'].includes(p)).length;}
+    snapshot.teams=snapshot.teams.map(t=>({...t,protectedIds:t.protectedIds||[...(rosters?.find(r=>r.roster_id===t.rosterId)?.reserve||[]),...(rosters?.find(r=>r.roster_id===t.rosterId)?.taxi||[])],playerIds:t.playerIds||rosters?.find(r=>r.roster_id===t.rosterId)?.players||(t.id===snapshot.ownTeam?snapshot.players.map(p=>p.id):[])}));
     if(snapshot.league.type===2&&!snapshot.tradedPicks)snapshot.tradedPicks=await sleeper.get(`league/${link.league}/traded_picks`);
   }
   return fantasy.model(id,snapshot,catalog,input);
@@ -140,6 +140,9 @@ const server = http.createServer(async (req, res) => {
       if (req.method === 'GET' && url.pathname === '/api/state') return json(res, 200, state(id));
       if(req.method==='GET'&&url.pathname==='/api/analysis')return json(res,200,await analysis(id));
       if(req.method==='PUT'&&url.pathname==='/api/analysis/settings')return json(res,200,await analysis(id,await body(req)));
+      if(req.method==='POST'&&url.pathname==='/api/analysis/find'){
+        const input=await body(req),model=await analysis(id);if(!model.data.ready)throw new Error('Load statistics before finding trades.');return json(res,200,findTrades(model,input));
+      }
       if(req.method==='POST'&&url.pathname==='/api/analysis/trade'){
         const input=await body(req),model=await analysis(id);if(!model.data.ready)throw new Error('Load statistics before analyzing a trade.');
         return json(res,200,analyzeTrade(model,input));
@@ -147,7 +150,7 @@ const server = http.createServer(async (req, res) => {
       if(req.method==='POST'&&url.pathname==='/api/analysis/save'){
         const input=await body(req),model=await analysis(id);if(!model.data.ready)throw new Error('Load statistics before saving a trade.');
         const result=analyzeTrade(model,input);const title=String(input.title||'Trade scenario').trim().slice(0,80);
-        db.prepare('INSERT INTO trade_scenarios VALUES (?,?,?,?)').run(randomUUID(),id,JSON.stringify({title,input:{teamA:input.teamA,teamB:input.teamB,sendA:input.sendA,sendB:input.sendB},result,league:connection(id)?.league||'demo'}),new Date().toISOString());
+        db.prepare('INSERT INTO trade_scenarios VALUES (?,?,?,?)').run(randomUUID(),id,JSON.stringify({title,input:{teamA:input.teamA,teamB:input.teamB,sendA:input.sendA,sendB:input.sendB,assumptions:result.assumptions,includeWaivers:input.includeWaivers!==false},result,league:connection(id)?.league||'demo'}),new Date().toISOString());
         return json(res,200,await analysis(id));
       }
       if (req.method === 'POST' && url.pathname === '/api/sleeper/lookup') {
@@ -224,7 +227,7 @@ const server = http.createServer(async (req, res) => {
       return json(res, 404, { error: 'Endpoint not found.' });
     }
     if (req.method !== 'GET') return json(res, 405, { error: 'Method not allowed.' });
-    const files = { '/': 'index.html', '/app.js': 'app.js', '/styles.css': 'styles.css' };
+    const files = { '/': 'index.html', '/app.js': 'app.js', '/trade-tools.js':'trade-tools.js', '/styles.css': 'styles.css' };
     const file = files[url.pathname]; if (!file) return json(res, 404, { error: 'Not found.' });
     res.writeHead(200, { 'Content-Type': ({ '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css' })[extname(file)] });
     res.end(readFileSync(resolve(root, 'public', file)));

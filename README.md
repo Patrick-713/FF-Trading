@@ -16,7 +16,8 @@ Open http://127.0.0.1:3000. Run `node --test` for validation. `PORT`, `HOST`, an
 
 - **My Team:** player value, dynasty draft capital, optimized starter scoring pace, roster breakdown, and league roster comparisons.
 - **Player Values:** rostered league players plus active offensive free agents with stats or rookie status. Search by name/team, filter positions, and inspect statistics, confidence, and model components.
-- **Trade Simulator:** choose a league partner, select players and dynasty picks on both sides, and compare value, positional depth, and starter pace before/after.
+- **Trade Simulator:** search for a player across the league or choose a team, then select players and dynasty picks. Compare both time horizons, lineup assignments, cuts, waiver replacements, and bench depth. Adjust assumptions and save the whole scenario.
+- **Trade Finder:** inside the simulator, choose a positional upgrade, younger roster, draft capital, current starters, or long-term value. Review offers that show a measurable modeled benefit for each manager, then open any idea in the builder.
 - **Saved Scenarios:** store hypothetical comparisons under the current account and league. Loading selections uses the scenario's settings; analyze again against current values.
 - **Link Sleeper:** import rosters, team identities, completed-week results, and dynasty traded picks.
 - **Account:** free local email/password login with recovery codes; existing leagues remain saved.
@@ -45,7 +46,17 @@ Heuristic mid-round values: 1st 1,050; 2nd 500; 3rd 250; 4th 125; 5th 65. Early 
 
 ## Trade analysis
 
-The server validates team ownership and rejects duplicate assets, empty sides, and redraft pick trades. It reports additive asset value, roster value change, position depth, and optimized starter pace for **both teams**. Nothing is submitted to Sleeper or applied to the imported roster. Multiple modest players can add up to a star's value; consider lineup impact, roster limits, consolidation, and confidence rather than treating the sum as an automatic recommendation.
+The server validates team ownership and rejects duplicate assets, empty sides, and redraft pick trades. Searching an opponent's player selects their actual team; switching partners clears the previous receive selection. Free agents are labeled and can be inspected; they cannot be represented as another manager's trade assets.
+
+Both managers receive separate current-production and dynasty-value comparisons, plus an optimized lineup before/after and bench depth/value. These are alternative heuristic perspectives, not comparable currencies or calibrated projections. A contender/rebuilder explanation highlights when starter pace and dynasty value move in opposite directions.
+
+Active capacity comes from Sleeper's starter/bench slot configuration. IR/taxi players are excluded from active starters and automatic cuts. Incoming players default to active spots; real IR/taxi eligibility needs review. For an over-capacity roster the engine suggests cuts that minimize starter-pace loss, breaking ties by lowest model value. Trade-created openings can receive suggested replacements from the imported free-agent pool; unrelated pre-existing openings are not auto-filled. Replacements are conditional on availability and waiver rules. Disable them to see the trade without assumed additions. If capacity is missing or no replacement exists, the report says so. Net roster changes include these cuts/additions; exchange value is shown separately. Cuts and waiver suggestions are automatic planning assumptions and are not submitted anywhere.
+
+Selected players accept workload and dynasty-development multipliers from 50–150%. Workload scales current value and starter pace, while development scales dynasty value only. Future picks accept early/mid/late assumptions. The report compares the unadjusted model with the user's scenario and two stress cases: incoming workload ±15%, development ±10%, and pick slots early/late, with the opposite adjustments to outgoing assets. These cases are illustrative bounds, not probabilities. The exchange-value verdict uses a ±10% balanced band and shows whether the verdict changes in a tested case. Saved scenarios retain assumptions and the waiver setting; reloading recalculates only when the user analyzes again.
+
+Trade Finder searches singles and two-for-one exchanges, using up to 28 assets per team, the top 14 for paired packages, and up to 12 targets. It filters to exchanges within 20% value, prefilters for the selected goal, and evaluates up to 100 candidates with per-team quotas. Results require goal progress and a benefit to the partner in starter pace, current value, or dynasty value, with no modeled roster-value loss greater than 25% of the exchange (minimum allowance 100 units). It shows up to eight ideas, at most two per partner. This is a bounded search, not an exhaustive optimizer or a prediction of manager acceptance; an empty result does not mean no good trade exists.
+
+Nothing is submitted to Sleeper or applied to the imported roster. Multiple modest players can still add up to a star's model value; roster-aware consequences add context without guaranteeing fairness.
 
 ## Free accounts
 
@@ -59,7 +70,8 @@ For online access, host the same server and persistent database behind HTTPS, se
 | --- | --- | --- |
 | GET | `/api/analysis` | Player values, teams, picks, settings, data coverage, saved scenarios |
 | PUT | `/api/analysis/settings` | `mode`, `scoring`, `superflex`, `tePremium`, `passTD` |
-| POST | `/api/analysis/trade` | `teamA`, `teamB`, `sendA`, `sendB` asset IDs |
+| POST | `/api/analysis/trade` | `teamA`, `teamB`, `sendA`, `sendB` asset IDs; optional `assumptions` keyed by selected asset ID (`workload`, `development`, `tier`) and `includeWaivers` boolean |
+| POST | `/api/analysis/find` | `goal`: `WR`, `RB`, `QB`, `TE`, `younger`, `picks`, `contend`, or `rebuild`; optional `includeWaivers` |
 | POST | `/api/analysis/save` | Same selections plus optional `title` |
 | POST | `/api/sleeper/lookup` | `username`, optional `season` |
 | POST | `/api/sleeper/link` | `username`, `leagueId` |
