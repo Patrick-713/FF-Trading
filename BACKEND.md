@@ -4,17 +4,17 @@ FF Trading is a Node.js HTTP service, a SQLite database, provider adapters, and 
 
 ## Responsibilities
 
-| File | Responsibility |
-| --- | --- |
-| `server.js` | HTTP routing, account context, refresh orchestration, responses |
-| `database.js` | Versioned atomic migrations and transactions |
-| `auth.js` | Password/recovery hashing, login sessions and throttling |
-| `sleeper.js` | Fixed-origin public league imports, caching and timeouts |
-| `fantasy.js` | Statistics refresh, frozen analysis inputs, league settings and model assembly |
-| `valuation.js`, `prospects.js` | Production values, dynasty priors, scoring and lineup optimization |
-| `trade-engine.js` | Ownership checks, roster consequences, assumptions and bounded offer discovery |
-| `model-version.js`, `evaluate-model.js` | Explicit model identity and repeatable behavioral evaluation |
-| `errors.js` | Public error policy and allowlisted request logging |
+| File                                    | Responsibility                                                                 |
+| --------------------------------------- | ------------------------------------------------------------------------------ |
+| `server.js`                             | HTTP routing, account context, refresh orchestration, responses                |
+| `database.js`                           | Versioned atomic migrations and transactions                                   |
+| `auth.js`                               | Password/recovery hashing, login sessions and throttling                       |
+| `sleeper.js`                            | Fixed-origin public league imports, caching and timeouts                       |
+| `fantasy.js`                            | Statistics refresh, frozen analysis inputs, league settings and model assembly |
+| `valuation.js`, `prospects.js`          | Production values, dynasty priors, scoring and lineup optimization             |
+| `trade-engine.js`                       | Ownership checks, roster consequences, assumptions and bounded offer discovery |
+| `model-version.js`, `evaluate-model.js` | Explicit model identity and repeatable behavioral evaluation                   |
+| `errors.js`                             | Public error policy and allowlisted request logging                            |
 
 ## Read versus refresh
 
@@ -23,6 +23,12 @@ FF Trading is a Node.js HTTP service, a SQLite database, provider adapters, and 
 `POST /api/sleeper/link`, `/api/sleeper/sync` or `/api/analysis/refresh` imports league data and prepares statistics/metadata. Cache TTLs avoid unnecessary upstream downloads. The compact player catalog, statistics, metadata and metadata observation date are saved as frozen inputs. The connection and inputs are committed in one transaction after required data is prepared. A failed initial refresh returns 503 and does not commit a partial link. Existing snapshots remain available; stale cached statistics can be retained with a warning. Optional rookie-draft history can fail without discarding the rest of the snapshot.
 
 Trade/save/finder requests compute from frozen inputs and settings; they never wait for providers. Another account refreshing a shared cache does not change these inputs. The UI displays the refresh time and a refresh recommendation after six hours. Existing pre-migration links need **Refresh league data** once before trade analysis is enabled. Refresh is explicit, not a scheduler or background worker.
+
+## Scoring defaults and player normalization
+
+The `league-format.js` helper imports only supported scoring controls, including TE reception premium. Unsupported premium values produce a warning. The `player-metadata.js` helper gives rostered players and free agents the same valuation inputs; ownership does not change prospect protection.
+
+Analysis exposes three separate flags: `ready` for a usable prepared model, `productionAvailable` for completed-game history, and `prospectOnly` for a dynasty comparison using prospect/pick estimates. In prospect-only mode, current-production and starter-pace result fields are null and the UI labels them unavailable. Unverified players and starter-improvement goals are excluded from that mode. A missing saved snapshot remains blocked.
 
 ## Settings and saved results
 
@@ -46,16 +52,16 @@ This evaluates intended behavior, **not predictive accuracy**. There is no inven
 
 Every response has an `X-Request-ID`. Error JSON includes `error`, stable `code` and matching `requestId`.
 
-| Status | Meaning |
-| --- | --- |
-| 400 | Invalid selections, settings, credentials format or JSON |
-| 401 / 403 | Failed authentication / rejected cross-origin mutation |
-| 404 / 405 | Missing resource or removed route / wrong HTTP method |
-| 409 | Refresh already running or analysis snapshot not ready |
-| 413 / 415 | Oversized body / incorrect content type |
-| 429 | Authentication throttled or password hashing busy |
-| 503 | Required provider data unavailable |
-| 500 | Unexpected internal failure; generic public message |
+| Status    | Meaning                                                  |
+| --------- | -------------------------------------------------------- |
+| 400       | Invalid selections, settings, credentials format or JSON |
+| 401 / 403 | Failed authentication / rejected cross-origin mutation   |
+| 404 / 405 | Missing resource or removed route / wrong HTTP method    |
+| 409       | Refresh already running or analysis snapshot not ready   |
+| 413 / 415 | Oversized body / incorrect content type                  |
+| 429       | Authentication throttled or password hashing busy        |
+| 503       | Required provider data unavailable                       |
+| 500       | Unexpected internal failure; generic public message      |
 
 Completed requests produce JSON logs containing only request ID, method, fixed route name, status, duration and optional error code. Unknown routes log as `unknown`. Bodies, queries, cookies, credentials, email addresses, provider identities and raw exceptions are excluded. Use the request ID shown by the UI to locate a failed request. Logs establish where/when a failure occurred; they do not include raw stack traces.
 

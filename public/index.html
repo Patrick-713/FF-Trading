@@ -1,9 +1,74 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#1e2534"><meta name="description" content="Value your fantasy players and dynasty picks. Simulate trades in redraft and dynasty."><title>FF Trading — Know your roster</title><link rel="stylesheet" href="/styles.css"><script src="/app.js" type="module"></script></head>
-<body>
-  <aside class="sidebar"><a class="brand" href="/" aria-label="FF Trading home"><span class="brand-icon">ff<span>↗</span></span><span>FF Trading<small>ROSTER INTELLIGENCE</small></span></a><div class="nav-label">WORKSPACE</div><nav aria-label="Main navigation"><button class="nav active" data-view="team">◈ <span>My Team</span></button><button class="nav" data-view="players">↗ <span>Player Values</span></button><button class="nav" data-view="trade">⇄ <span>Trade Simulator</span></button><button class="nav" data-view="saved">▤ <span>Saved Scenarios</span></button><button class="nav" data-view="sleeper">⛓ <span>Link Sleeper</span></button><button class="nav" data-view="account">◉ <span>Account</span></button></nav><div class="sidebar-bottom"><div class="demo-card"><span class="dot"></span> DYNASTY + REDRAFT<small>Player values. Trade insights.<br>Your league, in perspective.</small></div><div class="profile"><span class="avatar" id="profile-avatar">GC</span><div><span id="profile-team">Gridiron Capital</span><small id="profile-mode">Demo manager</small></div></div></div></aside>
-  <div class="workspace"><header><div><span class="breadcrumb">Workspace</span><span class="slash">/</span><span id="page-name">Overview</span></div><div class="header-right"><span class="season"><span id="season-label">DEMO SEASON</span> · <span id="week">WEEK 8</span></span><button class="trade-button" id="account-button" data-view="account">Sign up / Log in</button><button class="icon-button" id="rules" aria-label="How valuation works">?</button></div></header><div id="format-switch" class="format-bar" aria-label="Valuation format"></div><main id="main"><div class="loading">Loading your player analysis…</div></main><footer><span>FF Trading © 2026</span><span id="footer-disclaimer">Player values and hypothetical trade insights.</span></footer></div>
-  <dialog id="details-dialog"><div class="dialog-head"><span class="eyebrow">FF TRADING INSIGHTS</span><button class="icon-button" data-close aria-label="Close">×</button></div><div id="details-content"></div></dialog>
-  <dialog id="recovery-dialog"><span class="eyebrow">SAVE THIS ONCE</span><h2>Your account recovery code</h2><p>Save this code in your password manager. It can reset your password and will not be shown again. A successful reset replaces it with a new code.</p><code id="recovery-code" class="recovery-code"></code><button class="primary full" data-close>I saved my recovery code</button></dialog><div id="toast" role="status"></div>
-</body></html>
+  <head
+    ><meta charset="UTF-8" /><meta
+      name="viewport"
+      content="width=device-width, initial-scale=1" /><meta
+      name="theme-color"
+      content="#1e2534" /><meta
+      name="description"
+      content="Value your fantasy players and dynasty picks. Simulate trades in redraft and dynasty." /><title
+      >FF Trading | Know your roster</title
+    ><link rel="stylesheet" href="/styles.css" /><script src="/app.js" type="module"></script
+  ></head>
+  <body>
+    <aside class="sidebar"
+      ><a class="brand" href="/" aria-label="FF Trading home"
+        ><span class="brand-icon">ff<span>↗</span></span
+        ><span>FF Trading<small>ROSTER INTELLIGENCE</small></span></a
+      ><div class="nav-label">WORKSPACE</div
+      ><nav aria-label="Main navigation"
+        ><button class="nav active" data-view="team">◈ <span>My Team</span></button
+        ><button class="nav" data-view="players">↗ <span>Player Values</span></button
+        ><button class="nav" data-view="trade">⇄ <span>Trade Simulator</span></button
+        ><button class="nav" data-view="saved">▤ <span>Saved Scenarios</span></button
+        ><button class="nav" data-view="sleeper">⛓ <span>Link Sleeper</span></button
+        ><button class="nav" data-view="account">◉ <span>Account</span></button></nav
+      ><div class="sidebar-bottom"
+        ><div class="demo-card"
+          ><span class="dot"></span> DYNASTY + REDRAFT<small
+            >Player values. Trade insights.<br />Your league, in perspective.</small
+          ></div
+        ><div class="profile"
+          ><span class="avatar" id="profile-avatar">GC</span
+          ><div
+            ><span id="profile-team">Gridiron Capital</span
+            ><small id="profile-mode">Demo manager</small></div
+          ></div
+        ></div
+      ></aside
+    >
+    <div class="workspace"
+      ><header
+        ><div
+          ><span class="breadcrumb">Workspace</span><span class="slash">/</span
+          ><span id="page-name">Overview</span></div
+        ><div class="header-right"
+          ><span class="season"
+            ><span id="season-label">DEMO SEASON</span> · <span id="week">WEEK 8</span></span
+          ><button class="trade-button" id="account-button" data-view="account"
+            >Sign up / Log in</button
+          ><button class="icon-button" id="rules" aria-label="How valuation works">?</button></div
+        ></header
+      ><div id="format-switch" class="format-bar" aria-label="Valuation format"></div
+      ><main id="main"><div class="loading">Loading your player analysis…</div></main
+      ><footer
+        ><span>FF Trading © 2026</span
+        ><span id="footer-disclaimer">Player values and hypothetical trade insights.</span></footer
+      ></div
+    >
+    <dialog id="details-dialog"
+      ><div class="dialog-head"
+        ><span class="eyebrow">FF TRADING INSIGHTS</span
+        ><button class="icon-button" data-close aria-label="Close">×</button></div
+      ><div id="details-content"></div
+    ></dialog>
+    <dialog id="recovery-dialog"
+      ><span class="eyebrow">SAVE THIS ONCE</span><h2>Your account recovery code</h2
+      ><p
+        >Save this code in your password manager. It can reset your password and will not be shown
+        again. A successful reset replaces it with a new code.</p
+      ><code id="recovery-code" class="recovery-code"></code
+      ><button class="primary full" data-close>I saved my recovery code</button></dialog
+    ><div id="toast" role="status"></div> </body
+></html>
