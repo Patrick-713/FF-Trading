@@ -25,8 +25,8 @@ test('settings are league-scoped and model reads never fetch or write', async ()
   const before = db.prepare('SELECT total_changes() AS n').get().n;
   await fantasy.model('a', snapshot('one'), {});
   assert.equal(db.prepare('SELECT total_changes() AS n').get().n, before);
-  fantasy.saveSettings('a', snapshot('one'), { mode: 'dynasty', scoring: 'half' });
-  fantasy.saveSettings('a', snapshot('two'), { mode: 'redraft', scoring: 'standard' });
+  await fantasy.saveSettings('a', snapshot('one'), { mode: 'dynasty', scoring: 'half' });
+  await fantasy.saveSettings('a', snapshot('two'), { mode: 'redraft', scoring: 'standard' });
   assert.equal((await fantasy.model('a', snapshot('one'), {})).settings.scoring, 'half');
   assert.equal((await fantasy.model('a', snapshot('two'), {})).settings.scoring, 'standard');
   assert.equal(fetches, 0);
@@ -50,7 +50,7 @@ test('analysis uses a frozen input snapshot despite shared cache changes', async
     ownTeam: 't',
     analysisRefreshedAt: new Date().toISOString(),
   };
-  fantasy.storeSnapshot('a', snapshot, {
+  await fantasy.storeSnapshot('a', snapshot, {
     statistics: {
       season: 2026,
       source: 'Test',

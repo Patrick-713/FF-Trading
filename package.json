@@ -5,12 +5,17 @@
   "type": "module",
   "description": "Fantasy player valuation and trade analysis for dynasty and redraft",
   "engines": {
-    "node": ">=24"
+    "node": "24.x"
   },
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
     "test": "node --test",
-    "evaluate": "node evaluate-model.js"
+    "evaluate": "node evaluate-model.js",
+    "db:migrate": "node migrate-cloud.js"
+  },
+  "dependencies": {
+    "@vercel/functions": "^3.10.1",
+    "pg": "^8.23.1"
   }
 }

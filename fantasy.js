@@ -20,7 +20,8 @@ const normal = (s) =>
     .replace(/(jr|sr|iii|ii|iv)$/, '');
 export function createFantasy(db, { fetcher = globalThis.fetch } = {}) {
   // Each table has one storage responsibility: provider cache, inputs, settings or saved results.
-  db.exec(`
+  if (!db.remote)
+    db.exec(`
     CREATE TABLE IF NOT EXISTS analysis_snapshots (
       account TEXT NOT NULL REFERENCES accounts(id),
       league TEXT NOT NULL,
@@ -49,8 +50,12 @@ export function createFantasy(db, { fetcher = globalThis.fetch } = {}) {
   let inFlight = new Map();
   /** Refresh the NFL metadata cache, retaining saved metadata during provider outages. */
   async function metadata() {
-    const cached = db.prepare('SELECT * FROM fantasy_cache WHERE key=?').get('player-metadata-v2');
-    const legacy = db.prepare('SELECT * FROM fantasy_cache WHERE key=?').get('player-metadata');
+    const cached = await db
+      .prepare('SELECT * FROM fantasy_cache WHERE key=?')
+      .get('player-metadata-v2');
+    const legacy = await db
+      .prepare('SELECT * FROM fantasy_cache WHERE key=?')
+      .get('player-metadata');
     if (cached && Date.now() - cached.fetched < 86400000) return JSON.parse(cached.data);
     try {
       const r = await fetcher(
@@ -73,9 +78,11 @@ export function createFantasy(db, { fetcher = globalThis.fetch } = {}) {
             },
           ]),
       );
-      db.prepare(
-        'INSERT INTO fantasy_cache VALUES (?,?,?) ON CONFLICT(key) DO UPDATE SET data=excluded.data,fetched=excluded.fetched',
-      ).run('player-metadata-v2', JSON.stringify(result), Date.now());
+      await db
+        .prepare(
+          'INSERT INTO fantasy_cache VALUES (?,?,?) ON CONFLICT(key) DO UPDATE SET data=excluded.data,fetched=excluded.fetched',
+        )
+        .run('player-metadata-v2', JSON.stringify(result), Date.now());
       return result;
     } catch (error) {
       if (error?.code === 'ERR_SQLITE_ERROR') throw error;
@@ -86,7 +93,9 @@ export function createFantasy(db, { fetcher = globalThis.fetch } = {}) {
   async function stats(season, allowFallback = true) {
     if (inFlight.has(season)) return inFlight.get(season);
     const job = (async () => {
-      const cached = db.prepare('SELECT * FROM fantasy_cache WHERE key=?').get(`stats:${season}`);
+      const cached = await db
+        .prepare('SELECT * FROM fantasy_cache WHERE key=?')
+        .get(`stats:${season}`);
       if (cached && Date.now() - cached.fetched < 6 * 3600000)
         return { ...JSON.parse(cached.data), fetched: cached.fetched };
       try {
@@ -109,9 +118,11 @@ export function createFantasy(db, { fetcher = globalThis.fetch } = {}) {
           throw new Error('Invalid stats file');
         const data = { season, rows, source: 'nflverse weekly player statistics', url };
         const fetched = Date.now();
-        db.prepare(
-          'INSERT INTO fantasy_cache VALUES (?,?,?) ON CONFLICT(key) DO UPDATE SET data=excluded.data,fetched=excluded.fetched',
-        ).run(`stats:${season}`, JSON.stringify(data), fetched);
+        await db
+          .prepare(
+            'INSERT INTO fantasy_cache VALUES (?,?,?) ON CONFLICT(key) DO UPDATE SET data=excluded.data,fetched=excluded.fetched',
+          )
+          .run(`stats:${season}`, JSON.stringify(data), fetched);
         return { ...data, fetched };
       } catch (error) {
         if (error?.code === 'ERR_SQLITE_ERROR') throw error;
@@ -141,7 +152,7 @@ export function createFantasy(db, { fetcher = globalThis.fetch } = {}) {
   async function model(account, snapshot, catalog, input) {
     const league = snapshot?.league.id || 'demo';
     const savedSnapshot = snapshot
-      ? db
+      ? await db
           .prepare('SELECT data,refreshed FROM analysis_snapshots WHERE account=? AND league=?')
           .get(account, league)
       : null;
@@ -152,7 +163,7 @@ export function createFantasy(db, { fetcher = globalThis.fetch } = {}) {
       catalog = inputs.catalog;
       snapshot = { ...snapshot, analysisRefreshedAt: savedSnapshot.refreshed };
     }
-    const stored = db
+    const stored = await db
       .prepare('SELECT data FROM league_settings WHERE account=? AND league=?')
       .get(account, league);
     const imported = leagueDefaults(snapshot);
@@ -163,8 +174,8 @@ export function createFantasy(db, { fetcher = globalThis.fetch } = {}) {
     const season = Number(snapshot?.league.season || new Date().getUTCFullYear());
     let data, teams, allPlayers, slots, picks;
     if (snapshot) {
-      const statistics = inputs?.statistics || readStats(season),
-        meta = inputs?.metadata || readMetadata();
+      const statistics = inputs?.statistics || (await readStats(season)),
+        meta = inputs?.metadata || (await readMetadata());
       data = statistics;
       const through = data.season === season ? snapshot.settledWeek : 18;
       data = { ...data, rows: data.rows.filter((r) => Number(r.week) <= through) };
@@ -329,12 +340,16 @@ export function createFantasy(db, { fetcher = globalThis.fetch } = {}) {
         playerCount: roster.length,
       };
     });
-    const saved = db
-      .prepare('SELECT id,data,created FROM trade_scenarios WHERE account=? ORDER BY created DESC')
-      .all(account)
-      .map((r) => ({ id: r.id, ...JSON.parse(r.data), created: r.created }))
-      .filter((s) => s.league === (snapshot?.league.id || 'demo'))
-      .slice(0, 20);
+    const leagueExpression = db.remote ? "data::jsonb->>'league'" : "json_extract(data,'$.league')";
+    const saved = (
+      await db
+        .prepare(
+          'SELECT id,data,created FROM trade_scenarios WHERE account=? AND ' +
+            leagueExpression +
+            '=? ORDER BY created DESC LIMIT 20',
+        )
+        .all(account, snapshot?.league.id || 'demo')
+    ).map((r) => ({ id: r.id, ...JSON.parse(r.data), created: r.created }));
     const productionAvailable = data.rows.length > 0;
     const hasProspect = players.some(
       (player) => player.prospect && player.prospect.source !== 'Limited metadata prior',
@@ -396,8 +411,8 @@ export function createFantasy(db, { fetcher = globalThis.fetch } = {}) {
       methodology: `FF Trading model ${MODEL_VERSION} heuristic. Production above a position baseline, opportunity, target share, WOPR, EPA per opportunity, and consistency drive player values. Dynasty adds age curves, NFL draft capital, verified league rookie-draft context when available, a fading prospect prior over the first three seasons, and a superflex QB premium. Rookie draft context is not consensus rank. Past scoring pace is not a forecast; no proprietary rankings or live market prices are used.`,
     };
   }
-  function readMetadata() {
-    const cached = db
+  async function readMetadata() {
+    const cached = await db
       .prepare(
         'SELECT data FROM fantasy_cache WHERE key IN (?,?) ORDER BY CASE key WHEN ? THEN 0 ELSE 1 END LIMIT 1',
       )
@@ -405,11 +420,13 @@ export function createFantasy(db, { fetcher = globalThis.fetch } = {}) {
     return cached ? JSON.parse(cached.data) : {};
   }
   /** Read available saved history, with an explicit warning for stale or prior-season data. */
-  function readStats(season) {
-    const current = db.prepare('SELECT * FROM fantasy_cache WHERE key=?').get('stats:' + season);
+  async function readStats(season) {
+    const current = await db
+      .prepare('SELECT * FROM fantasy_cache WHERE key=?')
+      .get('stats:' + season);
     const previous = current
       ? null
-      : db.prepare('SELECT * FROM fantasy_cache WHERE key=?').get('stats:' + (season - 1));
+      : await db.prepare('SELECT * FROM fantasy_cache WHERE key=?').get('stats:' + (season - 1));
     const cached = current || previous;
     if (!cached)
       return {
@@ -430,15 +447,17 @@ export function createFantasy(db, { fetcher = globalThis.fetch } = {}) {
           : {}),
     };
   }
-  function saveSettings(account, snapshot, input) {
+  async function saveSettings(account, snapshot, input) {
     const league = snapshot?.league.id || 'demo',
-      stored = db
+      stored = await db
         .prepare('SELECT data FROM league_settings WHERE account=? AND league=?')
         .get(account, league);
     const settings = settingsFor(input, stored ? JSON.parse(stored.data) : {});
-    db.prepare(
-      'INSERT INTO league_settings VALUES (?,?,?) ON CONFLICT(account,league) DO UPDATE SET data=excluded.data',
-    ).run(account, league, JSON.stringify(settings));
+    await db
+      .prepare(
+        'INSERT INTO league_settings VALUES (?,?,?) ON CONFLICT(account,league) DO UPDATE SET data=excluded.data',
+      )
+      .run(account, league, JSON.stringify(settings));
     return settings;
   }
   /** Build the frozen provider inputs that a successful league refresh will save. */
@@ -472,16 +491,23 @@ export function createFantasy(db, { fetcher = globalThis.fetch } = {}) {
         ),
       ]),
     );
-    const statistics = readStats(Number(snapshot.league.season));
+    const statistics = await readStats(Number(snapshot.league.season));
     if (!statistics.rows.length)
       throw provider('Statistics are unavailable. Your previous analysis snapshot is unchanged.');
-    return { statistics, metadata: readMetadata(), catalog: slim, asOf: new Date().toISOString() };
+    return {
+      statistics,
+      metadata: await readMetadata(),
+      catalog: slim,
+      asOf: new Date().toISOString(),
+    };
   }
   /** Persist inputs inside the caller's league-import transaction. */
-  function storeSnapshot(account, snapshot, inputs) {
-    db.prepare(
-      'INSERT INTO analysis_snapshots VALUES (?,?,?,?) ON CONFLICT(account,league) DO UPDATE SET data=excluded.data,refreshed=excluded.refreshed',
-    ).run(account, snapshot.league.id, JSON.stringify(inputs), snapshot.analysisRefreshedAt);
+  async function storeSnapshot(account, snapshot, inputs) {
+    await db
+      .prepare(
+        'INSERT INTO analysis_snapshots VALUES (?,?,?,?) ON CONFLICT(account,league) DO UPDATE SET data=excluded.data,refreshed=excluded.refreshed',
+      )
+      .run(account, snapshot.league.id, JSON.stringify(inputs), snapshot.analysisRefreshedAt);
   }
   return { model, saveSettings, prepareSnapshot, storeSnapshot };
 }

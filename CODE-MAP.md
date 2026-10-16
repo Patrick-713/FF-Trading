@@ -5,7 +5,7 @@ Start with one user action and follow it through the files. The existing folder 
 ## A trade request, from screen to result
 
 1. `public/app.js` reads the selected assets and sends JSON to the trade endpoint.
-2. `server.js` identifies the account and asks the fantasy service for its saved league analysis.
+2. `application.js` identifies the account and asks the fantasy service for its saved league analysis.
 3. `fantasy.js` reads the frozen inputs and that league's settings. It does not fetch providers during analysis.
 4. `player-metadata.js` builds the same player record for rostered players and free agents.
 5. `valuation.js` calculates values. `prospects.js` supplies the fading dynasty prospect prior.
@@ -16,7 +16,9 @@ Start with one user action and follow it through the files. The existing folder 
 
 **The browser:** `public/index.html` provides the page shell. `public/styles.css` controls its appearance. `public/app.js` owns view state and event handling. `public/trade-tools.js` contains the trade-related view templates. Dynamic names and descriptions are escaped before they are inserted into HTML.
 
-**The HTTP boundary:** `server.js` routes requests, applies account context, coordinates refreshes and returns JSON. Look at `session`, `analysis` and `importLeague` before reading the route handler.
+**The HTTP boundary:** `application.js` routes requests, applies account context, coordinates refreshes and returns JSON. Look at `session`, `analysis` and `importLeague` before reading the route handler.
+
+**Hosting and storage:** `server.js` starts the local listener. `api/index.js` is the Vercel entry point and shares the same application handler. `storage.js` selects PostgreSQL for production and SQLite for local development. `postgres.js` adapts parameterized queries and pins a separate client for each transaction. `migrate-cloud.js` applies the versioned cloud schema. `security.js` contains shared request limits and client address handling. Read [DEPLOYMENT.md](DEPLOYMENT.md) for infrastructure and release instructions.
 
 **Data preparation:** `sleeper.js` imports public league data. Inside `fantasy.js`, `metadata` and `stats` refresh provider caches, `prepareSnapshot` prepares saved inputs, and `storeSnapshot` writes them during the caller's transaction. The `model` function reads prepared inputs and assembles the response.
 

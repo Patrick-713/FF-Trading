@@ -1,12 +1,15 @@
 # Backend walkthrough
 
-FF Trading is a Node.js HTTP service, a SQLite database, provider adapters, and a deterministic valuation/trade engine. The browser sends selections and settings; the server computes values and validates ownership.
+FF Trading is a Node.js HTTP service, a PostgreSQL database in production, SQLite for local development, provider adapters, and a deterministic valuation/trade engine. The browser sends selections and settings; the server computes values and validates ownership.
 
 ## Responsibilities
 
 | File                                    | Responsibility                                                                 |
 | --------------------------------------- | ------------------------------------------------------------------------------ |
-| `server.js`                             | HTTP routing, account context, refresh orchestration, responses                |
+| `application.js`                        | Shared HTTP routing, account context, refresh orchestration and responses      |
+| `server.js`, `api/index.js`             | Local listener and Vercel entry point                                          |
+| `storage.js`, `postgres.js`             | Driver selection, asynchronous queries and transaction isolation               |
+| `migrate-cloud.js`, `import-sqlite.js`  | Cloud schema migration and backup-based local data import                      |
 | `database.js`                           | Versioned atomic migrations and transactions                                   |
 | `auth.js`                               | Password/recovery hashing, login sessions and throttling                       |
 | `sleeper.js`                            | Fixed-origin public league imports, caching and timeouts                       |
@@ -67,4 +70,4 @@ Completed requests produce JSON logs containing only request ID, method, fixed r
 
 ## Remaining limits
 
-This is a single-process prototype: synchronous SQLite queries and CPU-bound trade search can block other requests. Snapshot storage duplicates some provider data per linked league; dataset deduplication and worker-based calculations are sensible future scale work. Authentication has recovery codes rather than verified email/reset delivery. Sleeper public imports do not authenticate ownership of a Sleeper account. The model remains heuristic, and custom league scoring is only partially represented. Public hosting, centralized monitoring and scheduled refresh are separate deployment work.
+Production uses asynchronous PostgreSQL queries, shared account-scoped state, shared request limits and expiring database refresh leases. Transactions pin one PostgreSQL connection per request. Vercel instances share durable state without sharing uncommitted transactions. Local SQLite remains synchronous, and CPU-bound trade search can still block a single instance. Snapshot storage duplicates some provider data per linked league; dataset deduplication and worker-based calculations are sensible future scale work. Authentication has recovery codes rather than verified email/reset delivery. Sleeper public imports do not authenticate ownership of a Sleeper account. The model remains heuristic, and custom league scoring is only partially represented. Vercel hosts production and follows the connected GitHub production branch. Centralized alerting and scheduled refresh remain future work. See DEPLOYMENT.md for environment separation, schema migration and persistence verification.

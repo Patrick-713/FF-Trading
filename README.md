@@ -4,13 +4,14 @@ Fantasy roster valuation and hypothetical trade analysis for **redraft and dynas
 
 ## Run
 
-Requires Node.js 24 or later; no dependency installation is needed.
+Requires Node.js 24. Install the pinned dependencies first.
 
 ```sh
+npm ci
 node server.js
 ```
 
-Open http://127.0.0.1:3000. Run `node --test` for validation. `PORT`, `HOST`, and `DB_PATH` configure the server; `.env.example` documents these variables and is not automatically loaded. The app is currently local, not publicly hosted.
+Open http://127.0.0.1:3000. Run `node --test` for validation. `PORT`, `HOST`, and `DB_PATH` configure the server; `.env.example` documents these variables and is not automatically loaded. Production runs on Vercel with durable Neon PostgreSQL. Local development uses SQLite unless `DATABASE_URL` is set. Deployment setup and migration steps are in [DEPLOYMENT.md](DEPLOYMENT.md).
 
 For a guided reading order and file responsibilities, see [CODE-MAP.md](CODE-MAP.md).
 
@@ -22,7 +23,7 @@ For a guided reading order and file responsibilities, see [CODE-MAP.md](CODE-MAP
 - **Trade Finder:** inside the simulator, choose a positional upgrade, younger roster, draft capital, current starters, or long-term value. Review offers that show a measurable modeled benefit for each manager, then open any idea in the builder.
 - **Saved Scenarios:** store hypothetical comparisons under the current account and league. Loading selections uses the scenario's settings; analyze again against current values.
 - **Link Sleeper:** import rosters, team identities, completed-week results, and dynasty traded picks.
-- **Account:** free local email/password login with recovery codes; existing leagues remain saved.
+- **Account:** email/password login with recovery codes; existing leagues remain saved.
 
 The **Redraft / Dynasty** switch changes valuation, not the real league. Scoring options include PPR/half/standard, one QB/superflex, 4/6-point passing TDs, and 0/0.5/1 TE reception bonuses. Switching clears an unsaved trade selection to prevent mixing asset values from different modes.
 

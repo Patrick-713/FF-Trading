@@ -69,10 +69,11 @@ export function migrate(db) {
     db.exec('PRAGMA foreign_keys=ON;');
   }
 }
-export function transaction(db, fn) {
+export async function transaction(db, fn) {
+  if (db.remote) return db.transaction(fn);
   db.exec('BEGIN IMMEDIATE');
   try {
-    const result = fn();
+    const result = await fn();
     db.exec('COMMIT');
     return result;
   } catch (error) {

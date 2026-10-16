@@ -139,7 +139,7 @@ export function createSleeperClient({
 } = {}) {
   const pending = new Map();
   async function get(path, ttl = 30000) {
-    const cached = cache.get(path);
+    const cached = await cache.get(path);
     if (cached && cached.expires > clock()) return cached.data;
     if (pending.has(path)) return pending.get(path);
     const work = (async () => {
@@ -163,7 +163,7 @@ export function createSleeperClient({
       } catch {
         throw provider('Sleeper returned an unreadable response. Try again shortly.');
       }
-      cache.set(path, { data, expires: clock() + ttl });
+      await cache.set(path, { data, expires: clock() + ttl });
       return data;
     })();
     pending.set(path, work);

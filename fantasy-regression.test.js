@@ -81,7 +81,7 @@ function fixture() {
       },
     };
     if (prepared)
-      fantasy.storeSnapshot('test', snapshot, {
+      await fantasy.storeSnapshot('test', snapshot, {
         statistics,
         metadata: { G: { draftRound: 1, draftYear: 2026, draftPick: 8 } },
         catalog,
@@ -117,7 +117,7 @@ test('league scoring imports supported TE bonuses and preserves explicit per-lea
     assert.equal(premium.settings.tePremium, 0.5);
     assert.equal(premium.settings.scoring, 'half');
     assert.equal(premium.settings.passTD, 6);
-    f.fantasy.saveSettings(
+    await f.fantasy.saveSettings(
       'test',
       { league: { id: 'premium' } },
       { ...premium.settings, tePremium: 1 },
