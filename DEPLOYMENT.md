@@ -1,6 +1,6 @@
 # Hosting FF Trading
 
-FF Trading uses one dedicated Vercel project, `wesbitelive/ff-trading`, connected to `Patrick-713/FF-Trading`. No other Vercel project belongs to this app. The production branch is `main`. Pushing to main starts a production build; other branches create previews.
+FF Trading uses one dedicated Vercel project, `patricks-projects-6ed2c910/ff-trading`, connected to `Patrick-713/FF-Trading`. No other Vercel project belongs to this app. The production branch is `main`. Pushing to main starts a production build; other branches create previews.
 
 ## Request path
 
@@ -42,4 +42,4 @@ Confirm the Vercel project ID and team before every infrastructure change. Run t
 
 ## Current scale limits
 
-The connected accounts currently use the free Vercel Hobby and Neon plans, subject to provider quotas. They are not unlimited hosting. Provider downloads and frozen snapshots consume storage and network transfer; fantasy search consumes CPU. Guest creation, authentication, league refresh, lookup, scenario saving and trade finding are bounded. Refresh leases prevent duplicate account refreshes across instances. Recovery codes replace email reset delivery; email addresses are not verified. Monitoring has request logs and a health endpoint, without an external alerting service. Revisit these limits and the providers' terms before commercial use or a large launch.
+The Vercel account already uses Pro; its subscription was not changed. Neon uses its free plan. Usage remains subject to provider quotas and the existing account billing settings. They are not unlimited hosting. Provider downloads and frozen snapshots consume storage and network transfer; fantasy search consumes CPU. Guest creation, authentication, league refresh, lookup, scenario saving and trade finding are bounded. Refresh leases prevent duplicate account refreshes across instances. Recovery codes replace email reset delivery; email addresses are not verified. Monitoring has request logs and a health endpoint, without an external alerting service. Revisit these limits and the providers' terms before commercial use or a large launch.

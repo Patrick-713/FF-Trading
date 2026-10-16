@@ -1,5 +1,7 @@
 # FF Trading
 
+Live app: [ff-trading-one.vercel.app](https://ff-trading-one.vercel.app). Pushes to the connected GitHub repository's main branch deploy production updates.
+
 Fantasy roster valuation and hypothetical trade analysis for **redraft and dynasty**. There are no tokens to buy, no share market, and no real-money transactions in the product.
 
 ## Run

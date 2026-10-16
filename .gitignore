@@ -5,6 +5,3 @@ data/
 !.env.example
 .vercel/
 *.log
-
-.vercel
-.env*
