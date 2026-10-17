@@ -106,6 +106,24 @@ test('builder supports player search, standard analysis, finder and loading save
     assert.ok(element('#main').innerHTML.includes('Team Overview'));
     await click('button[data-view]', { view: 'players' });
     assert.ok(element('#main').innerHTML.includes('Player Rankings'));
+    await change({ id: 'rankings-format', value: 'dynasty' });
+    assert.ok(element('#format-switch').innerHTML.includes('Temporary view'));
+    assert.ok(element('#main').innerHTML.includes('DYNASTY VALUE'));
+    assert.equal(
+      model.settings.mode,
+      'redraft',
+      'Temporary browsing never persists league settings',
+    );
+    const dynastyFirst = [...model.players].sort(
+      (a, b) => b.dynasty - a.dynasty || a.name.localeCompare(b.name) || a.id.localeCompare(b.id),
+    )[0];
+    assert.ok(element('#main').innerHTML.includes(`data-player="${dynastyFirst.id}"`));
+    await click('button[data-view]', { view: 'team' });
+    assert.equal(element('#format-switch').innerHTML.includes('id="rankings-format"'), false);
+    await click('button[data-view]', { view: 'players' });
+    assert.ok(element('#main').innerHTML.includes('REDRAFT VALUE'));
+    assert.equal(element('#format-switch').innerHTML.includes('Temporary view'), false);
+
     assert.equal((element('#main').innerHTML.match(/data-rank="/g) || []).length, 20);
     assert.ok(element('#main').innerHTML.includes('data-rank="1"'));
     await click('[data-player-page]', { playerPage: '2' });

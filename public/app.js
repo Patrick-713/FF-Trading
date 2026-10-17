@@ -20,6 +20,7 @@ let state,
   playerQuery = '',
   playerPosition = 'ALL',
   playerPage = 1,
+  rankingsMode = null,
   rosterTeam = null,
   tradeTeam = null,
   showStandings = false;
@@ -58,9 +59,9 @@ function intro(title, text, action = true) {
   return `<div class="page-intro"><div><h1>${title}</h1><p>${text}</p></div>${action ? (state.connection ? '' : '<button class="primary" data-account-section="sleeper">Link your league ↗</button>') : ''}</div>`;
 }
 const currentTeam = () => model.teams.find((t) => t.id === model.ownTeam) || model.teams[0];
-function playerTable(players, ranked = false) {
+function playerTable(players, ranked = false, mode = model.settings.mode) {
   return [
-    `<div class="table-scroll"><table><thead><tr><th>PLAYER</th><th>${model.settings.mode.toUpperCase()} VALUE</th><th>FP / GAME</th><th>TARGET SHARE</th><th>WOPR</th><th>AGE</th><th>SAMPLE</th></tr>`,
+    `<div class="table-scroll"><table><thead><tr><th>PLAYER</th><th>${mode.toUpperCase()} VALUE</th><th>FP / GAME</th><th>TARGET SHARE</th><th>WOPR</th><th>AGE</th><th>SAMPLE</th></tr>`,
     `</thead>`,
     `<tbody>${
       players
@@ -138,9 +139,11 @@ function teamView() {
   ].join('');
 }
 const PLAYERS_PER_PAGE = 20;
+const rankingMode = () => rankingsMode || model.settings.mode;
 /** Rank the full pool before filtering so a player's overall number stays consistent. */
 const filteredPlayers = () =>
-  [...model.players]
+  model.players
+    .map((player) => ({ ...player, value: player[rankingMode()] }))
     .sort((a, b) => b.value - a.value || a.name.localeCompare(b.name) || a.id.localeCompare(b.id))
     .map((player, index) => ({ ...player, rank: index + 1 }))
     .filter(
@@ -155,7 +158,7 @@ function rankingsResults() {
   const start = (playerPage - 1) * PLAYERS_PER_PAGE;
   const controls = (position) =>
     `<nav class="rankings-pagination" aria-label="Player ranking pages ${position}"><button class="trade-button" data-player-page="${playerPage - 1}" ${playerPage === 1 ? 'disabled' : ''}>Previous</button><span>Page ${playerPage} of ${pages}</span><button class="trade-button" data-player-page="${playerPage + 1}" ${playerPage === pages ? 'disabled' : ''}>Next</button></nav>`;
-  return `<div class="rankings-page-header"><p id="rankings-page-summary" role="status" tabindex="-1">${players.length ? `Showing ${start + 1} to ${Math.min(start + PLAYERS_PER_PAGE, players.length)} of ${players.length} players` : 'No players match these filters.'}</p><small>Overall ranks by ${esc(model.settings.mode)} value</small></div>${controls('top')}${playerTable(players.slice(start, start + PLAYERS_PER_PAGE), true)}${controls('bottom')}`;
+  return `<div class="rankings-page-header"><p id="rankings-page-summary" role="status" tabindex="-1">${players.length ? `Showing ${start + 1} to ${Math.min(start + PLAYERS_PER_PAGE, players.length)} of ${players.length} players` : 'No players match these filters.'}</p><small>Overall ranks by ${esc(rankingMode())} value</small></div>${controls('top')}${playerTable(players.slice(start, start + PLAYERS_PER_PAGE), true, rankingMode())}${controls('bottom')}`;
 }
 function playersView() {
   return `${intro('Player Rankings', 'Compare player rankings and the statistics behind them. Select a player for details.')}<section class="panel rankings-panel"><div class="panel-heading"><h2>Player rankings <span class="pill">${model.players.length}</span></h2><div class="player-filters"><input id="player-query" aria-label="Search players" placeholder="Search player or team" value="${esc(playerQuery)}"><select id="player-position" aria-label="Filter position">${['ALL', 'QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'LB', 'DL', 'DB'].map((p) => `<option ${p === playerPosition ? 'selected' : ''}>${p}</option>`).join('')}</select></div></div><div id="player-results">${rankingsResults()}</div></section>`;
@@ -368,6 +371,7 @@ document.addEventListener('visibilitychange', () => {
     void loadNews();
 });
 function render() {
+  if (view !== 'players') rankingsMode = null;
   if (view === 'saved') {
     view = 'account';
     accountSection = 'saved';
@@ -398,9 +402,9 @@ function render() {
   applyFavoriteTheme();
   $('#profile-mode').textContent = state.user ? state.user.name : 'Guest · save with an account';
   $('#season-label').textContent = String(model.season);
-  $('#week').textContent = model.settings.mode.toUpperCase();
+  $('#week').textContent = (view === 'players' ? rankingMode() : model.settings.mode).toUpperCase();
   $('#format-switch').innerHTML = [
-    `<div class="league-format-label"><strong>${model.settings.mode === 'dynasty' ? 'Dynasty league' : 'Redraft'}</strong><small>${model.linked ? 'From your Sleeper league' : 'Link a Sleeper dynasty league to include picks'}</small></div>`,
+    `<div class="league-format-label">${view === 'players' ? `<label class="sr-only" for="rankings-format">Rankings format</label><select id="rankings-format" aria-describedby="rankings-format-note"><option value="redraft" ${rankingMode() === 'redraft' ? 'selected' : ''}>Redraft</option><option value="dynasty" ${rankingMode() === 'dynasty' ? 'selected' : ''}>Dynasty</option></select><small id="rankings-format-note">${rankingsMode && rankingsMode !== model.settings.mode ? `Temporary view · ${model.settings.mode === 'dynasty' ? 'Dynasty' : 'Redraft'} ${model.linked ? 'league' : 'default'} on other pages` : model.linked ? 'From your Sleeper league' : 'Choose a format to browse'}</small>` : `<strong>${model.settings.mode === 'dynasty' ? 'Dynasty league' : 'Redraft'}</strong><small>${model.linked ? 'From your Sleeper league' : 'Link a Sleeper dynasty league to include picks'}</small>`}</div>`,
     `<div id="scoring-controls" class="format-details ${scoringExpanded ? 'expanded' : ''}"><button id="scoring-toggle" class="format-toggle" aria-expanded="${scoringExpanded}" aria-controls="league-scoring"><span>League scoring</span><span>${esc(model.settings.scoring.toUpperCase())} · ${model.settings.superflex ? 'Superflex' : '1 QB'} <b aria-hidden="true">⌄</b></span></button><div class="format-options" id="league-scoring"><label>Scoring<select id="scoring" aria-label="Reception scoring"><option value="ppr" ${model.settings.scoring === 'ppr' ? 'selected' : ''}>PPR</option><option value="half" ${model.settings.scoring === 'half' ? 'selected' : ''}>Half PPR</option><option value="standard" ${model.settings.scoring === 'standard' ? 'selected' : ''}>Standard</option></select>`,
     `</label>`,
     `<label>QB format<select id="qb-format" aria-label="Quarterback format"><option value="single" ${!model.settings.superflex ? 'selected' : ''}>1 QB</option><option value="superflex" ${model.settings.superflex ? 'selected' : ''}>Superflex / 2QB</option></select>`,
@@ -450,6 +454,7 @@ function render() {
 }
 /** Load the account context before reading that account's active analysis. */
 async function reload() {
+  rankingsMode = null;
   profileRequest++;
   profileLogs.clear();
   finder = null;
@@ -863,6 +868,14 @@ document.addEventListener('change', async (e) => {
   if (t.id === 'roster-team') {
     rosterTeam = t.value;
     render();
+    return;
+  }
+  if (t.id === 'rankings-format') {
+    if (!['redraft', 'dynasty'].includes(t.value)) return;
+    rankingsMode = t.value;
+    playerPage = 1;
+    render();
+    $('#rankings-format').focus?.();
     return;
   }
   if (t.id === 'player-position') {
