@@ -98,7 +98,7 @@ export function finderView(model, finder, goal) {
   };
   return [
     `<div class="page-intro"><div><div class="eyebrow">A PLAN FOR YOUR ACTUAL LEAGUE</div>`,
-    `<h1>Find your next move.</h1>`,
+    `<h1>Trade Finder</h1>`,
     `<p>Choose a goal. Explore offers with a measurable benefit for each roster.</p>`,
     `</div>`,
     `<button class="trade-button" data-view="trade">Back to trade builder</button>`,

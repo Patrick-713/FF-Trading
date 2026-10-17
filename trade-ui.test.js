@@ -103,7 +103,7 @@ test('builder supports player search, standard analysis, finder and loading save
   const change = async (target) => handlers.change({ target: { matches: () => false, ...target } });
   try {
     await import('./public/app.js');
-    assert.ok(element('#main').innerHTML.includes('Know what your roster'));
+    assert.ok(element('#main').innerHTML.includes('Team Overview'));
     await click('button[data-view]', { view: 'account' });
     assert.ok(element('#main').innerHTML.includes('id="auth-form"'));
     assert.equal(element('#main').innerHTML.includes('id="sleeper-lookup"'), false);
@@ -173,7 +173,7 @@ test('builder supports player search, standard analysis, finder and loading save
     assert.equal(lastInput.assumptions, undefined);
     assert.equal(lastInput.includeWaivers, false);
     await click('#open-finder');
-    assert.ok(element('#main').innerHTML.includes('Find your next move'));
+    assert.ok(element('#main').innerHTML.includes('Trade Finder'));
     await click('#find-trades');
     assert.ok(element('#main').innerHTML.includes('candidate offers'));
     await click('[data-mode]', { mode: 'dynasty' });

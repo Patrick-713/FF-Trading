@@ -53,7 +53,7 @@ function toast(text) {
   setTimeout(() => $('#toast').classList.remove('visible'), 4000);
 }
 function intro(title, text, action = true) {
-  return `<div class="page-intro"><div><div class="eyebrow">FANTASY FOOTBALL. CLEARER DECISIONS.</div><h1>${title}</h1><p>${text}</p></div>${action ? (state.connection ? '' : '<button class="primary" data-account-section="sleeper">Link your league ↗</button>') : ''}</div>`;
+  return `<div class="page-intro"><div><h1>${title}</h1><p>${text}</p></div>${action ? (state.connection ? '' : '<button class="primary" data-account-section="sleeper">Link your league ↗</button>') : ''}</div>`;
 }
 const currentTeam = () => model.teams.find((t) => t.id === model.ownTeam) || model.teams[0];
 function playerTable(players) {
@@ -101,7 +101,7 @@ function teamView() {
       .sort((a, b) => b.value - a.value),
     picks = model.picks.filter((p) => p.owner === team.id);
   return [
-    `${model.linked ? `<div class="league-overview-actions"><button class="primary" data-standings aria-expanded="${showStandings}" aria-controls="league-standings">${showStandings ? 'Hide' : 'View all teams and'} standings</button><span>Season points and records for every team</span></div>${showStandings ? standingsView() : ''}` : ''}${intro('Know what your roster is worth.', `${model.settings.mode === 'dynasty' ? 'Long-term talent and draft capital' : 'Current production and opportunity'} · ${esc(team.name)}`)}<div class="stats"><article><span>Total roster value</span><h2>${fmt(team.playerValue + team.pickValue)} <small>VALUE</small></h2>`,
+    `${intro('Team Overview', `${model.settings.mode === 'dynasty' ? 'Long-term talent and draft capital' : 'Current production and opportunity'} · ${esc(team.name)}`)}${model.linked ? `<div class="league-overview-actions"><button class="primary" data-standings aria-expanded="${showStandings}" aria-controls="league-standings">${showStandings ? 'Hide' : 'View all teams and'} standings</button><span>Season points and records for every team</span></div>${showStandings ? standingsView() : ''}` : ''}<div class="stats"><article><span>Total roster value</span><h2>${fmt(team.playerValue + team.pickValue)} <small>VALUE</small></h2>`,
     `<p>Players${model.settings.mode === 'dynasty' ? ' + future picks' : ''}</p>`,
     `</article>`,
     `<article><span>Player value</span><h2>${fmt(team.playerValue)}</h2>`,
@@ -143,7 +143,7 @@ function playersView() {
         `${p.name} ${p.club}`.toLowerCase().includes(playerQuery.toLowerCase()),
     )
     .sort((a, b) => b.value - a.value);
-  return `${intro('Player values for your league.', 'Explore model values and the statistics behind them. Select a player to see the calculation.')}<section class="panel"><div class="panel-heading"><h2>Player values <span class="pill">${players.length}</span></h2><div class="player-filters"><input id="player-query" aria-label="Search players" placeholder="Search player or team" value="${esc(playerQuery)}"><select id="player-position" aria-label="Filter position">${['ALL', 'QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'LB', 'DL', 'DB'].map((p) => `<option ${p === playerPosition ? 'selected' : ''}>${p}</option>`).join('')}</select></div></div><div id="player-results">${playerTable(players)}</div></section>`;
+  return `${intro('Player Values', 'Explore model values and the statistics behind them. Select a player to see the calculation.')}<section class="panel"><div class="panel-heading"><h2>Player values <span class="pill">${players.length}</span></h2><div class="player-filters"><input id="player-query" aria-label="Search players" placeholder="Search player or team" value="${esc(playerQuery)}"><select id="player-position" aria-label="Filter position">${['ALL', 'QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'LB', 'DL', 'DB'].map((p) => `<option ${p === playerPosition ? 'selected' : ''}>${p}</option>`).join('')}</select></div></div><div id="player-results">${playerTable(players)}</div></section>`;
 }
 function assetList(team, side) {
   const selected = side === 'A' ? selectedA : selectedB;
@@ -200,7 +200,7 @@ function tradeView() {
     partner = model.teams.find((t) => t.id !== tradeOwn().id)?.id;
   const own = tradeOwn();
   return [
-    `${intro('Test the trade. See both sides.', `Choose players${model.settings.mode === 'dynasty' ? ' and dynasty picks' : ''} to exchange. ${model.linked ? 'Uses your Sleeper league format. Your real roster stays unchanged.' : `Search ${model.players.length} real NFL players. Add them to Team A or Team B, then compare the trade. No roster setup needed.`}`, false)}${tradeTools(tradeModel(), tradeQuery)}<div class="trade-builder"><section class="panel"><div class="panel-heading"><div><span class="eyebrow">TEAM A SENDS</span><label class="sr-only" for="trade-team">Team to trade from</label>${model.linked ? `<select id="trade-team" aria-label="Team to trade from">${model.teams.map((t) => `<option value="${esc(t.id)}" ${own.id === t.id ? 'selected' : ''}>${esc(t.name)}${t.id === model.ownTeam && model.linked ? ' (Your team)' : ''}</option>`).join('')}</select>` : '<h2>Team A</h2>'}`,
+    `${intro('Trade Simulator', `Choose players${model.settings.mode === 'dynasty' ? ' and dynasty picks' : ''} to exchange. ${model.linked ? 'Uses your Sleeper league format. Your real roster stays unchanged.' : `Search ${model.players.length} real NFL players. Add them to Team A or Team B, then compare the trade. No roster setup needed.`}`, false)}${tradeTools(tradeModel(), tradeQuery)}<div class="trade-builder"><section class="panel"><div class="panel-heading"><div><span class="eyebrow">TEAM A SENDS</span><label class="sr-only" for="trade-team">Team to trade from</label>${model.linked ? `<select id="trade-team" aria-label="Team to trade from">${model.teams.map((t) => `<option value="${esc(t.id)}" ${own.id === t.id ? 'selected' : ''}>${esc(t.name)}${t.id === model.ownTeam && model.linked ? ' (Your team)' : ''}</option>`).join('')}</select>` : '<h2>Team A</h2>'}`,
     `</div>`,
     `<span id="sum-A" class="value-number">${assetSum(selectedA)}</span></div>${selectedPlayers('A')}${model.linked ? `<details class="team-roster-picker"><summary>Choose from this roster</summary>${assetList(own.id, 'A')}</details>` : ''}</section>`,
     `<section class="panel"><div class="panel-heading"><div><span class="eyebrow">TEAM B SENDS</span>${
@@ -319,7 +319,7 @@ function newsView() {
       minute: '2-digit',
     });
   return (
-    intro('Around the NFL', 'The latest headlines, straight from ESPN.', false) +
+    intro('NFL News', 'Latest headlines and updates from ESPN.', false) +
     `<section class="news-toolbar"><div><strong>NFL news</strong><p>Checks for updates every 10 minutes while this tab is open.</p></div><div class="news-toolbar-actions"><button class="trade-button" data-account-section="saved">Saved stories (${state.preferences?.savedStories?.length || 0})</button><button class="light-button" data-news-refresh ${newsLoading ? 'disabled' : ''}>${newsLoading ? 'Checking…' : 'Check for updates'}</button></div></section>
     <p class="news-status" role="status">${newsError ? esc(newsError) : newsData?.checkedAt ? `Last checked ${esc(date(newsData.checkedAt))}.` : newsData ? 'News is temporarily unavailable.' : 'Loading headlines…'}${newsData?.stale ? ' Updates are delayed. Showing the last available headlines.' : ''}</p>
     <div class="news-grid">${(newsData?.articles || []).map((article) => `<article class="news-card"><div class="news-meta"><span>ESPN</span><time datetime="${esc(article.publishedAt)}">${esc(date(article.publishedAt))}</time></div><h2><a href="${esc(article.url)}" target="_blank" rel="noopener noreferrer">${esc(article.title)}</a></h2>${article.summary ? `<details class="news-summary"><summary>Quick summary<span class="sr-only">: ${esc(article.title)}</span></summary><div><p>${esc(article.summary)}</p><small>ESPN article preview</small></div></details>` : '<p class="news-preview-unavailable">Preview unavailable for this story.</p>'}<a class="news-read" href="${esc(article.url)}" target="_blank" rel="noopener noreferrer">Read full article on ESPN ↗<span class="sr-only">: ${esc(article.title)}</span></a><button class="story-save" data-story-save="${esc(article.url)}" aria-pressed="${Boolean(state.preferences?.savedStories?.some((saved) => saved.url === article.url))}" aria-label="${state.preferences?.savedStories?.some((saved) => saved.url === article.url) ? 'Unsave' : 'Save'} story: ${esc(article.title)}">${state.preferences?.savedStories?.some((saved) => saved.url === article.url) ? 'Saved ✓' : 'Save story'}</button></article>`).join('')}</div>
@@ -357,22 +357,26 @@ function render() {
     accountSection = 'saved';
   }
   const names = {
-    team: 'My Team',
+    team: 'Team Overview',
     players: 'Player Values',
     trade: 'Trade Simulator',
     finder: 'Trade Finder',
-    saved: 'Saved Scenarios',
+    saved: 'Saved Notes',
     news: 'NFL News',
     account: 'Account',
   };
   document.documentElement?.setAttribute('data-view', view);
   $('#page-name').textContent = names[view];
-  document.title = `${names[view] || 'My Team'} | FF Trading`;
+  document.title = `${names[view] || 'Team Overview'} | FF Trading`;
   const sleeperStatus = $('#sleeper-status');
   sleeperStatus.hidden = !state.connection;
   sleeperStatus.textContent = state.connection
     ? `Sleeper linked: ${state.connection.user.username}`
     : '';
+  sleeperStatus.innerHTML = state.connection
+    ? `<span>Sleeper linked: </span><strong>${esc(state.connection.user.username)}</strong>`
+    : '';
+  sleeperStatus.title = state.connection ? `Sleeper linked: ${state.connection.user.username}` : '';
   $('#account-button').textContent = state.user ? 'My account' : 'Sign up / Log in';
   $('#profile-team').textContent = currentTeam().name;
   applyFavoriteTheme();
@@ -936,7 +940,7 @@ function accountView() {
 function accountIdentity() {
   if (state.user && !emailAction && authMode !== 'verification')
     return [
-      `${intro('Your account', 'Manage your profile and account security.', false)}<section class="panel account-panel"><div class="panel-heading"><h2>${esc(state.user.name)}</h2>`,
+      `${intro('My Account', 'Manage your profile, preferences and account security.', false)}<section class="panel account-panel"><div class="panel-heading"><h2>${esc(state.user.name)}</h2>`,
       `<span class="pill positive">SIGNED IN</span></div>`,
       `<div class="link-content"><p>${esc(state.user.email)}</p>${teamPicker()}`,
       `<p>Log in from another browser using the same FF Trading server to access this workspace. Your Sleeper import is separate from this login.</p>`,
@@ -952,7 +956,7 @@ function accountIdentity() {
     reset = authMode === 'reset',
     verify = authMode === 'verify';
   return [
-    `${intro('Welcome to FF Trading', 'Log in or create a free account to save your leagues and analyses.', false)}<section class="panel account-panel"><div class="panel-heading"><h2>${signup ? 'Create account' : emailOnly ? (authMode === 'forgot' ? 'Reset your password' : 'Verify your email') : reset ? 'Choose a new password' : verify ? 'Confirm your email' : 'Welcome back'}</h2>`,
+    `${intro(signup ? 'Create Account' : reset || authMode === 'forgot' ? 'Reset Password' : verify || authMode === 'verification' ? 'Email Verification' : 'Sign In', 'Access your leagues, saved trades and bookmarked stories.', false)}<section class="panel account-panel"><div class="panel-heading"><h2>${signup ? 'Create account' : emailOnly ? (authMode === 'forgot' ? 'Reset your password' : 'Verify your email') : reset ? 'Choose a new password' : verify ? 'Confirm your email' : 'Welcome back'}</h2>`,
     `<span class="pill">FREE</span></div>`,
     `<div class="link-content"><div class="segmented"><button data-auth-mode="register" class="${signup ? 'selected' : ''}">Sign up</button>`,
     `<button data-auth-mode="login" class="${authMode === 'login' ? 'selected' : ''}">Log in</button>`,

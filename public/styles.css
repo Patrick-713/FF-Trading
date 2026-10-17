@@ -3331,3 +3331,74 @@ footer {
     flex: 1;
   }
 }
+
+/* One phone masthead: brand on the left, connection and help on the right. */
+.sleeper-status strong {
+  font-weight: inherit;
+}
+@media (max-width: 760px) {
+  body {
+    position: relative;
+  }
+  .workspace,
+  header {
+    position: static;
+  }
+  .sidebar {
+    padding-right: 176px;
+  }
+  .brand {
+    min-height: 44px;
+    gap: 9px;
+    font-size: 17px;
+    white-space: nowrap;
+  }
+  .brand-icon {
+    flex-shrink: 0;
+  }
+  .brand small {
+    font-size: 6px;
+    letter-spacing: 1px;
+  }
+  header {
+    display: block;
+    height: 0;
+    min-height: 0;
+    padding: 0;
+    border: 0;
+  }
+  header > div:first-child {
+    display: none;
+  }
+  .header-right {
+    position: absolute;
+    top: max(14px, env(safe-area-inset-top));
+    right: 16px;
+    height: 44px;
+    max-width: calc(100% - 178px);
+    gap: 8px;
+    flex-wrap: nowrap;
+  }
+  .sleeper-status {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 125px;
+    font-size: 10px;
+    line-height: 1.4;
+    overflow-wrap: normal;
+  }
+  .sleeper-status span,
+  .sleeper-status strong {
+    display: block;
+    white-space: nowrap;
+  }
+  .sleeper-status strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .header-right #rules {
+    flex: 0 0 44px;
+  }
+}
