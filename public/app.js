@@ -6,7 +6,8 @@ let state,
   view = 'team',
   busy = false,
   lookupResult = null,
-  authMode = 'register',
+  authMode = 'login',
+  accountSection = 'identity',
   emailAction = null,
   emailToken = '',
   authNotice = '',
@@ -52,7 +53,7 @@ function toast(text) {
   setTimeout(() => $('#toast').classList.remove('visible'), 4000);
 }
 function intro(title, text, action = true) {
-  return `<div class="page-intro"><div><div class="eyebrow">FANTASY FOOTBALL. CLEARER DECISIONS.</div><h1>${title}</h1><p>${text}</p></div>${action ? (state.connection ? '<button class="primary" data-sync>Refresh league data ↻</button>' : '<button class="primary" data-view="account">Link your league ↗</button>') : ''}</div>`;
+  return `<div class="page-intro"><div><div class="eyebrow">FANTASY FOOTBALL. CLEARER DECISIONS.</div><h1>${title}</h1><p>${text}</p></div>${action ? (state.connection ? '<button class="primary" data-sync>Refresh league data ↻</button>' : '<button class="primary" data-account-section="sleeper">Link your league ↗</button>') : ''}</div>`;
 }
 const currentTeam = () => model.teams.find((t) => t.id === model.ownTeam) || model.teams[0];
 function playerTable(players) {
@@ -234,7 +235,7 @@ function resultView(r) {
   return tradeResult(r, model);
 }
 function savedView() {
-  return `${intro('Your trade notebook.', 'Saved comparisons stay with your account. Each shows the model and data at the time you saved it.', false)}<div class="saved-grid">${model.saved.map((s) => `<section class="panel result-card"><span class="eyebrow">${esc(s.result.settings.mode)} · Model ${esc(s.result.modelVersion || 'legacy / unversioned')} · ${esc(new Date(s.created).toLocaleString())}</span><h2>${esc(s.title)}</h2><p>${esc(s.result.summary)}</p><div class="result-metric"><span>Roster value change</span><strong>${signed(s.result.teamA.valueChange)}</strong></div>${s.result.customTeams ? '' : `<div class="result-metric"><span>Starter pace change</span><strong>${signed(s.result.teamA.paceChange)}${s.result.teamA.paceChange === null ? '' : ' PTS/WK'}</strong></div>`}<button class="trade-button" data-load="${s.id}">Load selections →</button></section>`).join('') || '<section class="panel empty">Build and analyze a trade, then save the scenario here.</section>'}</div>`;
+  return `${intro('Saved Notes', 'Your saved trade comparisons, with the values and data recorded when you saved them.', false)}<div class="saved-grid">${model.saved.map((s) => `<section class="panel result-card"><span class="eyebrow">${esc(s.result.settings.mode)} · Model ${esc(s.result.modelVersion || 'legacy / unversioned')} · ${esc(new Date(s.created).toLocaleString())}</span><h2>${esc(s.title)}</h2><p>${esc(s.result.summary)}</p><div class="result-metric"><span>Roster value change</span><strong>${signed(s.result.teamA.valueChange)}</strong></div>${s.result.customTeams ? '' : `<div class="result-metric"><span>Starter pace change</span><strong>${signed(s.result.teamA.paceChange)}${s.result.teamA.paceChange === null ? '' : ' PTS/WK'}</strong></div>`}<button class="trade-button" data-load="${s.id}">Load selections →</button></section>`).join('') || '<section class="panel empty">Build and analyze a trade, then save the scenario here.</section>'}</div>`;
 }
 function sleeperView() {
   const c = state.connection;
@@ -334,6 +335,10 @@ document.addEventListener('visibilitychange', () => {
     void loadNews();
 });
 function render() {
+  if (view === 'saved') {
+    view = 'account';
+    accountSection = 'saved';
+  }
   const names = {
     team: 'My Team',
     players: 'Player Values',
@@ -379,7 +384,7 @@ function render() {
     `</div>${model.data.warning ? `<p class="data-warning" role="status">${esc(model.data.warning)}</p>` : ''}`,
   ].join('');
   $('#main').innerHTML =
-    (view === 'news' ? '' : notice) +
+    (['news', 'account'].includes(view) ? '' : notice) +
     (view === 'team'
       ? teamView()
       : view === 'players'
@@ -452,9 +457,25 @@ document.addEventListener('click', async (e) => {
     render();
     return;
   }
+  const accountTab = e.target.closest('[data-account-section]');
+  if (accountTab) {
+    accountSection = accountTab.dataset.accountSection;
+    view = 'account';
+    render();
+    return;
+  }
   const nav = e.target.closest('button[data-view]');
   if (nav) {
-    view = ['sleeper', 'more'].includes(nav.dataset.view) ? 'account' : nav.dataset.view;
+    if (nav.dataset.view === 'saved') {
+      accountSection = 'saved';
+      view = 'account';
+    } else if (nav.dataset.view === 'sleeper') {
+      accountSection = 'sleeper';
+      view = 'account';
+    } else {
+      view = nav.dataset.view === 'more' ? 'account' : nav.dataset.view;
+    }
+    if (nav.id === 'account-button') accountSection = 'identity';
     render();
     if (view === 'news' && (!newsData || Date.now() - newsRequestedAt >= 600000)) void loadNews();
     if (globalThis.matchMedia?.('(max-width: 760px)').matches)
@@ -487,6 +508,7 @@ document.addEventListener('click', async (e) => {
   }
   const mode = e.target.closest('[data-auth-mode]');
   if (mode) {
+    accountSection = 'identity';
     authMode = mode.dataset.authMode;
     authNotice = '';
     emailAction = null;
@@ -608,6 +630,8 @@ document.addEventListener('click', async (e) => {
       await reload();
       lookupResult = null;
       authMode = 'login';
+      accountSection = 'identity';
+      authNotice = '';
       view = 'account';
       selectedA.clear();
       selectedB.clear();
@@ -831,6 +855,7 @@ function openEmailLink() {
   emailAction = link.get('action');
   emailToken = link.get('token');
   authMode = emailAction;
+  accountSection = 'identity';
   view = 'account';
   authNotice = '';
   globalThis.history?.replaceState(null, '', globalThis.location.pathname);
@@ -849,22 +874,30 @@ try {
 }
 
 function accountView() {
-  return accountIdentity() + sleeperView() + (state.user ? '' : accountExplanation());
+  const sections = [
+    ['identity', state.user ? 'Info' : 'Log in'],
+    ['sleeper', 'Sleeper'],
+    ['saved', 'Saved Notes'],
+  ];
+  const content =
+    accountSection === 'sleeper'
+      ? sleeperView()
+      : accountSection === 'saved'
+        ? `${!state.user ? '<p class="account-save-note">Log in to access your saved notes across devices. <button class="text-button" data-account-section="identity">Log in or sign up</button></p>' : ''}${savedView()}`
+        : `${accountIdentity()}${!state.user ? `<details class="account-help"><summary>About your account</summary>${accountExplanation()}</details>` : ''}`;
+  return `<div class="account-tabs" role="tablist" aria-label="Account sections">${sections.map(([id, label]) => `<button id="account-tab-${id}" role="tab" data-account-section="${id}" aria-selected="${accountSection === id}" aria-controls="account-panel" tabindex="${accountSection === id ? 0 : -1}">${label}</button>`).join('')}</div><section id="account-panel" role="tabpanel" aria-labelledby="account-tab-${accountSection}" tabindex="0">${content}</section>${state.user ? '<div class="account-signout"><button class="trade-button" id="logout">Sign out</button></div>' : ''}`;
 }
 
 function accountIdentity() {
   if (state.user && !emailAction && authMode !== 'verification')
     return [
-      `${intro('Your league. Your account.', 'Your linked leagues and analyses are saved to your FF Trading account.', false)}<section class="panel account-panel"><div class="panel-heading"><h2>${esc(state.user.name)}</h2>`,
+      `${intro('Your account', 'Manage your profile and account security.', false)}<section class="panel account-panel"><div class="panel-heading"><h2>${esc(state.user.name)}</h2>`,
       `<span class="pill positive">SIGNED IN</span></div>`,
       `<div class="link-content"><p>${esc(state.user.email)}</p>${teamPicker()}`,
       `<p>Log in from another browser using the same FF Trading server to access this workspace. Your Sleeper import is separate from this login.</p>`,
       `<p class="${state.user.emailVerified ? 'positive' : 'muted'}">${state.user.emailVerified ? 'Email verified' : 'Email not verified yet'}</p>`,
       `${!state.user.emailVerified ? '<button class="trade-button" data-auth-mode="verification">Send verification email</button>' : ''}`,
       `<p class="preference-status" role="status">${esc(authNotice)}</p>`,
-      `<div class="link-actions">`,
-      `<button class="trade-button" id="logout">Log out</button>`,
-      `</div>`,
       `<p id="auth-error" class="error" role="alert"></p>`,
       `</div>`,
       `</section>`,
@@ -874,7 +907,7 @@ function accountIdentity() {
     reset = authMode === 'reset',
     verify = authMode === 'verify';
   return [
-    `${intro('Keep your edge.', 'Create a free FF Trading account to save your leagues and analyses.', false)}<section class="panel account-panel"><div class="panel-heading"><h2>${signup ? 'Create account' : emailOnly ? (authMode === 'forgot' ? 'Reset your password' : 'Verify your email') : reset ? 'Choose a new password' : verify ? 'Confirm your email' : 'Welcome back'}</h2>`,
+    `${intro('Welcome to FF Trading', 'Log in or create a free account to save your leagues and analyses.', false)}<section class="panel account-panel"><div class="panel-heading"><h2>${signup ? 'Create account' : emailOnly ? (authMode === 'forgot' ? 'Reset your password' : 'Verify your email') : reset ? 'Choose a new password' : verify ? 'Confirm your email' : 'Welcome back'}</h2>`,
     `<span class="pill">FREE</span></div>`,
     `<div class="link-content"><div class="segmented"><button data-auth-mode="register" class="${signup ? 'selected' : ''}">Sign up</button>`,
     `<button data-auth-mode="login" class="${authMode === 'login' ? 'selected' : ''}">Log in</button>`,
@@ -905,3 +938,22 @@ function accountExplanation() {
     `</section>`,
   ].join('');
 }
+
+// Arrow keys follow the standard horizontal tab navigation pattern.
+document.addEventListener('keydown', (event) => {
+  const tab = event.target.closest?.('[role="tab"][data-account-section]');
+  if (!tab || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key) || busy) return;
+  event.preventDefault();
+  const tabs = ['identity', 'sleeper', 'saved'];
+  const index = tabs.indexOf(accountSection);
+  accountSection =
+    tabs[
+      event.key === 'Home'
+        ? 0
+        : event.key === 'End'
+          ? 2
+          : (index + (event.key === 'ArrowRight' ? 1 : -1) + 3) % 3
+    ];
+  render();
+  $(`#account-tab-${accountSection}`).focus?.();
+});

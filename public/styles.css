@@ -1604,7 +1604,7 @@ select {
     inset: auto 0 0;
     z-index: 50;
     display: grid;
-    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 2px;
     margin: 0;
     padding: 7px 4px calc(7px + env(safe-area-inset-bottom));
@@ -2663,7 +2663,7 @@ html[data-favorite-team]:not([data-favorite-team='']) .nav.active {
 }
 @media (max-width: 760px) {
   .sidebar nav {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     inset: auto 8px calc(8px + env(safe-area-inset-bottom));
     border: 1px solid #40516b;
     border-radius: 19px;
@@ -3034,5 +3034,91 @@ html[data-view='news'] #format-switch {
     flex-direction: column;
     align-items: stretch;
     gap: 12px;
+  }
+}
+
+/* Center the SVG itself, avoiding the inline-text baseline in the round help button. */
+#rules {
+  display: grid;
+  place-items: center;
+  padding: 0;
+  line-height: 1;
+  flex-shrink: 0;
+}
+#rules svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+}
+html[data-view='account'] #format-switch {
+  display: none;
+}
+.account-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  background: #172130;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 6px;
+  margin-bottom: 28px;
+}
+.account-tabs button {
+  min-height: 48px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 600;
+}
+.account-tabs button[aria-selected='true'] {
+  background: #24414c;
+  color: #83e9dc;
+}
+.account-tabs button:focus-visible {
+  outline: 2px solid #83e9dc;
+  outline-offset: -3px;
+}
+#account-panel {
+  min-width: 0;
+}
+#account-panel .account-connections {
+  margin-top: 0;
+}
+.account-signout {
+  border-top: 1px solid var(--line);
+  margin-top: 28px;
+  padding-top: 22px;
+}
+.account-help {
+  margin-top: 24px;
+  color: var(--muted);
+}
+.account-help > summary {
+  cursor: pointer;
+  padding: 12px 0;
+}
+.account-save-note {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+@media (max-width: 760px) {
+  #rules {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .account-tabs {
+    gap: 4px;
+    padding: 5px;
+    margin-bottom: 22px;
+  }
+  .account-tabs button {
+    font-size: 13px;
+    min-width: 0;
+    padding: 8px 4px;
   }
 }

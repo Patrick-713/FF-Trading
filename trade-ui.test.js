@@ -105,13 +105,17 @@ test('builder supports player search, standard analysis, finder and loading save
     await import('./public/app.js');
     assert.ok(element('#main').innerHTML.includes('Know what your roster'));
     await click('button[data-view]', { view: 'account' });
-    assert.ok(element('#main').innerHTML.includes('id="sleeper-lookup"'));
-    const accountMarkup = element('#main').innerHTML;
-    assert.ok(
-      accountMarkup.indexOf('id="auth-form"') < accountMarkup.indexOf('Sleeper connection'),
-    );
-    assert.ok(accountMarkup.indexOf('Sleeper connection') < accountMarkup.indexOf('One login.'));
+    assert.ok(element('#main').innerHTML.includes('id="auth-form"'));
+    assert.equal(element('#main').innerHTML.includes('id="sleeper-lookup"'), false);
+    assert.equal((element('#main').innerHTML.match(/role="tab"/g) || []).length, 3);
     assert.equal((element('#main').innerHTML.match(/id="favorite-team"/g) || []).length, 1);
+    await click('[data-account-section]', { accountSection: 'sleeper' });
+    assert.ok(element('#main').innerHTML.includes('id="sleeper-lookup"'));
+    assert.equal(element('#main').innerHTML.includes('id="auth-form"'), false);
+    await click('[data-account-section]', { accountSection: 'saved' });
+    assert.ok(element('#main').innerHTML.includes('Saved Notes'));
+    assert.equal(element('#main').innerHTML.includes('id="sleeper-lookup"'), false);
+    await click('[data-account-section]', { accountSection: 'identity' });
     assert.equal(element('#sleeper-status').textContent, 'Sleeper linked: <TestManager>');
     assert.equal(element('#sleeper-status').hidden, false);
     await click('[data-auth-mode]', { authMode: 'login' });

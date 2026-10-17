@@ -67,3 +67,5 @@ Read `stat-inputs.js` for compact provider inputs, `redraft-signal.js` for the f
 `demo-data.json` is the dated real-player reference dataset for the unlinked redraft simulator. `sleeper.js` imports season standings and league format; `public/app.js` renders standings and team selectors. `application.js` validates a selected comparison team for the trade finder.
 
 Trade side selection lives in `addPlayerToSide` and `selectedPlayers` in `public/app.js`. `public/trade-tools.js` supplies explicit Team A / Team B search buttons. `trade-side-ui.test.js` tests unrestricted public assignment, moving, deduplication and removal. `trade-engine.js` keeps custom public comparisons isolated from linked-league ownership checks.
+
+`accountView` in `public/app.js` owns the three Account tabs; `account-ui.test.js` covers the signed-in Info state, keyboard tab switching and sign-out. The info button uses explicit grid centering in `public/styles.css`, including a square mobile tap target.
