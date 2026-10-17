@@ -1,0 +1,59 @@
+{
+  "modelVersion": "2.5.0",
+  "calibrationDate": "2026-10-17",
+  "referenceData": {
+    "source": "https://github.com/nflverse/nflverse-data/releases/download/stats_player/stats_player_week_2026.csv",
+    "asOf": "2026-10-17T20:17:11.091Z",
+    "season": 2026,
+    "throughWeek": 5
+  },
+  "policy": "Calibrate an elite established WR against roughly three unknown mid firsts across the next three drafts; known early selections cost more. No player-name pricing overrides.",
+  "beforeAfter1QB": {
+    "knownNextYear101": {
+      "before": 2600,
+      "after": 1050
+    },
+    "unknownNextYearFirst": {
+      "before": 1950,
+      "after": 550
+    },
+    "unknownNextYearSecond": {
+      "before": 850,
+      "after": 240
+    },
+    "unknownNextYearThird": {
+      "before": 400,
+      "after": 115
+    }
+  },
+  "examples": [
+    {
+      "format": "1QB",
+      "scoring": "PPR",
+      "referenceValue": 1491,
+      "midFirsts": [550, 468, 397],
+      "packageValue": 1415,
+      "exchangeDifferencePercent": -5.2,
+      "verdict": "Balanced"
+    },
+    {
+      "format": "Superflex",
+      "scoring": "PPR",
+      "referenceValue": 1491,
+      "midFirsts": [633, 538, 457],
+      "packageValue": 1628,
+      "exchangeDifferencePercent": 8.8,
+      "verdict": "Balanced"
+    }
+  ],
+  "limits": [
+    "A dated product calibration, not live market data or predictive validation.",
+    "Three known early firsts are worth more than three unknown mid firsts.",
+    "League scoring, player production, and draft horizon affect the comparison.",
+    "Rookie anchors and metadata priors are recalibrated; established-player and redraft calculations are unchanged."
+  ],
+  "researchReferences": [
+    "https://keeptradecut.com/about/player-values",
+    "https://keeptradecut.com/dynasty-rankings/players/2027-mid-1st-1703"
+  ]
+}

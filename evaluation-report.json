@@ -1,11 +1,11 @@
 {
-  "modelVersion": "2.4.0",
+  "modelVersion": "2.5.0",
   "evaluationType": "Synthetic behavioral regression; not predictive validation",
   "cases": [
     {
       "id": "elite-rookie-slow",
       "currentValue": 223,
-      "dynastyValue": 2141,
+      "dynastyValue": 778,
       "productionOnlyDynasty": 422,
       "priorWeight": 0.771,
       "redraftUnchanged": true,
@@ -14,7 +14,7 @@
     {
       "id": "late-rookie-slow",
       "currentValue": 223,
-      "dynastyValue": 244,
+      "dynastyValue": 229,
       "productionOnlyDynasty": 229,
       "priorWeight": 0.771,
       "redraftUnchanged": true,
@@ -23,7 +23,7 @@
     {
       "id": "elite-rookie-no-games",
       "currentValue": 35,
-      "dynastyValue": 2448,
+      "dynastyValue": 856,
       "productionOnlyDynasty": 608,
       "priorWeight": 0.9,
       "redraftUnchanged": true,
@@ -41,7 +41,7 @@
     {
       "id": "second-year-slow",
       "currentValue": 223,
-      "dynastyValue": 1247,
+      "dynastyValue": 582,
       "productionOnlyDynasty": 409,
       "priorWeight": 0.388,
       "redraftUnchanged": true,
@@ -50,7 +50,7 @@
     {
       "id": "third-year-slow",
       "currentValue": 223,
-      "dynastyValue": 690,
+      "dynastyValue": 456,
       "productionOnlyDynasty": 395,
       "priorWeight": 0.141,
       "redraftUnchanged": true,
@@ -77,7 +77,7 @@
     {
       "id": "young-qb",
       "currentValue": 1984,
-      "dynastyValue": 2289,
+      "dynastyValue": 1932,
       "productionOnlyDynasty": 1932,
       "priorWeight": 0.665,
       "redraftUnchanged": true,
@@ -86,7 +86,7 @@
     {
       "id": "young-te",
       "currentValue": 190,
-      "dynastyValue": 1998,
+      "dynastyValue": 729,
       "productionOnlyDynasty": 416,
       "priorWeight": 0.771,
       "redraftUnchanged": true,
@@ -94,8 +94,8 @@
     }
   ],
   "rookiePickExample": {
-    "nextPick": 2600,
-    "rookieValue": 2340,
+    "nextPick": 1050,
+    "rookieValue": 945,
     "discount": 0.1
   },
   "checks": [

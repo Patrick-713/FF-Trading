@@ -23,7 +23,7 @@ const slow = Array.from({ length: 4 }, () => ({
 test('a slow rookie 1.01 equals 90% of next years 1.01 on the same pick curve', () => {
   const player = valuePlayer(rookie, slow, settings, 2026);
   const pick = pickValue({ round: 1, year: 2027 }, settings, 2026, 'first');
-  assert.equal(pick, 2600);
+  assert.equal(pick, 1050);
   assert.equal(player.dynasty, Math.round(pick * 0.9));
   assert.equal(player.pickAnchor.discount, 0.1);
   assert.equal(player.pickAnchor.year, 2027);
@@ -31,7 +31,7 @@ test('a slow rookie 1.01 equals 90% of next years 1.01 on the same pick curve', 
 });
 test('the owner-supplied Love benchmark works when Sleeper has no rookie selection', () => {
   const p = valuePlayer({ ...rookie, id: '13287', rookieDraft: null }, slow, settings, 2026);
-  assert.equal(p.dynasty, 2340);
+  assert.equal(p.dynasty, 945);
   assert.match(p.pickAnchor.source, /Owner-supplied/);
   assert.equal(p.prospect.rookieDraft.verified, undefined);
   assert.equal(

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { valuePlayer, settingsFor } from './valuation.js';
+import { valuePlayer, settingsFor, pickValue } from './valuation.js';
 import { loadRookieDrafts } from './prospects.js';
 const settings = settingsFor({ mode: 'dynasty' });
 const prospect = {
@@ -29,8 +29,8 @@ test('elite rookies retain dynasty capital through a slow start while redraft re
     settings,
     2026,
   );
-  assert.ok(start.dynasty > 1800);
-  assert.ok(start.dynasty > veteran.dynasty * 3);
+  assert.ok(start.dynasty > pickValue({ round: 1, year: 2027 }, settings, 2026));
+  assert.ok(start.dynasty > veteran.dynasty * 1.5);
   assert.equal(start.redraft, veteran.redraft);
   assert.ok(start.dynasty >= preseason.dynasty * 0.7);
   assert.equal(start.prospect.source, 'NFL draft capital');
@@ -75,7 +75,7 @@ test('verified rookie 1.01 is limited league context; startup selections are not
   const local = { overall: 1, teams: 12, season: 2026, verified: true };
   const baseline = valuePlayer(prospect, slow, settings, 2026),
     first = valuePlayer({ ...prospect, rookieDraft: local }, slow, settings, 2026);
-  assert.equal(first.prospect.capital, 2450);
+  assert.equal(first.prospect.capital, 863);
   assert.ok(first.dynasty > baseline.dynasty);
   assert.equal(
     valuePlayer({ ...prospect, rookieDraft: { ...local, verified: false } }, slow, settings, 2026)

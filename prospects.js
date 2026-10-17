@@ -1,4 +1,5 @@
 // Explicit prospect priors, not consensus rankings. Never infer a rookie from age alone.
+import { slotBase } from './draft-values.js';
 import { rookieBenchmark } from './rookie-benchmarks.js';
 const finite = (v) =>
   v !== null && v !== undefined && v !== '' && typeof v !== 'boolean' && Number.isFinite(Number(v))
@@ -18,10 +19,10 @@ export function prospectProfile(player, rows, season) {
     pick = finite(player.draftPick);
   let capital =
     pick !== null && pick >= 1 && pick <= 10
-      ? 2400
+      ? 800
       : pick !== null && pick <= 32 && pick >= 1
-        ? 2100
-        : ({ 1: 2100, 2: 1650, 3: 1200, 4: 750, 5: 500, 6: 325, 7: 225 }[round] ?? 350);
+        ? 700
+        : ({ 1: 700, 2: 550, 3: 400, 4: 250, 5: 165, 6: 110, 7: 75 }[round] ?? 115);
   const rookie = player.rookieDraft || rookieBenchmark(player);
   const rookiePick = finite(rookie?.overall),
     teams = finite(rookie?.teams);
@@ -35,22 +36,8 @@ export function prospectProfile(player, rows, season) {
     teams >= 2 &&
     Number(rookie.season) === season - years
   ) {
-    // Normalize to a 12-team rookie draft; one league's pick is capped context, not consensus.
-    const rank = 1 + ((rookiePick - 1) * 12) / teams;
-    leaguePrior =
-      rank <= 1
-        ? 2600
-        : rank <= 3
-          ? 2300
-          : rank <= 6
-            ? 1950
-            : rank <= 12
-              ? 1550
-              : rank <= 24
-                ? 850
-                : rank <= 36
-                  ? 450
-                  : 250;
+    // Rookie context uses the same calibrated curve as future picks.
+    leaguePrior = slotBase(rookiePick, teams);
     capital =
       round !== null || pick !== null
         ? capital * 0.75 + leaguePrior * 0.25

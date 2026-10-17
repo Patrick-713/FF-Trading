@@ -78,9 +78,12 @@ export function evaluateModel() {
     ],
     [
       'slow elite rookie retains more than production-only estimate',
-      by('elite-rookie-slow').dynastyValue > by('elite-rookie-slow').productionOnlyDynasty * 2,
+      by('elite-rookie-slow').dynastyValue > by('elite-rookie-slow').productionOnlyDynasty * 1.5,
     ],
-    ['prospect has value without NFL games', by('elite-rookie-no-games').dynastyValue > 1000],
+    [
+      'prospect has value without NFL games',
+      by('elite-rookie-no-games').dynastyValue > nextPick * 0.75,
+    ],
     [
       'breakout exceeds preseason prior',
       by('rookie-breakout').dynastyValue > by('elite-rookie-no-games').dynastyValue,

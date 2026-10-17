@@ -1,5 +1,9 @@
-/** One transparent curve prices rookie selections and future-pick scenarios in the same units. */
-const first = [2600, 2450, 2300, 2150, 2050, 1950, 1850, 1750, 1700, 1650, 1600, 1550];
+/** Dynasty pick curve in this app's player-value units, not another site's numeric scale.
+ * Calibrated October 17, 2026: roughly three unknown mid firsts across the next three
+ * drafts compare with the dated Chase benchmark. Known early picks retain a premium.
+ * This is an explicit product calibration, not an imported market-price feed.
+ */
+const first = [1050, 900, 800, 700, 625, 550, 500, 450, 410, 380, 350, 325];
 export function slotBase(overall, teams = 12) {
   const rank = 1 + ((overall - 1) * 12) / teams;
   if (rank <= 12) {
@@ -7,9 +11,9 @@ export function slotBase(overall, teams = 12) {
       upper = Math.min(11, lower + 1);
     return first[lower] + (first[upper] - first[lower]) * (rank - Math.floor(rank));
   }
-  if (rank <= 24) return 1100 - (rank - 13) * 50;
-  if (rank <= 36) return 525 - (rank - 25) * 25;
-  return Math.max(35, 250 * 0.6 ** Math.floor((rank - 37) / 12));
+  if (rank <= 24) return 300 - (rank - 13) * 12;
+  if (rank <= 36) return 145 - (rank - 25) * 6;
+  return Math.max(10, 60 * 0.6 ** Math.max(0, Math.floor((rank - 37) / 12)));
 }
 export function draftPickValue(pick, settings, season, tier = 'mid') {
   if (settings.mode !== 'dynasty') return 0;

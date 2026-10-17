@@ -111,7 +111,7 @@ test('dynasty picks use standard midpoint values without inventing immediate poi
     sendB: ['pick'],
     includeWaivers: false,
   });
-  assert.equal(r.received[0].value, 1950);
+  assert.equal(r.received[0].value, 550);
   assert.equal(r.received[0].redraft, 0);
   assert.equal(r.received[0].pace, undefined);
   assert.equal(r.teamA.current.change, -1500);

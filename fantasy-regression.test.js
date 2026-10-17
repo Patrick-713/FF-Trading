@@ -5,6 +5,7 @@ import { migrate } from './database.js';
 import { createFantasy } from './fantasy.js';
 import { analyzeTrade, findTrades } from './trade-engine.js';
 import { leagueDefaults } from './league-format.js';
+import { pickValue, settingsFor } from './valuation.js';
 import { tradeResult } from './public/trade-tools.js';
 
 function fixture() {
@@ -102,7 +103,13 @@ test('identical players retain identical metadata, values and confidence across 
     assert.equal(free.owner, 'free_agent');
     assert.deepEqual({ ...owned, owner: null }, { ...free, owner: null });
     assert.ok(free.prospect);
-    assert.ok(free.dynasty > 2000);
+    assert.ok(
+      free.dynasty >=
+        Math.round(
+          pickValue({ round: 1, year: 2027 }, settingsFor({ mode: 'dynasty' }), 2026, 'first') *
+            0.9,
+        ),
+    );
   } finally {
     f.db.close();
   }

@@ -62,7 +62,7 @@ test('preseason API applies linked dynasty format and permits prospect trades wi
     assert.equal(trade.data.teamA.current.change, null);
     assert.equal(
       (await request('analysis/save', 'POST', input)).data.saved[0].result.modelVersion,
-      '2.4.0',
+      '2.5.0',
     );
     const fixedFormat = await request('analysis/settings', 'PUT', { mode: 'redraft' });
     assert.equal(fixedFormat.data.settings.mode, 'dynasty');
@@ -122,15 +122,15 @@ test('API removes stocks, isolates settings, freezes analysis inputs, versions s
     const baselineCalls = readFileSync(calls, 'utf8');
     const model = await request('analysis', cookie);
     assert.ok(model.data.data.refreshedAt);
-    assert.equal(model.data.modelVersion, '2.4.0');
+    assert.equal(model.data.modelVersion, '2.5.0');
     await request('analysis/settings', cookie, 'PUT', { mode: 'dynasty', scoring: 'half' });
     const offer = { teamA: 'sl_1', teamB: 'sl_2', sendA: ['101'], sendB: ['201'] };
     const analyzed = await request('analysis/trade', cookie, 'POST', offer);
     assert.equal(analyzed.status, 200);
-    assert.equal(analyzed.data.modelVersion, '2.4.0');
+    assert.equal(analyzed.data.modelVersion, '2.5.0');
     assert.equal(analyzed.data.dataSnapshot.refreshedAt, model.data.data.refreshedAt);
     const saved = await request('analysis/save', cookie, 'POST', offer);
-    assert.equal(saved.data.saved[0].result.modelVersion, '2.4.0');
+    assert.equal(saved.data.saved[0].result.modelVersion, '2.5.0');
     assert.equal(
       readFileSync(calls, 'utf8'),
       baselineCalls,

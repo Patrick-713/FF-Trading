@@ -69,3 +69,5 @@ Read `stat-inputs.js` for compact provider inputs, `redraft-signal.js` for the f
 Trade side selection lives in `addPlayerToSide` and `selectedPlayers` in `public/app.js`. `public/trade-tools.js` supplies explicit Team A / Team B search buttons. `trade-side-ui.test.js` tests unrestricted public assignment, moving, deduplication and removal. `trade-engine.js` keeps custom public comparisons isolated from linked-league ownership checks.
 
 `accountView` in `public/app.js` owns the three Account tabs; `account-ui.test.js` covers the signed-in Info state, keyboard tab switching and sign-out. The info button uses explicit grid centering in `public/styles.css`, including a square mobile tap target.
+
+`draft-values.js` defines the 2.5 dynasty pick curve. `pick-calibration.test.js` checks dated elite-player exchange benchmarks and pick ordering across league sizes. `dynasty-pick-calibration.json` records the before/after scale, with no claim of predictive or market accuracy. `prospects.js` uses this curve for verified rookie draft context.
