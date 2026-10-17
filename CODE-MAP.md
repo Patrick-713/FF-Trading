@@ -57,3 +57,7 @@ Verified first-year rookie selections use the same slot curve as next year’s p
 Unknown future picks remain estimates. In the trade builder, First in round simulates 1.01, 2.01 and so on; it does not claim a future draft order is known. All pick tiers now share the same curve as the rookie anchor, so dynasty pick and player comparisons remain consistent. Each additional future year retains the existing 15% discount. Previous saved scenarios retain their original model version and values.
 
 The versioned rookie-benchmarks.js file records explicit owner-supplied assumptions. Jeremiyah Love uses the requested 2026 1.01 benchmark when no verified league selection is available. The UI identifies this source rather than presenting it as Sleeper draft history or consensus ADP.
+
+## Historical inputs and evaluation
+
+Read `stat-inputs.js` for compact provider inputs, `redraft-signal.js` for the fading last-season blend, and `history-data.test.js` for scoring preservation, no look-ahead, frozen history and reduced payload reads. `backtest-redraft.js` is an explicit offline historical scoring check; `redraft-validation.json` records training and holdout results. `compact-data.js` is manual, backed-up maintenance and defaults to a dry run.

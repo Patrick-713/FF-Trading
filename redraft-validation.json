@@ -1,0 +1,519 @@
+{
+  "method": "Train history blend on 2024 using 2023 history; hold out 2025 with 2024 history. At cutoffs 1 to 14, predict PPR points per appearance in the next four NFL weeks.",
+  "limitations": "Conditional on future game appearances; does not predict injury absence, bye-week totals, trade-value accuracy or rank accuracy. Repeated players and overlapping windows are dependent. Historical provider corrections may postdate the cutoff. No 2025 outcomes used to choose weights.",
+  "chosen": {
+    "strength": 4,
+    "fadeGames": 17
+  },
+  "training": {
+    "count": 5389,
+    "mae": 3.1759644553175512,
+    "baselineMAE": 3.3861445730987176,
+    "positions": {
+      "QB": {
+        "count": 619,
+        "mae": 4.898539471784674,
+        "baselineMAE": 5.028413794103937
+      },
+      "WR": {
+        "count": 2188,
+        "mae": 3.1652308107524045,
+        "baselineMAE": 3.3920803121720833
+      },
+      "TE": {
+        "count": 1194,
+        "mae": 2.3982057524967058,
+        "baselineMAE": 2.6306854774296955
+      },
+      "RB": {
+        "count": 1388,
+        "mae": 3.0937275462998124,
+        "baselineMAE": 3.2942613708897532
+      }
+    }
+  },
+  "holdoutByScoring": {
+    "ppr": {
+      "count": 5527,
+      "mae": 3.0866682426380243,
+      "baselineMAE": 3.262651439897587,
+      "positions": {
+        "QB": {
+          "count": 604,
+          "mae": 5.057473226328766,
+          "baselineMAE": 5.294753441554767
+        },
+        "WR": {
+          "count": 2311,
+          "mae": 2.9493248537089913,
+          "baselineMAE": 3.161008428294629
+        },
+        "TE": {
+          "count": 1236,
+          "mae": 2.4879917834833236,
+          "baselineMAE": 2.6599514597412637
+        },
+        "RB": {
+          "count": 1376,
+          "mae": 2.9900101504730223,
+          "baselineMAE": 3.0827419677222023
+        }
+      }
+    },
+    "half": {
+      "count": 5527,
+      "mae": 2.810993881815504,
+      "baselineMAE": 2.979836645428432,
+      "positions": {
+        "QB": {
+          "count": 604,
+          "mae": 5.05599078314441,
+          "baselineMAE": 5.291134896633905
+        },
+        "WR": {
+          "count": 2311,
+          "mae": 2.5760410199561643,
+          "baselineMAE": 2.7700462664601204
+        },
+        "TE": {
+          "count": 1236,
+          "mae": 2.151771086327549,
+          "baselineMAE": 2.319390211837783
+        },
+        "RB": {
+          "count": 1376,
+          "mae": 2.812300066828131,
+          "baselineMAE": 2.9108782253599137
+        }
+      }
+    },
+    "standard": {
+      "count": 5527,
+      "mae": 2.5678172436316173,
+      "baselineMAE": 2.734809464218503,
+      "positions": {
+        "QB": {
+          "count": 604,
+          "mae": 5.054671125453627,
+          "baselineMAE": 5.287960722573969
+        },
+        "WR": {
+          "count": 2311,
+          "mae": 2.2323017171787343,
+          "baselineMAE": 2.414017282126507
+        },
+        "TE": {
+          "count": 1236,
+          "mae": 1.8562748347622167,
+          "baselineMAE": 2.025869120649219
+        },
+        "RB": {
+          "count": 1376,
+          "mae": 2.678851440124861,
+          "baselineMAE": 2.7896769332734506
+        }
+      }
+    }
+  },
+  "holdout": {
+    "count": 5527,
+    "mae": 3.0866682426380243,
+    "baselineMAE": 3.262651439897587,
+    "positions": {
+      "QB": {
+        "count": 604,
+        "mae": 5.057473226328766,
+        "baselineMAE": 5.294753441554767
+      },
+      "WR": {
+        "count": 2311,
+        "mae": 2.9493248537089913,
+        "baselineMAE": 3.161008428294629
+      },
+      "TE": {
+        "count": 1236,
+        "mae": 2.4879917834833236,
+        "baselineMAE": 2.6599514597412637
+      },
+      "RB": {
+        "count": 1376,
+        "mae": 2.9900101504730223,
+        "baselineMAE": 3.0827419677222023
+      }
+    }
+  },
+  "candidates": [
+    {
+      "strength": 4,
+      "fadeGames": 17,
+      "training": {
+        "count": 5389,
+        "mae": 3.1759644553175512,
+        "baselineMAE": 3.3861445730987176,
+        "positions": {
+          "QB": {
+            "count": 619,
+            "mae": 4.898539471784674,
+            "baselineMAE": 5.028413794103937
+          },
+          "WR": {
+            "count": 2188,
+            "mae": 3.1652308107524045,
+            "baselineMAE": 3.3920803121720833
+          },
+          "TE": {
+            "count": 1194,
+            "mae": 2.3982057524967058,
+            "baselineMAE": 2.6306854774296955
+          },
+          "RB": {
+            "count": 1388,
+            "mae": 3.0937275462998124,
+            "baselineMAE": 3.2942613708897532
+          }
+        }
+      }
+    },
+    {
+      "strength": 6,
+      "fadeGames": 17,
+      "training": {
+        "count": 5389,
+        "mae": 3.1770845697940104,
+        "baselineMAE": 3.3861445730987176,
+        "positions": {
+          "QB": {
+            "count": 619,
+            "mae": 4.909690181701269,
+            "baselineMAE": 5.028413794103937
+          },
+          "WR": {
+            "count": 2188,
+            "mae": 3.1709131014007763,
+            "baselineMAE": 3.3920803121720833
+          },
+          "TE": {
+            "count": 1194,
+            "mae": 2.3896472099908705,
+            "baselineMAE": 2.6306854774296955
+          },
+          "RB": {
+            "count": 1388,
+            "mae": 3.0915085659602277,
+            "baselineMAE": 3.2942613708897532
+          }
+        }
+      }
+    },
+    {
+      "strength": 8,
+      "fadeGames": 17,
+      "training": {
+        "count": 5389,
+        "mae": 3.1813590081205723,
+        "baselineMAE": 3.3861445730987176,
+        "positions": {
+          "QB": {
+            "count": 619,
+            "mae": 4.920764145365054,
+            "baselineMAE": 5.028413794103937
+          },
+          "WR": {
+            "count": 2188,
+            "mae": 3.1791763378451576,
+            "baselineMAE": 3.3920803121720833
+          },
+          "TE": {
+            "count": 1194,
+            "mae": 2.386280079718712,
+            "baselineMAE": 2.6306854774296955
+          },
+          "RB": {
+            "count": 1388,
+            "mae": 3.0930363446624027,
+            "baselineMAE": 3.2942613708897532
+          }
+        }
+      }
+    },
+    {
+      "strength": 6,
+      "fadeGames": 12,
+      "training": {
+        "count": 5389,
+        "mae": 3.1859172236125928,
+        "baselineMAE": 3.3861445730987176,
+        "positions": {
+          "QB": {
+            "count": 619,
+            "mae": 4.911055412242181,
+            "baselineMAE": 5.028413794103937
+          },
+          "WR": {
+            "count": 2188,
+            "mae": 3.177198343669135,
+            "baselineMAE": 3.3920803121720833
+          },
+          "TE": {
+            "count": 1194,
+            "mae": 2.4062597233820227,
+            "baselineMAE": 2.6306854774296955
+          },
+          "RB": {
+            "count": 1388,
+            "mae": 3.10099461974359,
+            "baselineMAE": 3.2942613708897532
+          }
+        }
+      }
+    },
+    {
+      "strength": 8,
+      "fadeGames": 12,
+      "training": {
+        "count": 5389,
+        "mae": 3.1868983409758034,
+        "baselineMAE": 3.3861445730987176,
+        "positions": {
+          "QB": {
+            "count": 619,
+            "mae": 4.917552440940895,
+            "baselineMAE": 5.028413794103937
+          },
+          "WR": {
+            "count": 2188,
+            "mae": 3.1811114133582397,
+            "baselineMAE": 3.3920803121720833
+          },
+          "TE": {
+            "count": 1194,
+            "mae": 2.4028215681797227,
+            "baselineMAE": 2.6306854774296955
+          },
+          "RB": {
+            "count": 1388,
+            "mae": 3.0986955862691987,
+            "baselineMAE": 3.2942613708897532
+          }
+        }
+      }
+    },
+    {
+      "strength": 4,
+      "fadeGames": 12,
+      "training": {
+        "count": 5389,
+        "mae": 3.1885680275228956,
+        "baselineMAE": 3.3861445730987176,
+        "positions": {
+          "QB": {
+            "count": 619,
+            "mae": 4.902675066332079,
+            "baselineMAE": 5.028413794103937
+          },
+          "WR": {
+            "count": 2188,
+            "mae": 3.1772886265748355,
+            "baselineMAE": 3.3920803121720833
+          },
+          "TE": {
+            "count": 1194,
+            "mae": 2.414793115478098,
+            "baselineMAE": 2.6306854774296955
+          },
+          "RB": {
+            "count": 1388,
+            "mae": 3.107540878555262,
+            "baselineMAE": 3.2942613708897532
+          }
+        }
+      }
+    },
+    {
+      "strength": 2,
+      "fadeGames": 17,
+      "training": {
+        "count": 5389,
+        "mae": 3.193509145255652,
+        "baselineMAE": 3.3861445730987176,
+        "positions": {
+          "QB": {
+            "count": 619,
+            "mae": 4.903454640150156,
+            "baselineMAE": 5.028413794103937
+          },
+          "WR": {
+            "count": 2188,
+            "mae": 3.18017613016616,
+            "baselineMAE": 3.3920803121720833
+          },
+          "TE": {
+            "count": 1194,
+            "mae": 2.4255645806642065,
+            "baselineMAE": 2.6306854774296955
+          },
+          "RB": {
+            "count": 1388,
+            "mae": 3.1125597113927115,
+            "baselineMAE": 3.2942613708897532
+          }
+        }
+      }
+    },
+    {
+      "strength": 8,
+      "fadeGames": 8,
+      "training": {
+        "count": 5389,
+        "mae": 3.206982509212463,
+        "baselineMAE": 3.3861445730987176,
+        "positions": {
+          "QB": {
+            "count": 619,
+            "mae": 4.924780065539931,
+            "baselineMAE": 5.028413794103937
+          },
+          "WR": {
+            "count": 2188,
+            "mae": 3.1936539823536014,
+            "baselineMAE": 3.3920803121720833
+          },
+          "TE": {
+            "count": 1194,
+            "mae": 2.428513387973123,
+            "baselineMAE": 2.6306854774296955
+          },
+          "RB": {
+            "count": 1388,
+            "mae": 3.1315777975122843,
+            "baselineMAE": 3.2942613708897532
+          }
+        }
+      }
+    },
+    {
+      "strength": 2,
+      "fadeGames": 12,
+      "training": {
+        "count": 5389,
+        "mae": 3.207581724787701,
+        "baselineMAE": 3.3861445730987176,
+        "positions": {
+          "QB": {
+            "count": 619,
+            "mae": 4.913604846869431,
+            "baselineMAE": 5.028413794103937
+          },
+          "WR": {
+            "count": 2188,
+            "mae": 3.1944000937008856,
+            "baselineMAE": 3.3920803121720833
+          },
+          "TE": {
+            "count": 1194,
+            "mae": 2.4408973568127434,
+            "baselineMAE": 2.6306854774296955
+          },
+          "RB": {
+            "count": 1388,
+            "mae": 3.1270588368996823,
+            "baselineMAE": 3.2942613708897532
+          }
+        }
+      }
+    },
+    {
+      "strength": 6,
+      "fadeGames": 8,
+      "training": {
+        "count": 5389,
+        "mae": 3.2079505327433773,
+        "baselineMAE": 3.3861445730987176,
+        "positions": {
+          "QB": {
+            "count": 619,
+            "mae": 4.919840522882915,
+            "baselineMAE": 5.028413794103937
+          },
+          "WR": {
+            "count": 2188,
+            "mae": 3.193943176954283,
+            "baselineMAE": 3.3920803121720833
+          },
+          "TE": {
+            "count": 1194,
+            "mae": 2.431910222506195,
+            "baselineMAE": 2.6306854774296955
+          },
+          "RB": {
+            "count": 1388,
+            "mae": 3.1341611386463204,
+            "baselineMAE": 3.2942613708897532
+          }
+        }
+      }
+    },
+    {
+      "strength": 4,
+      "fadeGames": 8,
+      "training": {
+        "count": 5389,
+        "mae": 3.211760783119085,
+        "baselineMAE": 3.3861445730987176,
+        "positions": {
+          "QB": {
+            "count": 619,
+            "mae": 4.917103175293145,
+            "baselineMAE": 5.028413794103937
+          },
+          "WR": {
+            "count": 2188,
+            "mae": 3.1974191230084457,
+            "baselineMAE": 3.3920803121720833
+          },
+          "TE": {
+            "count": 1194,
+            "mae": 2.4392584993176474,
+            "baselineMAE": 2.6306854774296955
+          },
+          "RB": {
+            "count": 1388,
+            "mae": 3.1383748597942827,
+            "baselineMAE": 3.2942613708897532
+          }
+        }
+      }
+    },
+    {
+      "strength": 2,
+      "fadeGames": 8,
+      "training": {
+        "count": 5389,
+        "mae": 3.230599845941873,
+        "baselineMAE": 3.3861445730987176,
+        "positions": {
+          "QB": {
+            "count": 619,
+            "mae": 4.933272983233622,
+            "baselineMAE": 5.028413794103937
+          },
+          "WR": {
+            "count": 2188,
+            "mae": 3.216003814771393,
+            "baselineMAE": 3.3920803121720833
+          },
+          "TE": {
+            "count": 1194,
+            "mae": 2.463718199412742,
+            "baselineMAE": 2.6306854774296955
+          },
+          "RB": {
+            "count": 1388,
+            "mae": 3.153970256729439,
+            "baselineMAE": 3.2942613708897532
+          }
+        }
+      }
+    }
+  ]
+}

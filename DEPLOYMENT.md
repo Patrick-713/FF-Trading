@@ -49,3 +49,5 @@ The Vercel account already uses Pro; its subscription was not changed. Neon uses
 ## Account email
 
 Production requires a Resend sending-only key restricted to the verified `mail.fantasyfootballmarket.app` domain. Set `EMAIL_FROM` to `FF Trading <accounts@mail.fantasyfootballmarket.app>` and `EMAIL_APP_ORIGIN` to `https://fantasyfootballmarket.app`. Keep the key in Vercel secrets. Preview must use a separate test sender or leave email unavailable; do not send production mail from previews. Run schema migration 4 on preview first and production before deploying. Verification links use URL fragments so tokens do not enter HTTP access logs. Password resets revoke existing sessions and require a fresh login.
+
+Model 2.4.0 requires no database schema change. Test `compact-data.js --apply` in preview before applying to production; retain its ignored backup. Current stats remain cached for six hours; last-season summaries for 30 days. The historical backtest is manual and its raw data remains under ignored `data/validation/`. Do not put provider downloads or private backups in GitHub or a deployment.

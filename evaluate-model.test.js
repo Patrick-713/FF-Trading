@@ -7,6 +7,6 @@ test('versioned archetype evaluation passes behavioral checks without claiming p
   assert.equal(r.cases.length, 10);
   assert.equal(r.checks.length, 9);
   assert.equal(r.rookiePickExample.rookieValue, 2340);
-  assert.equal(r.modelVersion, '2.3.0');
+  assert.equal(r.modelVersion, '2.4.0');
   assert.match(r.evaluationType, /not predictive/);
 });

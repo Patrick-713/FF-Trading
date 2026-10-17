@@ -2,6 +2,7 @@
 import { normalizePlayer } from './player-metadata.js';
 import { leagueDefaults } from './league-format.js';
 import { provider } from './errors.js';
+import { compactRows, compactInputs, summarizeHistory } from './stat-inputs.js';
 import { MODEL_VERSION } from './model-version.js';
 import {
   parseCSV,
@@ -47,7 +48,76 @@ export function createFantasy(db, { fetcher = globalThis.fetch } = {}) {
       created TEXT NOT NULL
     );
   `);
-  let inFlight = new Map();
+  const inFlight = new Map();
+  const inputCache = new Map();
+  async function frozenInputs(account, league) {
+    const key = account + ':' + league;
+    const stamp = await db
+      .prepare('SELECT refreshed FROM analysis_snapshots WHERE account=? AND league=?')
+      .get(account, league);
+    if (!stamp) return null;
+    const saved = inputCache.get(key);
+    if (saved?.refreshed === stamp.refreshed && Date.now() - saved.loaded < 5 * 60000) return saved;
+    const row = await db
+      .prepare('SELECT data,refreshed FROM analysis_snapshots WHERE account=? AND league=?')
+      .get(account, league);
+    const result = { inputs: JSON.parse(row.data), refreshed: row.refreshed, loaded: Date.now() };
+    if (inputCache.size >= 4) inputCache.delete(inputCache.keys().next().value);
+    inputCache.set(key, result);
+    return result;
+  }
+  /** Prior-year data is summarized once and shared, with a 30-day freshness window. */
+  async function history(season) {
+    const key = 'history:' + season;
+    if (inFlight.has(key)) return inFlight.get(key);
+    const job = (async () => {
+      const cached = await db
+        .prepare('SELECT data,fetched FROM fantasy_cache WHERE key=?')
+        .get(key);
+      const cachedData = cached ? JSON.parse(cached.data) : null;
+      if (cached && Date.now() - cached.fetched < (cachedData.warning ? 15 * 60000 : 30 * 86400000))
+        return cachedData;
+      try {
+        const response = await fetcher(
+          `https://github.com/nflverse/nflverse-data/releases/download/stats_player/stats_player_week_${season}.csv`,
+          { signal: AbortSignal.timeout(20000) },
+        );
+        if (!response.ok) throw new Error('History unavailable');
+        const text = await response.text();
+        if (text.length > 20000000) throw new Error('History too large');
+        const rows = parseCSV(text).filter(
+          (r) => r.season_type === 'REG' && (!r.season || Number(r.season) === season),
+        );
+        if (!rows.length || !rows[0].player_id) throw new Error('Invalid history');
+        const result = summarizeHistory(rows, season);
+        await db
+          .prepare(
+            'INSERT INTO fantasy_cache VALUES (?,?,?) ON CONFLICT(key) DO UPDATE SET data=excluded.data,fetched=excluded.fetched',
+          )
+          .run(key, JSON.stringify(result), Date.now());
+        return result;
+      } catch {
+        if (cachedData && !cachedData.warning) return cachedData;
+        const unavailable = {
+          season,
+          players: {},
+          warning: 'Last-season context is unavailable; using current-season data only.',
+        };
+        await db
+          .prepare(
+            'INSERT INTO fantasy_cache VALUES (?,?,?) ON CONFLICT(key) DO UPDATE SET data=excluded.data,fetched=excluded.fetched',
+          )
+          .run(key, JSON.stringify(unavailable), Date.now());
+        return unavailable;
+      }
+    })();
+    inFlight.set(key, job);
+    try {
+      return await job;
+    } finally {
+      inFlight.delete(key);
+    }
+  }
   /** Refresh the NFL metadata cache, retaining saved metadata during provider outages. */
   async function metadata() {
     const cached = await db
@@ -90,7 +160,7 @@ export function createFantasy(db, { fetcher = globalThis.fetch } = {}) {
     }
   }
   /** Refresh one season of regular-season statistics and coalesce concurrent requests. */
-  async function stats(season, allowFallback = true) {
+  async function stats(season) {
     if (inFlight.has(season)) return inFlight.get(season);
     const job = (async () => {
       const cached = await db
@@ -102,20 +172,16 @@ export function createFantasy(db, { fetcher = globalThis.fetch } = {}) {
         const url = `https://github.com/nflverse/nflverse-data/releases/download/stats_player/stats_player_week_${season}.csv`;
         const response = await fetcher(url, { signal: AbortSignal.timeout(20000) });
         if (!response.ok) {
-          if (response.status === 404 && season > 2017 && allowFallback) {
-            const previous = await stats(season - 1, false);
-            return {
-              ...previous,
-              warning: `${season} statistics are unavailable; showing ${previous.season} history.`,
-            };
-          }
           throw new Error('Stats provider unavailable');
         }
         const text = await response.text();
         if (text.length > 20000000) throw new Error('Stats file too large');
-        const rows = parseCSV(text).filter((r) => r.season_type === 'REG');
-        if (!rows.length || !rows[0].player_id || !('targets' in rows[0]))
+        const rawRows = parseCSV(text).filter(
+          (r) => r.season_type === 'REG' && (!r.season || Number(r.season) === season),
+        );
+        if (!rawRows.length || !rawRows[0].player_id || !('targets' in rawRows[0]))
           throw new Error('Invalid stats file');
+        const rows = compactRows(rawRows);
         const data = { season, rows, source: 'nflverse weekly player statistics', url };
         const fetched = Date.now();
         await db
@@ -151,12 +217,8 @@ export function createFantasy(db, { fetcher = globalThis.fetch } = {}) {
   /** Assemble player values and roster summaries from saved inputs and league settings. */
   async function model(account, snapshot, catalog, input) {
     const league = snapshot?.league.id || 'demo';
-    const savedSnapshot = snapshot
-      ? await db
-          .prepare('SELECT data,refreshed FROM analysis_snapshots WHERE account=? AND league=?')
-          .get(account, league)
-      : null;
-    const inputs = savedSnapshot ? JSON.parse(savedSnapshot.data) : null;
+    const savedSnapshot = snapshot ? await frozenInputs(account, league) : null;
+    const inputs = savedSnapshot?.inputs || null;
     const metadataTime = inputs?.asOf ? new Date(inputs.asOf).getTime() : Date.now(),
       metadataYear = new Date(metadataTime).getUTCFullYear();
     if (inputs) {
@@ -172,11 +234,27 @@ export function createFantasy(db, { fetcher = globalThis.fetch } = {}) {
       stored ? { ...imported.settings, ...JSON.parse(stored.data) } : imported.settings,
     );
     const season = Number(snapshot?.league.season || new Date().getUTCFullYear());
-    let data, teams, allPlayers, slots, picks;
+    let data,
+      teams,
+      allPlayers,
+      slots,
+      picks,
+      historical = null;
     if (snapshot) {
       const statistics = inputs?.statistics || (await readStats(season)),
         meta = inputs?.metadata || (await readMetadata());
-      data = statistics;
+      historical =
+        inputs?.history ||
+        (statistics.season === season - 1 ? summarizeHistory(statistics.rows, season - 1) : null);
+      data =
+        statistics.season === season
+          ? statistics
+          : {
+              season,
+              rows: [],
+              source: 'Current-season stats unavailable',
+              warning: 'Last-season data is context only, not current-season production.',
+            };
       const through = data.season === season ? snapshot.settledWeek : 18;
       data = { ...data, rows: data.rows.filter((r) => Number(r.week) <= through) };
       teams = snapshot.teams.map((t) => ({ ...t, playerIds: t.playerIds || [] }));
@@ -192,7 +270,10 @@ export function createFantasy(db, { fetcher = globalThis.fetch } = {}) {
       };
       allPlayers = teams.flatMap((team) => team.playerIds.map((id) => buildPlayer(id, team.id)));
       const rostered = new Set(allPlayers.map((p) => p.id)),
-        withStats = new Set(data.rows.map((r) => r.player_id));
+        withStats = new Set([
+          ...data.rows.map((r) => r.player_id),
+          ...Object.keys(historical?.players || {}),
+        ]);
       for (const [id, p] of Object.entries(catalog))
         if (
           !rostered.has(id) &&
@@ -312,6 +393,9 @@ export function createFantasy(db, { fetcher = globalThis.fetch } = {}) {
         (rows || []).sort((a, b) => Number(a.week) - Number(b.week)),
         settings,
         season,
+        historical?.players?.[p.gsis] && p.experience !== 0 && p.draftYear !== season
+          ? { ...historical.players[p.gsis], season: historical.season }
+          : null,
       );
     });
     picks = picks.map((p) => ({
@@ -380,6 +464,10 @@ export function createFantasy(db, { fetcher = globalThis.fetch } = {}) {
         warning:
           [
             data.warning,
+            historical?.warning,
+            snapshot && inputs && !inputs.history
+              ? 'Refresh league data to add last-season context.'
+              : null,
             snapshot?.rookieDrafts?.warning,
             imported.warning,
             prospectOnly
@@ -404,11 +492,14 @@ export function createFantasy(db, { fetcher = globalThis.fetch } = {}) {
         ),
         matched: players.filter((p) => p.games > 0).length,
         total: players.length,
+        historySeason: historical?.season || null,
+        historyMatched: players.filter((p) => p.history?.games).length,
+        historyRefreshNeeded: Boolean(snapshot && inputs && !inputs.history),
       },
       saved,
       linked: Boolean(snapshot),
       picksAvailable: picks.length > 0,
-      methodology: `FF Trading model ${MODEL_VERSION} heuristic. Production above a position baseline, opportunity, target share, WOPR, EPA per opportunity, and consistency drive player values. Dynasty anchors verified first-year rookies to next year’s equivalent rookie pick with an evidence discount, allows strong production to exceed that anchor, and uses fading prospect priors when a verified selection is unavailable. Age and superflex adjustments apply to established values. Rookie draft context is not consensus rank. Past scoring pace is not a forecast; no proprietary rankings or live market prices are used.`,
+      methodology: `Redraft combines current scoring and usage with a fading last-season baseline. Dynasty also considers age, draft capital and rookie pick value. Starter pace uses current-season scoring only. Model ${MODEL_VERSION}; estimates, not expert consensus.`,
     };
   }
   async function readMetadata() {
@@ -462,7 +553,8 @@ export function createFantasy(db, { fetcher = globalThis.fetch } = {}) {
   }
   /** Build the frozen provider inputs that a successful league refresh will save. */
   async function prepareSnapshot(snapshot, catalog) {
-    await Promise.all([stats(Number(snapshot.league.season)), metadata()]);
+    const season = Number(snapshot.league.season);
+    const [, , previous] = await Promise.all([stats(season), metadata(), history(season - 1)]);
     const slim = Object.fromEntries(
       Object.entries(catalog).map(([id, p]) => [
         id,
@@ -496,6 +588,7 @@ export function createFantasy(db, { fetcher = globalThis.fetch } = {}) {
       throw provider('Statistics are unavailable. Your previous analysis snapshot is unchanged.');
     return {
       statistics,
+      history: previous,
       metadata: await readMetadata(),
       catalog: slim,
       asOf: new Date().toISOString(),
@@ -507,7 +600,18 @@ export function createFantasy(db, { fetcher = globalThis.fetch } = {}) {
       .prepare(
         'INSERT INTO analysis_snapshots VALUES (?,?,?,?) ON CONFLICT(account,league) DO UPDATE SET data=excluded.data,refreshed=excluded.refreshed',
       )
-      .run(account, snapshot.league.id, JSON.stringify(inputs), snapshot.analysisRefreshedAt);
+      .run(
+        account,
+        snapshot.league.id,
+        JSON.stringify(
+          compactInputs(
+            inputs,
+            snapshot.teams.flatMap((t) => t.playerIds || []),
+          ),
+        ),
+        snapshot.analysisRefreshedAt,
+      );
+    inputCache.delete(account + ':' + snapshot.league.id);
   }
   return { model, saveSettings, prepareSnapshot, storeSnapshot };
 }

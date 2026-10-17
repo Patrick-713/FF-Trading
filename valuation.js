@@ -1,6 +1,7 @@
 /** Valuation functions use relative model units. They are transparent estimates rather than forecasts. */
 import { invalid } from './errors.js';
 import { prospectProfile } from './prospects.js';
+import { scoringSignal } from './redraft-signal.js';
 import { draftPickValue } from './draft-values.js';
 // FF Trading model v1: transparent heuristic values, not market prices or calibrated forecasts.
 export function parseCSV(text) {
@@ -86,7 +87,13 @@ export function pointsFor(row, s) {
   );
 }
 /** Combine observed production with an age-adjusted, fading dynasty prospect prior. */
-export function valuePlayer(player, rows, s, season = new Date().getUTCFullYear()) {
+export function valuePlayer(
+  player,
+  rows,
+  s,
+  season = new Date().getUTCFullYear(),
+  previous = null,
+) {
   const games = rows.length,
     score = rows.map((r) => pointsFor(r, s)),
     ppg = games ? score.reduce((a, b) => a + b, 0) / games : 0;
@@ -133,13 +140,39 @@ export function valuePlayer(player, rows, s, season = new Date().getUTCFullYear(
           : /questionable/.test(injury)
             ? 0.95
             : 1;
-  const pace = (ppg * 0.4 + recentPPG * 0.6) * availability;
-  const production = Math.max(0, pace - replacement) * 110;
+  const history =
+    previous?.season === season - 1 &&
+    previous.position === player.position &&
+    previous.games >= 4 &&
+    player.experience !== 0 &&
+    player.draftYear !== season
+      ? previous
+      : null;
+  const previousPPG = history
+    ? pointsFor({ ...history.averages, position: player.position }, s)
+    : null;
+  const signal = scoringSignal(score, previousPPG, history?.games || 0);
+  // Starter pace remains observed current-season production, separate from value estimation.
+  const pace = signal.current * availability;
+  const production = Math.max(0, signal.estimate * availability - replacement) * 110;
+  const blend = (current, key) =>
+    history?.averages[key] == null
+      ? current
+      : current * (1 - signal.historyWeight) + history.averages[key] * signal.historyWeight;
+  const historicalOpportunity = history
+    ? player.position === 'QB'
+      ? (history.averages.attempts || 0) / 35
+      : ((history.averages.carries || 0) + 1.5 * (history.averages.targets || 0)) / 18
+    : 0;
+  const weightedOpportunity =
+    opportunity * (1 - signal.historyWeight) + historicalOpportunity * signal.historyWeight;
   const usage =
-    clamp(opportunity, 0, 2) * 120 + (avg('target_share') || 0) * 220 + (avg('wopr') || 0) * 90;
+    clamp(weightedOpportunity, 0, 2) * 120 +
+    blend(avg('target_share') || 0, 'target_share') * 220 +
+    blend(avg('wopr') || 0, 'wopr') * 90;
   const efficiency = epa === null ? 0 : clamp(epa, -0.5, 0.5) * 120;
   const consistency = cv === null ? 0 : clamp(1 - cv, 0, 1) * 80;
-  const sampleWeight = clamp(games / 4, 0, 1);
+  const sampleWeight = clamp((games + (history?.games || 0) * signal.historyWeight) / 4, 0, 1);
   const prior = { 1: 550, 2: 350, 3: 220, 4: 130, 5: 90, 6: 65, 7: 50 }[player.draftRound] ?? 35;
   let redraft = Math.round(
     Math.max(
@@ -214,13 +247,24 @@ export function valuePlayer(player, rows, s, season = new Date().getUTCFullYear(
     dynasty,
     value: s.mode === 'dynasty' ? dynasty : redraft,
     pace: round(pace),
-    confidence,
+    confidence: !games && history ? 'Last-season baseline' : confidence,
     games,
     prospect,
     pickAnchor,
+    history: history
+      ? {
+          season: history.season,
+          games: history.games,
+          ppg: round(previousPPG),
+          weight: round(signal.historyWeight, 3),
+          team: history.team || null,
+        }
+      : null,
     stats: {
       ppg: round(ppg),
       recentPPG: round(recentPPG),
+      scoringEstimate: round(signal.estimate),
+      lastSeasonPPG: history ? round(previousPPG) : null,
       targetsPerGame: games ? round(targets / games) : null,
       carriesPerGame: games ? round(carries / games) : null,
       targetShare: avg('target_share') === null ? null : round(avg('target_share') * 100),
@@ -252,7 +296,13 @@ export function valuePlayer(player, rows, s, season = new Date().getUTCFullYear(
             `Prospect prior: ${prospect.source}; ${Math.round(prospect.priorWeight * 100)}% retained weight. Limited NFL production does not erase draft capital.`,
           ]
         : []),
-      ...(!games ? ['No matched weekly stats: value is a low-confidence metadata estimate.'] : []),
+      ...(!games
+        ? [
+            history
+              ? `No current-season games. Value uses ${history.season} history; this is not current production.`
+              : 'No matched weekly stats: value is a low-confidence metadata estimate.',
+          ]
+        : []),
       ...(age == null ? ['Age unavailable; neutral dynasty age adjustment.'] : []),
       ...(player.draftRound == null ? ['NFL draft round unavailable; neutral draft prior.'] : []),
       ...(injury ? [`Availability adjustment for listed status: ${player.injury}.`] : []),

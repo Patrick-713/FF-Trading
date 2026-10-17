@@ -112,7 +112,7 @@ export function evaluateModel() {
     checks,
     passed: checks.every((c) => c.passed),
     limitations: [
-      'No held-out historical outcomes or independently licensed consensus rankings are included.',
+      'This synthetic report does not measure accuracy. See redraft-validation.json for the separate held-out scoring-component evaluation.',
       'Passing checks confirms intended model behavior, not forecasting accuracy.',
       'Future calibration should use date-stamped inputs and unseen future outcomes to prevent look-ahead bias.',
     ],

@@ -145,6 +145,13 @@ test('builder supports player search, assumptions, analysis, finder and loading 
     await click('[data-mode]', { mode: 'dynasty' });
     await click('button[data-view]', { view: 'trade' });
     assert.ok(element('#main').innerHTML.includes('PICK'));
+    await click('#methodology');
+    assert.ok(element('#details-content').innerHTML.includes('How player values work'));
+    assert.ok(
+      element('#details-content').innerHTML.includes(
+        '<details><summary>Data sources and updates</summary>',
+      ),
+    );
     globalThis.location = { hash: '#action=reset&token=' + 'a'.repeat(64), pathname: '/' };
     let clearedLink = false;
     globalThis.history = {

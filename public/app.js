@@ -381,9 +381,13 @@ document.addEventListener('click', async (e) => {
       [
         `<span class="eyebrow">${esc(p.position)} · ${esc(p.club)}</span><h2>${esc(p.name)}</h2>`,
         `<div class="stat-pair"><span>Redraft <b>${p.redraft}</b></span><span>Dynasty <b>${p.dynasty}</b></span></div>`,
+        `${p.history ? `<p><strong>${p.history.season}:</strong> ${fmt(p.history.ppg)} fantasy points per game across ${p.history.games} games. Last-season context supplies ${Math.round(p.history.weight * 100)}% of the scoring estimate.</p>` : ''}`,
         `<p>${esc(p.confidence)} · ${p.games} games · age ${p.age ?? 'unknown'}</p>`,
         `<table><tbody>${Object.entries(p.stats)
-          .map(([k, v]) => `<tr><td>${esc(k)}</td><td>${v ?? 'Not available'}</td></tr>`)
+          .map(
+            ([k, v]) =>
+              `<tr><td>${esc({ ppg: 'This season FP / game', recentPPG: 'Last four games FP / game', scoringEstimate: 'Scoring estimate', lastSeasonPPG: 'Last season FP / game', targetsPerGame: 'Targets / game', carriesPerGame: 'Carries / game', targetShare: 'Target share (%)', wopr: 'Receiving opportunity (WOPR)', adot: 'Average target depth', epaPerOpportunity: 'EPA / opportunity', consistency: 'Consistency', yardsPerTouch: 'Yards / touch' }[k] || k)}</td><td>${v ?? 'Not available'}</td></tr>`,
+          )
           .join('')}</tbody>`,
         `</table>${p.pickAnchor ? `<h3>Next-year pick anchor</h3><p>${p.pickAnchor.year} pick ${Math.ceil(p.pickAnchor.overall / p.pickAnchor.teams)}.${String(((p.pickAnchor.overall - 1) % p.pickAnchor.teams) + 1).padStart(2, '0')} · ${fmt(p.pickAnchor.pickValue)} value, less ${Math.round(p.pickAnchor.discount * 100)}% for observed performance: ${fmt(p.pickAnchor.value)}. Strong production can exceed this anchor. Source: ${esc(p.pickAnchor.source)}. This is a model assumption, not consensus ADP.</p>` : ''}${p.prospect ? `<h3>Dynasty prospect protection</h3><p>${esc(p.prospect.source)} · ${Math.round(p.prospect.priorWeight * 100)}% retained weight · ${p.prospect.opportunities} observed opportunities.</p><p>Prospect starting value: ${fmt(p.prospect.capital)} before age/QB adjustments. ${p.prospect.rookieDraft ? `Rookie pick #${p.prospect.rookieDraft.overall}; ${esc(p.prospect.rookieDraft.source || 'verified league context')}, not consensus ranking.` : 'Verified rookie draft position unavailable; no ranking assumed.'}</p>` : ''}<h3>Model components</h3>`,
         `<p>${Object.entries(p.breakdown)
@@ -397,17 +401,13 @@ document.addEventListener('click', async (e) => {
   if (e.target.closest('#methodology,#rules')) {
     showDetails(
       [
-        `<span class="eyebrow">TRANSPARENT MODEL · VERSION ${esc(model.modelVersion || 'legacy')}</span><h2>Values, not tokens.</h2>`,
-        `<p>${esc(model.methodology)}</p>`,
-        `<h3>Redraft</h3>`,
-        `<p>60% recent four-game scoring pace + 40% season pace, position baselines, usage, target share, WOPR, efficiency, and consistency. Listed injury statuses receive a simple availability discount, not an injury-duration prediction.</p>`,
-        `<h3>Dynasty</h3>`,
-        `<p>Adds position-specific age curves and NFL draft capital. Players in their first three NFL seasons retain a prospect prior that fades with tenure, games and opportunities. Verified rookie-only league draft results add limited context; they are not consensus rankings. Strong NFL production can exceed the prior. Age alone never identifies a rookie. Superflex increases QB value. Players without a statistical match receive explicitly low-confidence estimates.</p>`,
-        `<h3>Future picks</h3>`,
-        `<p>Pick scenarios share the rookie anchor curve. In a 12-team league, next year’s 1.01 is 2,600, the middle first is 1,950, and a late first is 1,600. First-in-round, early, middle and late scenarios are estimates; each additional future year discounts 15%. These are estimates, not consensus draft rankings. Inventory assumes original picks and applies Sleeper’s traded-pick feed.</p>`,
-        `<h3>Scoring and limits</h3>`,
-        `<p>The selected scoring preset, passing TD value, and TE reception bonus drive the model. Custom league bonuses, exact D/ST scoring, schedules, snap counts, route participation, and opponent adjustments are not included. Starter pace is optimized past production, not a rest-of-season forecast. Dynasty pick slots are unknown and use mid-round estimates.</p>`,
-        `<p>Sources: <a href="https://docs.sleeper.com/" target="_blank" rel="noopener">Sleeper</a> and <a href="https://github.com/nflverse/nflverse-data/releases/tag/stats_player" target="_blank" rel="noopener">nflverse</a>. Stats cache refreshes after six hours; player metadata after 24 hours.</p>`,
+        `<h2>How player values work</h2>`,
+        `<p>Use values to compare players and picks in your league. A higher number means more value in the format you selected.</p>`,
+        `<h3>Redraft</h3><p>This season's scoring, targets, and carries matter most. Last season provides a starting point when there are only a few new games. It matters less as this season develops.</p>`,
+        `<h3>Dynasty</h3><p>We also consider age, draft position, and future potential. A highly drafted rookie can keep value through a slow start. For rookies with draft context, next year's equivalent pick is a starting point, adjusted for performance.</p>`,
+        `<h3>Draft picks</h3><p>Earlier picks are worth more. Future picks use an estimated slot until the order is known. You can change that assumption in a trade.</p>`,
+        `<p>Values are estimates. Injuries and role changes can move faster than the data. Starter pace shows this season's past scoring, not a prediction.</p>`,
+        `<details><summary>Data sources and updates</summary><p>League data comes from Sleeper. Game statistics come from nflverse. Current stats are cached for six hours; last-season summaries for 30 days. Refresh league data to update your analysis.</p><p>We do not currently include expert projections, route participation, matchup forecasts, or every custom scoring bonus. Model ${esc(model.modelVersion)}.</p><p><a href="https://docs.sleeper.com/" target="_blank" rel="noopener">Sleeper documentation</a> · <a href="https://github.com/nflverse/nflverse-data/releases/tag/stats_player" target="_blank" rel="noopener">nflverse statistics</a></p></details>`,
       ].join(''),
     );
     return;

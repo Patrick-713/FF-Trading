@@ -98,8 +98,10 @@ export async function createApplication() {
     const linked = await connection(account);
     if (!linked) return null;
     const s = structuredClone(linked.data),
-      raw = await cached(`league/${linked.league}`),
-      rosters = await cached(`league/${linked.league}/rosters`);
+      raw = s.analysisRefreshedAt ? null : await cached(`league/${linked.league}`),
+      rosters = s.teams.every((t) => Array.isArray(t.playerIds) && Array.isArray(t.protectedIds))
+        ? null
+        : await cached(`league/${linked.league}/rosters`);
     // Enrich imports created before roster capacity and draft metadata were persisted.
     if (raw && !s.analysisRefreshedAt) {
       s.league = {
@@ -124,12 +126,10 @@ export async function createApplication() {
   }
   /** Read saved analysis inputs. Provider requests belong to importLeague. */
   async function analysis(account, input) {
-    return fantasy.model(
-      account,
-      await snapshot(account),
-      (await cached('players/nfl')) || {},
-      input,
-    );
+    const s = await snapshot(account);
+    // Prepared inputs already contain a small frozen catalog. Never reread the full provider catalog for them or demos.
+    const catalog = s && !s.analysisRefreshedAt ? (await cached('players/nfl')) || {} : {};
+    return fantasy.model(account, s, catalog, input);
   }
   /** Prepare provider data first, then commit the league and its inputs together. */
   async function importLeague(account, username, leagueId) {

@@ -12,7 +12,8 @@
     "dev": "node --watch server.js",
     "test": "node --test",
     "evaluate": "node evaluate-model.js",
-    "db:migrate": "node migrate-cloud.js"
+    "db:migrate": "node migrate-cloud.js",
+    "evaluate:historical": "node backtest-redraft.js"
   },
   "dependencies": {
     "@vercel/functions": "^3.10.1",

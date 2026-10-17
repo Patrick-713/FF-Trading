@@ -81,3 +81,11 @@ Unknown future picks remain estimates. In the trade builder, First in round simu
 The versioned rookie-benchmarks.js file records explicit owner-supplied assumptions. Jeremiyah Love uses the requested 2026 1.01 benchmark when no verified league selection is available. The UI identifies this source rather than presenting it as Sleeper draft history or consensus ADP.
 
 Schema migration 4 adds verified email records and hashed, expiring email tokens. The former users column is retained only for migration compatibility; no endpoint accepts it. Existing credentials, sessions, and leagues are preserved.
+
+## Data size and historical context
+
+Prepared reads no longer fetch the full Sleeper player catalog. Frozen inputs are reused for up to five minutes per instance, after a small account/league refresh-version query. The cache holds at most four snapshots and is invalidated on local refresh. This is a performance cache; PostgreSQL remains authoritative.
+
+Current provider rows retain only scoring and usage fields. Last-season data is one per-player summary rather than another weekly file in every account. Current stats keep their six-hour cache; successful historical summaries share a 30-day cache and failed history lookups back off for 15 minutes. No scheduled polling or paid feed is added. Reads and scoring changes remain offline. Missing historical data degrades to the current model without losing the previous prepared snapshot on a failed current-stat import.
+
+`node compact-data.js` previews an existing-input compaction. After testing in preview, `node compact-data.js --apply` creates an ignored backup and updates inputs atomically. It checks that PPR, half PPR and standard historical row scores are unchanged. Local historical validation files can seed prior-year summaries. Account identities, roster links, refresh timestamps and saved trade results are retained.
