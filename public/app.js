@@ -53,7 +53,7 @@ function toast(text) {
   setTimeout(() => $('#toast').classList.remove('visible'), 4000);
 }
 function intro(title, text, action = true) {
-  return `<div class="page-intro"><div><div class="eyebrow">FANTASY FOOTBALL. CLEARER DECISIONS.</div><h1>${title}</h1><p>${text}</p></div>${action ? (state.connection ? '<button class="primary" data-sync>Refresh league data ↻</button>' : '<button class="primary" data-account-section="sleeper">Link your league ↗</button>') : ''}</div>`;
+  return `<div class="page-intro"><div><div class="eyebrow">FANTASY FOOTBALL. CLEARER DECISIONS.</div><h1>${title}</h1><p>${text}</p></div>${action ? (state.connection ? '' : '<button class="primary" data-account-section="sleeper">Link your league ↗</button>') : ''}</div>`;
 }
 const currentTeam = () => model.teams.find((t) => t.id === model.ownTeam) || model.teams[0];
 function playerTable(players) {
@@ -379,10 +379,20 @@ function render() {
     .forEach((n) =>
       n.classList.toggle('active', n.dataset.view === (view === 'finder' ? 'trade' : view)),
     );
-  const notice = [
-    `<div class="data-banner"><span class="dot"></span>${model.linked ? esc(state.connection.league.name) : 'Example rosters with real NFL players'} · ${esc(model.data.source)} · Model ${esc(model.modelVersion || 'legacy')} · ${model.data.season}, through week ${model.data.throughWeek}${!model.linked ? ` · Reference captured ${esc(new Date(model.data.fetched).toLocaleDateString())}` : ''} · ${model.data.matched}/${model.data.total} players with matched stats${model.linked ? ` · Analysis refreshed: ${model.data.refreshedAt ? esc(new Date(model.data.refreshedAt).toLocaleString()) : 'Not prepared'}${model.data.stale ? ' · Refresh recommended' : ''} <button class="text-button" data-sync>Refresh league data ↻</button>` : ''} <button class="text-button" id="methodology">How values work ↗</button>`,
-    `</div>${model.data.warning ? `<p class="data-warning" role="status">${esc(model.data.warning)}</p>` : ''}`,
-  ].join('');
+  // Keep valuation provenance available without crowding each page introduction.
+  $('#footer-data').innerHTML = `
+    <div class="footer-tools">
+      <details class="footer-provenance"><summary>Data &amp; model <span>Model ${esc(model.modelVersion || 'legacy')}</span></summary>
+        <dl><div><dt>Valuation source</dt><dd>${esc(model.data.source)}</dd></div>
+        <div><dt>Coverage</dt><dd>${model.data.season}, through week ${model.data.throughWeek} · ${model.data.matched}/${model.data.total} players matched</dd></div>
+        <div><dt>${model.linked ? 'League' : 'Reference rosters'}</dt><dd>${model.linked ? esc(state.connection.league.name) : 'Example teams with real NFL players'}</dd></div>
+        <div><dt>${model.linked ? 'Analysis refreshed' : 'Reference captured'}</dt><dd>${model.linked ? (model.data.refreshedAt ? esc(new Date(model.data.refreshedAt).toLocaleString()) : 'Not prepared') : esc(new Date(model.data.fetched).toLocaleDateString())}${model.linked && model.data.stale ? ' · Refresh recommended' : ''}</dd></div></dl>
+      </details>
+      <div class="footer-actions">${model.linked ? '<button data-sync>Refresh league data <span aria-hidden="true">↻</span></button>' : ''}<button id="methodology">How values work <span aria-hidden="true">↗</span></button></div>
+    </div>`;
+  const notice = model.data.warning
+    ? `<p class="data-warning" role="status">${esc(model.data.warning)}</p>`
+    : '';
   $('#main').innerHTML =
     (['news', 'account'].includes(view) ? '' : notice) +
     (view === 'team'
