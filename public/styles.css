@@ -3613,3 +3613,41 @@ footer {
   max-width: 300px;
   line-height: 1.5;
 }
+
+.league-settings-source {
+  grid-column: 1 / -1;
+  border-top: 1px solid var(--line);
+  margin-top: 8px;
+  padding-top: 12px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.6;
+  white-space: normal;
+}
+.league-settings-source p {
+  margin: 0 0 8px;
+  overflow-wrap: anywhere;
+}
+.league-settings-source strong {
+  color: #c8d6e8;
+}
+.league-settings-source .settings-override {
+  color: #f4ce91;
+}
+.league-settings-source button {
+  min-height: 44px;
+  padding: 10px 14px;
+}
+.format-options {
+  flex-wrap: wrap;
+}
+.league-settings-source {
+  flex-basis: 100%;
+}
+
+.league-settings-source summary {
+  cursor: pointer;
+  min-height: 44px;
+  align-content: center;
+  color: #c8d6e8;
+}

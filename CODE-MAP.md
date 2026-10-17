@@ -77,3 +77,5 @@ Trade side selection lives in `addPlayerToSide` and `selectedPlayers` in `public
 `saved-news.js` validates and stores small news bookmarks under each account. `preferences.js` merges updates safely so saving a favorite team preserves saved stories. Saved trade participants are rendered from their historical result in `public/app.js`.
 
 `public/player-profile.js` renders stat explanations and compact game logs. `valuation.playerGameLog` scores recorded weekly rows; the account-scoped profile API requests those rows only when a profile opens. `player-profile.test.js` covers scoring, injury labels, escaping and keeping logs out of the full rankings payload.
+
+`league-format.js` derives imported scoring and decodes explicit manual overrides. `fantasy.saveSettings` stores only differences, while `resetSettings` restores the active league import. The browser exposes both sources under League settings.

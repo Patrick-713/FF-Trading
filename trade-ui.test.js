@@ -104,6 +104,12 @@ test('builder supports player search, standard analysis, finder and loading save
   try {
     await import('./public/app.js');
     assert.ok(element('#main').innerHTML.includes('Team Overview'));
+    await change({ id: 'qb-format', value: 'superflex' });
+    assert.ok(element('#format-switch').innerHTML.includes('Manual override active: QB format'));
+    await click('#reset-league-settings');
+    assert.equal(model.settings.superflex, false);
+    assert.equal(element('#format-switch').innerHTML.includes('Manual override active'), false);
+
     await click('button[data-view]', { view: 'players' });
     assert.ok(element('#main').innerHTML.includes('Player Rankings'));
     await change({ id: 'rankings-format', value: 'dynasty' });

@@ -369,9 +369,10 @@ export async function createApplication() {
         }
         if (req.method === 'PUT' && path === '/api/analysis/settings') {
           const input = await body(req),
-            model = await analysis(account, input);
-          await fantasy.saveSettings(account, await snapshot(account), model.settings);
-          return json(res, 200, model);
+            linked = await snapshot(account);
+          if (input.reset === true) await fantasy.resetSettings(account, linked);
+          else await fantasy.saveSettings(account, linked, input);
+          return json(res, 200, await analysis(account));
         }
         if (
           req.method === 'POST' &&

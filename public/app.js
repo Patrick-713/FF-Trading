@@ -58,6 +58,20 @@ function toast(text) {
 function intro(title, text, action = true) {
   return `<div class="page-intro"><div><h1>${title}</h1><p>${text}</p></div>${action ? (state.connection ? '' : '<button class="primary" data-account-section="sleeper">Link your league ↗</button>') : ''}</div>`;
 }
+/** Show imported rules separately from any manual analysis overrides. */
+function leagueSettingsInfo() {
+  const source = model.leagueSettings;
+  if (!source) return '';
+  const imported = source.imported;
+  const names = {
+    scoring: 'reception scoring',
+    superflex: 'QB format',
+    passTD: 'passing TDs',
+    tePremium: 'TE bonus',
+  };
+  const overrides = Object.keys(source.overrides);
+  return `<details class="league-settings-source" ${scoringExpanded ? 'open' : ''}><summary>${model.linked ? 'Imported league settings' : 'Scoring details'}${overrides.length ? ' · Manual override active' : ''}</summary><div><p><strong>${model.linked ? 'Imported from Sleeper' : 'Default settings'}</strong>: ${esc(imported.scoring.toUpperCase())} · ${imported.superflex ? 'Superflex / 2QB' : '1 QB'} · ${imported.passTD} points per passing TD · ${imported.tePremium} TE reception bonus</p>${model.linked ? `<p>Starting slots: ${source.slots.map(esc).join(', ') || 'Unavailable'}</p>` : ''}${overrides.length ? `<p class="settings-override" role="status">Manual override active: ${overrides.map((key) => esc(names[key] || key)).join(', ')}.</p><button class="trade-button" id="reset-league-settings">${model.linked ? 'Use Sleeper settings' : 'Reset scoring'}</button>` : `<p>${model.linked ? 'Analysis follows these imported league settings.' : 'No manual scoring changes.'}</p>`}</div></details>`;
+}
 const currentTeam = () => model.teams.find((t) => t.id === model.ownTeam) || model.teams[0];
 function playerTable(players, ranked = false, mode = model.settings.mode) {
   return [
@@ -276,7 +290,7 @@ function savedView() {
 function sleeperView() {
   const c = state.connection;
   return [
-    `<div class="account-connections"><h2>Sleeper connection</h2><p class="muted">Import your league to analyze your players, trade partners, and dynasty picks.</p>${c ? `<section class="panel linked-summary"><div class="panel-heading"><div><span class="eyebrow">SLEEPER CONNECTED</span><h2>${esc(c.league.name)}</h2></div><span class="pill">${esc(c.league.season)}</span></div><div class="link-content"><p>${esc(c.user.username)} · ${model.teams.length} teams · Last sync ${esc(new Date(c.syncedAt).toLocaleString())}</p><div class="link-actions"><button class="primary" data-sync>Sync Sleeper ↻</button><button class="trade-button" id="disconnect">Return to demo</button></div></div></section>` : ''}<section class="panel account-panel"><div class="panel-heading"><h2>Find your leagues</h2>`,
+    `<div class="account-connections"><h2>Sleeper connection</h2><p class="muted">Import your league to analyze your players, trade partners, and dynasty picks.</p>${c ? `<section class="panel linked-summary"><div class="panel-heading"><div><span class="eyebrow">SLEEPER CONNECTED</span><h2>${esc(c.league.name)}</h2></div><span class="pill">${esc(c.league.season)}</span></div><div class="link-content"><p>${esc(c.user.username)} · ${model.teams.length} teams · Last sync ${esc(new Date(c.syncedAt).toLocaleString())}</p><div class="link-actions"><button class="primary" data-sync>Sync Sleeper ↻</button><button class="trade-button" data-open-settings>View league settings</button><button class="trade-button" id="disconnect">Return to demo</button></div></div></section>` : ''}<section class="panel account-panel"><div class="panel-heading"><h2>Find your leagues</h2>`,
     `<span class="pill">NO PASSWORD</span></div>`,
     `<div class="link-content"><form id="sleeper-lookup"><label for="sleeper-username">Sleeper username</label>`,
     `<input id="sleeper-username" name="username" value="${esc(lookupResult?.user.username || c?.user.username || '')}" maxlength="40" required>`,
@@ -405,15 +419,15 @@ function render() {
   $('#week').textContent = (view === 'players' ? rankingMode() : model.settings.mode).toUpperCase();
   $('#format-switch').innerHTML = [
     `<div class="league-format-label">${view === 'players' ? `<label class="sr-only" for="rankings-format">Rankings format</label><select id="rankings-format" aria-describedby="rankings-format-note"><option value="redraft" ${rankingMode() === 'redraft' ? 'selected' : ''}>Redraft</option><option value="dynasty" ${rankingMode() === 'dynasty' ? 'selected' : ''}>Dynasty</option></select><small id="rankings-format-note">${rankingsMode && rankingsMode !== model.settings.mode ? `Temporary view · ${model.settings.mode === 'dynasty' ? 'Dynasty' : 'Redraft'} ${model.linked ? 'league' : 'default'} on other pages` : model.linked ? 'From your Sleeper league' : 'Choose a format to browse'}</small>` : `<strong>${model.settings.mode === 'dynasty' ? 'Dynasty league' : 'Redraft'}</strong><small>${model.linked ? 'From your Sleeper league' : 'Link a Sleeper dynasty league to include picks'}</small>`}</div>`,
-    `<div id="scoring-controls" class="format-details ${scoringExpanded ? 'expanded' : ''}"><button id="scoring-toggle" class="format-toggle" aria-expanded="${scoringExpanded}" aria-controls="league-scoring"><span>League scoring</span><span>${esc(model.settings.scoring.toUpperCase())} · ${model.settings.superflex ? 'Superflex' : '1 QB'} <b aria-hidden="true">⌄</b></span></button><div class="format-options" id="league-scoring"><label>Scoring<select id="scoring" aria-label="Reception scoring"><option value="ppr" ${model.settings.scoring === 'ppr' ? 'selected' : ''}>PPR</option><option value="half" ${model.settings.scoring === 'half' ? 'selected' : ''}>Half PPR</option><option value="standard" ${model.settings.scoring === 'standard' ? 'selected' : ''}>Standard</option></select>`,
+    `<div id="scoring-controls" class="format-details ${scoringExpanded ? 'expanded' : ''}"><button id="scoring-toggle" class="format-toggle" aria-expanded="${scoringExpanded}" aria-controls="league-scoring"><span>League settings</span><span>${esc(model.settings.scoring.toUpperCase())} · ${model.settings.superflex ? 'Superflex' : '1 QB'} <b aria-hidden="true">⌄</b></span></button><div class="format-options" id="league-scoring"><label>Scoring<select id="scoring" aria-label="Reception scoring"><option value="ppr" ${model.settings.scoring === 'ppr' ? 'selected' : ''}>PPR</option><option value="half" ${model.settings.scoring === 'half' ? 'selected' : ''}>Half PPR</option><option value="standard" ${model.settings.scoring === 'standard' ? 'selected' : ''}>Standard</option></select>`,
     `</label>`,
-    `<label>QB format<select id="qb-format" aria-label="Quarterback format"><option value="single" ${!model.settings.superflex ? 'selected' : ''}>1 QB</option><option value="superflex" ${model.settings.superflex ? 'selected' : ''}>Superflex / 2QB</option></select>`,
+    `<label>QB format<select id="qb-format" aria-label="Quarterback format"><option value="single" ${!model.settings.superflex ? 'selected' : ''}>1 QB</option><option value="superflex" ${model.settings.superflex ? 'selected' : ''}>Superflex</option></select>`,
     `</label>`,
     `<label>Pass TD<select id="pass-td" aria-label="Passing touchdown points"><option ${model.settings.passTD === 4 ? 'selected' : ''}>4</option><option ${model.settings.passTD === 6 ? 'selected' : ''}>6</option></select>`,
     `</label>`,
     `<label>TE bonus<select id="te-premium" aria-label="Tight end reception bonus">${[0, 0.5, 1].map((n) => `<option ${model.settings.tePremium === n ? 'selected' : ''}>${n}</option>`).join('')}</select>`,
     `</label>`,
-    `</div></div>`,
+    `${leagueSettingsInfo()}</div></div>`,
   ].join('');
   document
     .querySelectorAll('.nav')
@@ -473,7 +487,7 @@ const tradeInput = () => ({
   includeWaivers: false,
 });
 async function changeSettings(settings) {
-  model = await api('analysis/settings', 'PUT', { ...model.settings, ...settings });
+  model = await api('analysis/settings', 'PUT', settings);
   selectedA.clear();
   selectedB.clear();
 
@@ -539,6 +553,13 @@ document.addEventListener('click', async (e) => {
     $('#player-results').innerHTML = rankingsResults();
     $('#rankings-page-summary').focus?.({ preventScroll: true });
     $('#player-results').scrollIntoView?.({ block: 'start', behavior: 'auto' });
+    return;
+  }
+  if (e.target.closest('[data-open-settings]')) {
+    view = 'team';
+    scoringExpanded = true;
+    render();
+    $('#format-switch').scrollIntoView?.({ block: 'start', behavior: 'auto' });
     return;
   }
   const scoringToggle = e.target.closest('#scoring-toggle');
@@ -669,6 +690,11 @@ document.addEventListener('click', async (e) => {
   }
   try {
     busy = true;
+    if (e.target.closest('#reset-league-settings')) {
+      await changeSettings({ reset: true });
+      toast(model.linked ? 'Sleeper settings restored.' : 'Default scoring restored.');
+      return;
+    }
     const storyButton = e.target.closest('[data-story-save],[data-story-remove]');
     if (storyButton) {
       const url = storyButton.dataset.storySave || storyButton.dataset.storyRemove;
@@ -887,12 +913,15 @@ document.addEventListener('change', async (e) => {
   if (['scoring', 'qb-format', 'pass-td', 'te-premium'].includes(t.id)) {
     busy = true;
     try {
-      await changeSettings({
-        scoring: $('#scoring').value,
-        superflex: $('#qb-format').value === 'superflex',
-        passTD: Number($('#pass-td').value),
-        tePremium: Number($('#te-premium').value),
-      });
+      const patch =
+        t.id === 'scoring'
+          ? { scoring: t.value }
+          : t.id === 'qb-format'
+            ? { superflex: t.value === 'superflex' }
+            : t.id === 'pass-td'
+              ? { passTD: Number(t.value) }
+              : { tePremium: Number(t.value) };
+      await changeSettings(patch);
     } catch (error) {
       toast(error.message);
     } finally {

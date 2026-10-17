@@ -85,7 +85,13 @@ test('API removes stocks, isolates settings, freezes analysis inputs, versions s
     output = '';
   try {
     child = spawn(process.execPath, ['--import', './fixtures/sleeper-fetch.mjs', 'server.js'], {
-      env: { ...process.env, PORT: String(port), DB_PATH: dbPath, TEST_FETCH_LOG: calls },
+      env: {
+        ...process.env,
+        PORT: String(port),
+        DB_PATH: dbPath,
+        TEST_FETCH_LOG: calls,
+        TEST_SUPERFLEX: 'true',
+      },
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     await new Promise((resolve, reject) => {
@@ -139,6 +145,16 @@ test('API removes stocks, isolates settings, freezes analysis inputs, versions s
     assert.equal(readFileSync(calls, 'utf8'), baselineCalls, 'Profile reads never fetch providers');
 
     assert.equal(model.data.modelVersion, MODEL_VERSION);
+    assert.equal(model.data.settings.superflex, true);
+    assert.ok(model.data.leagueSettings.slots.includes('SUPER_FLEX'));
+    const manualSettings = await request('analysis/settings', cookie, 'PUT', { superflex: false });
+    assert.equal(manualSettings.data.settings.superflex, false);
+    assert.equal(manualSettings.data.leagueSettings.imported.superflex, true);
+    assert.equal(manualSettings.data.leagueSettings.overrides.superflex, false);
+    const resetSettings = await request('analysis/settings', cookie, 'PUT', { reset: true });
+    assert.equal(resetSettings.data.settings.superflex, true);
+    assert.deepEqual(resetSettings.data.leagueSettings.overrides, {});
+
     await request('analysis/settings', cookie, 'PUT', { mode: 'dynasty', scoring: 'half' });
     const offer = { teamA: 'sl_1', teamB: 'sl_2', sendA: ['101'], sendB: ['201'] };
     const analyzed = await request('analysis/trade', cookie, 'POST', offer);

@@ -54,7 +54,10 @@ globalThis.fetch = async (url, options) => {
       status: 'in_season',
       settings: process.env.TEST_PRESEASON === 'true' ? { type: 2, draft_rounds: 3 } : {},
       scoring_settings: { rec: 1, bonus_rec_te: 0.5 },
-      roster_positions: ['QB', 'RB', 'BN'],
+      roster_positions:
+        process.env.TEST_SUPERFLEX === 'true'
+          ? ['QB', 'RB', 'SUPER_FLEX', 'BN']
+          : ['QB', 'RB', 'BN'],
     };
   else if (path.endsWith('/traded_picks') || path.endsWith('/drafts')) data = [];
   else if (path.endsWith('/users'))

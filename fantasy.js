@@ -3,7 +3,7 @@ export const DEMO_LEAGUE = 'demo-real-2026-v1';
 const demoData = JSON.parse(readFileSync(new URL('./demo-data.json', import.meta.url), 'utf8'));
 /** Fantasy application service. Refresh prepares inputs; model reads them without fetching providers. */
 import { normalizePlayer } from './player-metadata.js';
-import { leagueDefaults } from './league-format.js';
+import { leagueDefaults, scoringOverrides, SCORING_KEYS } from './league-format.js';
 import { provider } from './errors.js';
 import {
   compactRows,
@@ -239,10 +239,8 @@ export function createFantasy(db, { fetcher = globalThis.fetch } = {}) {
       .prepare('SELECT data FROM league_settings WHERE account=? AND league=?')
       .get(account, league);
     const imported = leagueDefaults(snapshot);
-    const settings = settingsFor(
-      input,
-      stored ? { ...imported.settings, ...JSON.parse(stored.data) } : imported.settings,
-    );
+    const overrides = scoringOverrides(stored ? JSON.parse(stored.data) : null, snapshot);
+    const settings = settingsFor(input, { ...imported.settings, ...overrides });
     settings.mode = imported.settings.mode;
     const season = Number(snapshot?.league.season || demoData.season);
     let data,
@@ -424,6 +422,16 @@ export function createFantasy(db, { fetcher = globalThis.fetch } = {}) {
     return {
       modelVersion: MODEL_VERSION,
       settings,
+      leagueSettings: {
+        imported: imported.settings,
+        overrides: Object.fromEntries(
+          SCORING_KEYS.filter((key) => settings[key] !== imported.settings[key]).map((key) => [
+            key,
+            settings[key],
+          ]),
+        ),
+        slots: snapshot?.slots || [],
+      },
       season,
       ownTeam: snapshot?.ownTeam || 'demo_a',
       teams,
@@ -518,14 +526,24 @@ export function createFantasy(db, { fetcher = globalThis.fetch } = {}) {
       stored = await db
         .prepare('SELECT data FROM league_settings WHERE account=? AND league=?')
         .get(account, league);
-    const settings = settingsFor(input, stored ? JSON.parse(stored.data) : {});
-    settings.mode = snapshot?.league.type === 2 ? 'dynasty' : 'redraft';
+    const defaults = leagueDefaults(snapshot).settings;
+    const overrides = scoringOverrides(stored ? JSON.parse(stored.data) : null, snapshot);
+    const settings = settingsFor(input, { ...defaults, ...overrides });
+    for (const key of SCORING_KEYS)
+      if (settings[key] === defaults[key]) delete overrides[key];
+      else if (Object.hasOwn(input, key)) overrides[key] = settings[key];
+    settings.mode = defaults.mode;
     await db
       .prepare(
         'INSERT INTO league_settings VALUES (?,?,?) ON CONFLICT(account,league) DO UPDATE SET data=excluded.data',
       )
-      .run(account, league, JSON.stringify(settings));
+      .run(account, league, JSON.stringify({ version: 1, overrides }));
     return settings;
+  }
+  async function resetSettings(account, snapshot) {
+    await db
+      .prepare('DELETE FROM league_settings WHERE account=? AND league=?')
+      .run(account, snapshot?.league.id || DEMO_LEAGUE);
   }
   /** Build the frozen provider inputs that a successful league refresh will save. */
   async function prepareSnapshot(snapshot, catalog) {
@@ -589,5 +607,5 @@ export function createFantasy(db, { fetcher = globalThis.fetch } = {}) {
       );
     inputCache.delete(account + ':' + snapshot.league.id);
   }
-  return { model, saveSettings, prepareSnapshot, storeSnapshot };
+  return { model, saveSettings, resetSettings, prepareSnapshot, storeSnapshot };
 }
