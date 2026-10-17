@@ -88,6 +88,11 @@ test('builder supports player search, assumptions, analysis, finder and loading 
     assert.ok(element('#main').innerHTML.includes('Know what your roster'));
     await click('button[data-view]', { view: 'account' });
     assert.ok(element('#main').innerHTML.includes('id="sleeper-lookup"'));
+    const accountMarkup = element('#main').innerHTML;
+    assert.ok(
+      accountMarkup.indexOf('id="auth-form"') < accountMarkup.indexOf('Sleeper connection'),
+    );
+    assert.ok(accountMarkup.indexOf('Sleeper connection') < accountMarkup.indexOf('One login.'));
     assert.equal((element('#main').innerHTML.match(/id="favorite-team"/g) || []).length, 1);
     assert.equal(element('#sleeper-status').textContent, 'Sleeper linked � <TestManager>');
     assert.equal(element('#sleeper-status').hidden, false);

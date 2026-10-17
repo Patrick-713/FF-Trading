@@ -700,7 +700,7 @@ try {
 }
 
 function accountView() {
-  return accountIdentity() + sleeperView();
+  return accountIdentity() + sleeperView() + (state.user ? '' : accountExplanation());
 }
 
 function accountIdentity() {
@@ -721,7 +721,7 @@ function accountIdentity() {
   const signup = authMode === 'register',
     recovery = authMode === 'recover';
   return [
-    `${intro('Keep your edge.', 'Create a free FF Trading account to save your leagues and analyses.', false)}<div class="roster-layout"><section class="panel"><div class="panel-heading"><h2>${signup ? 'Create account' : recovery ? 'Recover your account' : 'Welcome back'}</h2>`,
+    `${intro('Keep your edge.', 'Create a free FF Trading account to save your leagues and analyses.', false)}<section class="panel account-panel"><div class="panel-heading"><h2>${signup ? 'Create account' : recovery ? 'Recover your account' : 'Welcome back'}</h2>`,
     `<span class="pill">FREE</span></div>`,
     `<div class="link-content"><div class="segmented"><button data-auth-mode="register" class="${signup ? 'selected' : ''}">Sign up</button>`,
     `<button data-auth-mode="login" class="${authMode === 'login' ? 'selected' : ''}">Log in</button>`,
@@ -735,6 +735,12 @@ function accountIdentity() {
     `<button class="trade-button" data-auth-mode="recover">Forgot password? Use a recovery code</button>`,
     `</div>`,
     `</section>`,
+  ].join('');
+}
+
+/** Supporting account guidance follows the forms so linking stays easy to find. */
+function accountExplanation() {
+  return [
     `<section class="feature-card link-explainer"><span class="eyebrow">YOUR FF TRADING IDENTITY</span><h2>One login.<br>Your analyses.</h2>`,
     `<p>Sign up once. Keep your roster imports, player values and saved trade scenarios.</p>`,
     `<p>Your FF Trading password is separate from Sleeper. We never ask for your Sleeper password.</p>`,
@@ -742,6 +748,5 @@ function accountIdentity() {
     `<p>You’ll receive a recovery code once at sign-up. It lets you reset a forgotten password without an email service. Email verification and email delivery aren’t enabled.</p>`,
     `<p>Your account works across phones and computers. Sign in to access your saved leagues and analyses.</p>`,
     `</section>`,
-    `</div>`,
   ].join('');
 }
