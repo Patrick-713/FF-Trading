@@ -2624,3 +2624,105 @@ html[data-favorite-team]:not([data-favorite-team='']) .nav.active {
     transition: none;
   }
 }
+
+.phone-nav-icon,
+.phone-more {
+  display: none;
+}
+.more-menu {
+  display: grid;
+  gap: 14px;
+  max-width: 650px;
+}
+.menu-destination {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) 20px;
+  gap: 14px;
+  align-items: center;
+  padding: 22px;
+  text-align: left;
+  width: 100%;
+}
+.menu-symbol {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  background: #193e49;
+  color: var(--lime);
+  border-radius: 12px;
+  font-size: 22px;
+}
+.menu-destination strong {
+  display: block;
+  font-size: 16px;
+}
+.menu-destination small {
+  display: block;
+  color: var(--muted);
+  margin-top: 7px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+@media (max-width: 760px) {
+  .sidebar nav {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    inset: auto 8px calc(8px + env(safe-area-inset-bottom));
+    border: 1px solid #40516b;
+    border-radius: 19px;
+    padding: 6px;
+    gap: 4px;
+    background: #172130f5;
+    box-shadow: 0 5px 25px #0005;
+  }
+  .sidebar .secondary-nav {
+    display: none;
+  }
+  .sidebar .phone-more {
+    display: flex;
+  }
+  .sidebar .nav {
+    position: relative;
+    font-size: 0;
+    min-height: 57px;
+    border-radius: 13px;
+    padding: 7px 2px;
+    gap: 6px;
+    color: #a7b9cf;
+  }
+  .phone-nav-icon {
+    display: block;
+    width: 23px;
+    height: 23px;
+    flex-shrink: 0;
+  }
+  .sidebar .nav span[data-phone-label]::after {
+    font-size: 11px;
+    font-weight: 500;
+  }
+  .sidebar .nav.active {
+    background: #24414c;
+    color: #83e9dc;
+  }
+  html[data-favorite-team] .sidebar .nav.active {
+    box-shadow: none;
+  }
+  .sidebar .nav:focus-visible {
+    outline: 2px solid #83e9dc;
+    outline-offset: -2px;
+  }
+  html[data-view='more'] #format-switch,
+  html[data-view='account'] #format-switch,
+  html[data-view='sleeper'] #format-switch {
+    display: none;
+  }
+  html[data-view='more'] .data-banner,
+  html[data-view='account'] .data-banner,
+  html[data-view='sleeper'] .data-banner {
+    display: none;
+  }
+  .menu-destination {
+    padding: 19px 16px;
+    gap: 12px;
+  }
+}

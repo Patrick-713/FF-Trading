@@ -35,7 +35,7 @@ Sleeper supplies league rosters, player IDs, positions, age/status metadata, sco
 
 Stats include fantasy points/game, recent points/game, targets and carries/game, target share, WOPR, average depth of target, yards/touch, EPA per opportunity, and a consistency estimate. Only completed imported weeks are used for the selected season. A previous-season file may be used if a current-season file is unavailable, and the UI identifies that source season. The demo uses explicitly fictional statistics.
 
-Values are **relative model units, not currency, token prices, consensus rankings, or calibrated forecasts**. Model v1 is a transparent heuristic:
+Values are **relative model units, not currency, token prices, consensus rankings, or calibrated forecasts**. Model 2.3.0 is a transparent heuristic:
 
 - Redraft uses 60% recent four-game scoring pace and 40% season pace, positional replacement baselines, opportunity/usage, target share, WOPR, efficiency, and consistency.
 - Dynasty adds position-specific age curves, NFL draft capital, fading prospect priors, and superflex QB scarcity. Missing metadata is labeled; players without matched weekly statistics have low-confidence estimates.
@@ -57,7 +57,7 @@ Player details show the prior's source, starting value, retained weight, opportu
 
 For Sleeper dynasty leagues (`settings.type=2`), pick inventory starts with original picks using the league's configured draft-round count for the next three seasons. Known traded-pick entries override the owner and can extend the horizon to five years. Unknown pick slots use mid-round estimates with early/late ranges; no exact future pick number is claimed. If draft rounds are unavailable, no pick inventory is fabricated.
 
-Heuristic mid-round values: 1st 1,050; 2nd 500; 3rd 250; 4th 125; 5th 65. Early slots are +30%, late -25%; additional future years discount 15%; superflex adds 15%. These assumptions are visible in **How values work**. Picks disappear from the redraft trade builder and are excluded from redraft totals.
+Picks now share the model 2.3.0 rookie slot curve: a 12-team 1.01 is 2,600, middle first 1,950, and late first 1,600. Additional future years discount 15%; superflex adds 15%. These assumptions are visible in **How values work**. Picks disappear from the redraft trade builder and are excluded from redraft totals.
 
 ## Supported league defaults and preseason analysis
 
@@ -112,3 +112,11 @@ Account endpoints are `/api/auth/register`, `/login`, `/logout`, and `/recover`.
 - nflverse player metadata: https://github.com/nflverse/nflverse-data/releases/tag/players
 
 This is a first model, with heuristic weights that need evaluation against real fantasy decisions before claiming predictive accuracy. ESPN is not connected. No verified Sleeper team ownership, shared trading exchange, or external trade execution is included. Node's built-in SQLite API is experimental in Node 24. Test fixtures are only explicitly preloaded by integration tests.
+
+## Dynasty pick anchor, model 2.3.0
+
+Verified first-year rookie selections use the same slot curve as next year’s picks. A 12-team 1.01 is 2,600 model units; a slow start with limited exposure retains 90%, or 2,340. No games means no performance discount. After half a season of games or opportunities, the discount grows toward 35% with sustained poor evidence. Established production may exceed the anchor. The anchor is already priced for league size and superflex and receives no second age or QB premium. It expires after the first NFL season. Unknown or unverified selections retain the existing NFL-capital fallback, without inventing rookie ADP. Redraft and scoring pace are unchanged.
+
+Unknown future picks remain estimates. In the trade builder, First in round simulates 1.01, 2.01 and so on; it does not claim a future draft order is known. All pick tiers now share the same curve as the rookie anchor, so dynasty pick and player comparisons remain consistent. Each additional future year retains the existing 15% discount. Previous saved scenarios retain their original model version and values.
+
+The versioned rookie-benchmarks.js file records explicit owner-supplied assumptions. Jeremiyah Love uses the requested 2026 1.01 benchmark when no verified league selection is available. The UI identifies this source rather than presenting it as Sleeper draft history or consensus ADP.

@@ -36,7 +36,8 @@ function assumptionsFor(input, assets) {
       !Number.isFinite(development) ||
       development < 0.5 ||
       development > 1.5 ||
-      !['early', 'mid', 'late'].includes(tier)
+      !['first', 'early', 'mid', 'late'].includes(tier) ||
+      (tier === 'first' && asset.kind !== 'pick')
     )
       throw invalid(
         'Use workload/development multipliers from 0.5 to 1.5 and early, mid, or late picks.',
@@ -265,7 +266,7 @@ export function analyzeTrade(model, input, { sensitivity = true } = {}) {
           a = assumptions[id] || {};
         changed[id] =
           asset.kind === 'pick'
-            ? { ...a, tier: sign > 0 ? 'early' : 'late' }
+            ? { ...a, tier: sign > 0 ? (a.tier === 'first' ? 'first' : 'early') : 'late' }
             : {
                 ...a,
                 workload: Math.max(0.5, Math.min(1.5, (a.workload ?? 1) * (1 + sign * 0.15))),

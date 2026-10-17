@@ -1,6 +1,7 @@
 /** Valuation functions use relative model units. They are transparent estimates rather than forecasts. */
 import { invalid } from './errors.js';
 import { prospectProfile } from './prospects.js';
+import { draftPickValue } from './draft-values.js';
 // FF Trading model v1: transparent heuristic values, not market prices or calibrated forecasts.
 export function parseCSV(text) {
   const rows = [];
@@ -163,7 +164,42 @@ export function valuePlayer(player, rows, s, season = new Date().getUTCFullYear(
         established * (1 - prospect.priorWeight) + prospect.capital * prospect.priorWeight,
       )
     : established;
-  const dynasty = Math.round(Math.max(10, longTerm * ageFactor * qbPremium));
+  const productionDynasty = established * ageFactor * qbPremium;
+  let pickAnchor = null;
+  if (prospect?.years === 0 && prospect.rookieDraft) {
+    const draft = prospect.rookieDraft;
+    const nextPick = draftPickValue(
+      {
+        overall: draft.overall,
+        teams: draft.teams,
+        round: Math.ceil(draft.overall / draft.teams),
+        year: season + 1,
+      },
+      { ...s, mode: 'dynasty' },
+      season,
+    );
+    const exposure = Math.max(
+      games / 17,
+      prospect.opportunities /
+        (player.position === 'QB' ? 450 : player.position === 'RB' ? 200 : 150),
+    );
+    const discount = games ? Math.min(0.35, 0.1 + 0.25 * Math.max(0, (exposure - 0.5) / 0.5)) : 0;
+    pickAnchor = {
+      year: season + 1,
+      overall: draft.overall,
+      teams: draft.teams,
+      pickValue: nextPick,
+      discount: Math.round(discount * 1000) / 1000,
+      value: Math.round(nextPick * (1 - discount)),
+      source: draft.source || 'Verified league rookie selection',
+    };
+  }
+  const dynasty = Math.round(
+    Math.max(
+      10,
+      pickAnchor ? Math.max(productionDynasty, pickAnchor.value) : longTerm * ageFactor * qbPremium,
+    ),
+  );
   const confidence =
     games >= 8
       ? 'Higher sample'
@@ -181,6 +217,7 @@ export function valuePlayer(player, rows, s, season = new Date().getUTCFullYear(
     confidence,
     games,
     prospect,
+    pickAnchor,
     stats: {
       ppg: round(ppg),
       recentPPG: round(recentPPG),
@@ -205,6 +242,11 @@ export function valuePlayer(player, rows, s, season = new Date().getUTCFullYear(
       draftPrior: prior,
     },
     notes: [
+      ...(pickAnchor
+        ? [
+            `Dynasty pick anchor: ${pickAnchor.year} rookie pick #${pickAnchor.overall}, ${pickAnchor.pickValue} value with a ${Math.round(pickAnchor.discount * 100)}% evidence discount. Established production can exceed this estimate.`,
+          ]
+        : []),
       ...(prospect
         ? [
             `Prospect prior: ${prospect.source}; ${Math.round(prospect.priorWeight * 100)}% retained weight. Limited NFL production does not erase draft capital.`,
@@ -219,14 +261,7 @@ export function valuePlayer(player, rows, s, season = new Date().getUTCFullYear(
 }
 /** Estimate future draft capital from round, year, format and assumed pick position. */
 export function pickValue(pick, settings, season, tier = 'mid') {
-  if (settings.mode !== 'dynasty') return 0;
-  const base = { 1: 1050, 2: 500, 3: 250, 4: 125, 5: 65 }[pick.round] || 35;
-  return Math.round(
-    base *
-      { early: 1.3, mid: 1, late: 0.75 }[tier] *
-      0.85 ** Math.max(0, pick.year - season - 1) *
-      (settings.superflex ? 1.15 : 1),
-  );
+  return draftPickValue(pick, settings, season, tier);
 }
 export function pickInventory(snapshot) {
   const rounds = Number(snapshot.league.draftRounds),
@@ -259,6 +294,7 @@ export function pickInventory(snapshot) {
           name: `${year} Round ${r}`,
           year,
           round: r,
+          teams: snapshot.teams.length,
           owner,
           originalTeam: team.name,
           tier: 'mid',

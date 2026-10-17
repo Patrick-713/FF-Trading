@@ -408,7 +408,7 @@ export function createFantasy(db, { fetcher = globalThis.fetch } = {}) {
       saved,
       linked: Boolean(snapshot),
       picksAvailable: picks.length > 0,
-      methodology: `FF Trading model ${MODEL_VERSION} heuristic. Production above a position baseline, opportunity, target share, WOPR, EPA per opportunity, and consistency drive player values. Dynasty adds age curves, NFL draft capital, verified league rookie-draft context when available, a fading prospect prior over the first three seasons, and a superflex QB premium. Rookie draft context is not consensus rank. Past scoring pace is not a forecast; no proprietary rankings or live market prices are used.`,
+      methodology: `FF Trading model ${MODEL_VERSION} heuristic. Production above a position baseline, opportunity, target share, WOPR, EPA per opportunity, and consistency drive player values. Dynasty anchors verified first-year rookies to next year’s equivalent rookie pick with an evidence discount, allows strong production to exceed that anchor, and uses fading prospect priors when a verified selection is unavailable. Age and superflex adjustments apply to established values. Rookie draft context is not consensus rank. Past scoring pace is not a forecast; no proprietary rankings or live market prices are used.`,
     };
   }
   async function readMetadata() {

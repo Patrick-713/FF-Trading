@@ -1,4 +1,4 @@
-import { valuePlayer, settingsFor } from './valuation.js';
+import { valuePlayer, settingsFor, pickValue } from './valuation.js';
 import { MODEL_VERSION } from './model-version.js';
 import { fileURLToPath } from 'node:url';
 const settings = settingsFor({ mode: 'dynasty' });
@@ -58,6 +58,19 @@ export function evaluateModel() {
     };
   });
   const by = (id) => cases.find((c) => c.id === id);
+  const anchored = valuePlayer(
+    {
+      id: 'synthetic-anchor',
+      position: 'RB',
+      experience: 0,
+      draftYear: 2026,
+      rookieDraft: { overall: 1, teams: 12, season: 2026, verified: true },
+    },
+    weeks('RB', 'slow', 4),
+    settings,
+    2026,
+  );
+  const nextPick = pickValue({ round: 1, year: 2027 }, settings, 2026, 'first');
   const checks = [
     [
       'elite capital exceeds late capital',
@@ -82,11 +95,20 @@ export function evaluateModel() {
     ],
     ['redraft is independent of prospect protection', cases.every((c) => c.redraftUnchanged)],
     ['veteran receives no prospect protection', by('veteran-producer').priorWeight === 0],
+    [
+      'slow rookie 1.01 matches next years 1.01 less ten percent',
+      anchored.dynasty === Math.round(nextPick * 0.9),
+    ],
   ].map(([name, passed]) => ({ name, passed }));
   return {
     modelVersion: MODEL_VERSION,
     evaluationType: 'Synthetic behavioral regression; not predictive validation',
     cases,
+    rookiePickExample: {
+      nextPick,
+      rookieValue: anchored.dynasty,
+      discount: anchored.pickAnchor.discount,
+    },
     checks,
     passed: checks.every((c) => c.passed),
     limitations: [

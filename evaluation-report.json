@@ -1,5 +1,5 @@
 {
-  "modelVersion": "2.2.0",
+  "modelVersion": "2.3.0",
   "evaluationType": "Synthetic behavioral regression; not predictive validation",
   "cases": [
     {
@@ -93,6 +93,11 @@
       "pace": 2
     }
   ],
+  "rookiePickExample": {
+    "nextPick": 2600,
+    "rookieValue": 2340,
+    "discount": 0.1
+  },
   "checks": [
     {
       "name": "elite capital exceeds late capital",
@@ -124,6 +129,10 @@
     },
     {
       "name": "veteran receives no prospect protection",
+      "passed": true
+    },
+    {
+      "name": "slow rookie 1.01 matches next years 1.01 less ten percent",
       "passed": true
     }
   ],

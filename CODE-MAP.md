@@ -49,3 +49,11 @@ Read a test's description first, then its synthetic inputs, then the assertions.
 The source uses two-space indentation and the settings in `.prettierrc.json`. Long HTML views use joined fragments without extra output whitespace. Comments describe a function's responsibility or an important constraint. They do not repeat every line of code. Formatting, explanatory comments and this map preserve the existing project structure and visual design.
 
 CSS custom property prefixes, JavaScript operators and command-line flags are technical syntax. They are not displayed prose. Site wording uses ordinary punctuation and words such as "to" for ranges.
+
+## Dynasty pick anchor, model 2.3.0
+
+Verified first-year rookie selections use the same slot curve as next year’s picks. A 12-team 1.01 is 2,600 model units; a slow start with limited exposure retains 90%, or 2,340. No games means no performance discount. After half a season of games or opportunities, the discount grows toward 35% with sustained poor evidence. Established production may exceed the anchor. The anchor is already priced for league size and superflex and receives no second age or QB premium. It expires after the first NFL season. Unknown or unverified selections retain the existing NFL-capital fallback, without inventing rookie ADP. Redraft and scoring pace are unchanged.
+
+Unknown future picks remain estimates. In the trade builder, First in round simulates 1.01, 2.01 and so on; it does not claim a future draft order is known. All pick tiers now share the same curve as the rookie anchor, so dynasty pick and player comparisons remain consistent. Each additional future year retains the existing 15% discount. Previous saved scenarios retain their original model version and values.
+
+The versioned rookie-benchmarks.js file records explicit owner-supplied assumptions. Jeremiyah Love uses the requested 2026 1.01 benchmark when no verified league selection is available. The UI identifies this source rather than presenting it as Sleeper draft history or consensus ADP.

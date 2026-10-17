@@ -1,4 +1,5 @@
 // Explicit prospect priors, not consensus rankings. Never infer a rookie from age alone.
+import { rookieBenchmark } from './rookie-benchmarks.js';
 const finite = (v) =>
   v !== null && v !== undefined && v !== '' && typeof v !== 'boolean' && Number.isFinite(Number(v))
     ? Number(v)
@@ -21,12 +22,15 @@ export function prospectProfile(player, rows, season) {
       : pick !== null && pick <= 32 && pick >= 1
         ? 2100
         : ({ 1: 2100, 2: 1650, 3: 1200, 4: 750, 5: 500, 6: 325, 7: 225 }[round] ?? 350);
-  const rookie = player.rookieDraft;
+  const rookie = player.rookieDraft || rookieBenchmark(player);
   const rookiePick = finite(rookie?.overall),
     teams = finite(rookie?.teams);
   let leaguePrior = null;
   if (
-    rookie?.verified === true &&
+    (rookie?.verified === true || rookie?.benchmark === true) &&
+    Number.isInteger(rookiePick) &&
+    Number.isInteger(teams) &&
+    teams <= 100 &&
     rookiePick >= 1 &&
     teams >= 2 &&
     Number(rookie.season) === season - years
@@ -73,7 +77,9 @@ export function prospectProfile(player, rows, season) {
     leaguePrior,
     source:
       leaguePrior !== null
-        ? 'NFL draft capital + verified league rookie draft'
+        ? rookie.benchmark
+          ? 'Configured rookie pick benchmark'
+          : 'NFL draft capital + verified league rookie draft'
         : round !== null || pick !== null
           ? 'NFL draft capital'
           : 'Limited metadata prior',

@@ -226,7 +226,9 @@ function render() {
     saved: 'Saved Scenarios',
     sleeper: 'Link Sleeper',
     account: 'Your account',
+    more: 'More',
   };
+  document.documentElement?.setAttribute('data-view', view);
   $('#page-name').textContent = names[view];
   $('#account-button').textContent = state.user ? 'My account' : 'Sign up / Log in';
   $('#profile-team').textContent = currentTeam().name;
@@ -251,7 +253,11 @@ function render() {
   document
     .querySelectorAll('.nav')
     .forEach((n) =>
-      n.classList.toggle('active', n.dataset.view === (view === 'finder' ? 'trade' : view)),
+      n.classList.toggle(
+        'active',
+        n.dataset.view === (view === 'finder' ? 'trade' : view) ||
+          (n.dataset.view === 'more' && ['more', 'account', 'sleeper'].includes(view)),
+      ),
     );
   const notice = [
     `<div class="data-banner"><span class="dot"></span>${model.linked ? esc(state.connection.league.name) : 'Fictional demo league'} · ${esc(model.data.source)} · Model ${esc(model.modelVersion || 'legacy')} · ${model.data.season}, through week ${model.data.throughWeek} · ${model.data.matched}/${model.data.total} players with matched stats${model.linked ? ` · Analysis refreshed: ${model.data.refreshedAt ? esc(new Date(model.data.refreshedAt).toLocaleString()) : 'Not prepared'}${model.data.stale ? ' · Refresh recommended' : ''} <button class="text-button" data-sync>Refresh league data ↻</button>` : ''} <button class="text-button" id="methodology">How values work ↗</button>`,
@@ -271,7 +277,9 @@ function render() {
               ? savedView()
               : view === 'sleeper'
                 ? sleeperView()
-                : accountView());
+                : view === 'more'
+                  ? moreView()
+                  : accountView());
   $('#footer-disclaimer').textContent =
     'Model estimates · No share trading · Simulations do not execute trades';
 }
@@ -375,7 +383,7 @@ document.addEventListener('click', async (e) => {
         `<table><tbody>${Object.entries(p.stats)
           .map(([k, v]) => `<tr><td>${esc(k)}</td><td>${v ?? 'Not available'}</td></tr>`)
           .join('')}</tbody>`,
-        `</table>${p.prospect ? `<h3>Dynasty prospect protection</h3><p>${esc(p.prospect.source)} · ${Math.round(p.prospect.priorWeight * 100)}% retained weight · ${p.prospect.opportunities} observed opportunities.</p><p>Prospect starting value: ${fmt(p.prospect.capital)} before age/QB adjustments. ${p.prospect.rookieDraft ? `League rookie pick #${p.prospect.rookieDraft.overall}; league context, not consensus ranking.` : 'Verified rookie draft position unavailable; no ranking assumed.'}</p>` : ''}<h3>Model components</h3>`,
+        `</table>${p.pickAnchor ? `<h3>Next-year pick anchor</h3><p>${p.pickAnchor.year} pick ${Math.ceil(p.pickAnchor.overall / p.pickAnchor.teams)}.${String(((p.pickAnchor.overall - 1) % p.pickAnchor.teams) + 1).padStart(2, '0')} · ${fmt(p.pickAnchor.pickValue)} value, less ${Math.round(p.pickAnchor.discount * 100)}% for observed performance: ${fmt(p.pickAnchor.value)}. Strong production can exceed this anchor. Source: ${esc(p.pickAnchor.source)}. This is a model assumption, not consensus ADP.</p>` : ''}${p.prospect ? `<h3>Dynasty prospect protection</h3><p>${esc(p.prospect.source)} · ${Math.round(p.prospect.priorWeight * 100)}% retained weight · ${p.prospect.opportunities} observed opportunities.</p><p>Prospect starting value: ${fmt(p.prospect.capital)} before age/QB adjustments. ${p.prospect.rookieDraft ? `Rookie pick #${p.prospect.rookieDraft.overall}; ${esc(p.prospect.rookieDraft.source || 'verified league context')}, not consensus ranking.` : 'Verified rookie draft position unavailable; no ranking assumed.'}</p>` : ''}<h3>Model components</h3>`,
         `<p>${Object.entries(p.breakdown)
           .map(([k, v]) => esc(k) + ': ' + v)
           .join(' · ')}</p>`,
@@ -394,7 +402,7 @@ document.addEventListener('click', async (e) => {
         `<h3>Dynasty</h3>`,
         `<p>Adds position-specific age curves and NFL draft capital. Players in their first three NFL seasons retain a prospect prior that fades with tenure, games and opportunities. Verified rookie-only league draft results add limited context; they are not consensus rankings. Strong NFL production can exceed the prior. Age alone never identifies a rookie. Superflex increases QB value. Players without a statistical match receive explicitly low-confidence estimates.</p>`,
         `<h3>Future picks</h3>`,
-        `<p>Heuristic round values are 1st 1,050; 2nd 500; 3rd 250; 4th 125. Early picks are +30%, late −25%; each additional future year discounts 15%. These are estimates, not consensus draft rankings. Inventory assumes original picks and applies Sleeper’s traded-pick feed.</p>`,
+        `<p>Pick scenarios share the rookie anchor curve. In a 12-team league, next year’s 1.01 is 2,600, the middle first is 1,950, and a late first is 1,600. First-in-round, early, middle and late scenarios are estimates; each additional future year discounts 15%. These are estimates, not consensus draft rankings. Inventory assumes original picks and applies Sleeper’s traded-pick feed.</p>`,
         `<h3>Scoring and limits</h3>`,
         `<p>The selected scoring preset, passing TD value, and TE reception bonus drive the model. Custom league bonuses, exact D/ST scoring, schedules, snap counts, route participation, and opponent adjustments are not included. Starter pace is optimized past production, not a rest-of-season forecast. Dynasty pick slots are unknown and use mid-round estimates.</p>`,
         `<p>Sources: <a href="https://docs.sleeper.com/" target="_blank" rel="noopener">Sleeper</a> and <a href="https://github.com/nflverse/nflverse-data/releases/tag/stats_player" target="_blank" rel="noopener">nflverse</a>. Stats cache refreshes after six hours; player metadata after 24 hours.</p>`,
@@ -736,4 +744,20 @@ function accountView() {
     `</section>`,
     `</div>`,
   ].join('');
+}
+
+/** Utility destinations stay easy to find without crowding the phone tab bar. */
+function moreView() {
+  return (
+    intro('Make it yours.', 'Your account and league connections, in one place.', false) +
+    '<div class="more-menu"><button class="panel menu-destination" data-view="sleeper"><span class="menu-symbol" aria-hidden="true">↗</span><span><strong>League connections</strong><small>' +
+    esc(state.connection?.league.name || 'Connect or manage your Sleeper league') +
+    '</small></span><span aria-hidden="true">→</span></button><button class="panel menu-destination" data-view="account"><span class="menu-symbol" aria-hidden="true">◉</span><span><strong>Your account</strong><small>' +
+    esc(
+      state.user
+        ? state.user.name + ' · Favorite team and settings'
+        : 'Sign in, save your leagues, and choose your team',
+    ) +
+    '</small></span><span aria-hidden="true">→</span></button></div>'
+  );
 }

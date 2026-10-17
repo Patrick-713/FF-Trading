@@ -115,7 +115,7 @@ test('pick position scenarios save dynasty changes without inventing immediate p
     includeWaivers: false,
     assumptions: { pick: { tier: 'early' } },
   });
-  assert.equal(r.received[0].value, 1365);
+  assert.equal(r.received[0].value, 2450);
   assert.equal(r.received[0].redraft, 0);
   assert.equal(r.received[0].pace, undefined);
   assert.equal(r.teamA.current.change, -1500);
