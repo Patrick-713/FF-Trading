@@ -11,7 +11,9 @@ const change = (n) =>
 /** Search the imported player pool and keep ownership visible in each result. */
 export function tradeSearch(model, query = '') {
   if (!query.trim())
-    return '<p class="muted">Search by player name across your league. Selecting an opponent’s player switches to their team. Free agents appear for reference and waiver planning.</p>';
+    return model.linked === false
+      ? `<p class="muted">Search all ${model.players.length} real NFL players across ${model.teams.length} example rosters. Selecting a player switches to their example team. These rosters are for comparison only.</p>`
+      : '<p class="muted">Search by player name across your league. Selecting an opponent’s player switches to their team. Free agents appear for reference and waiver planning.</p>';
   const players = model.players
     .filter((p) => `${p.name} ${p.club} ${p.position}`.toLowerCase().includes(query.toLowerCase()))
     .sort((a, b) => b.value - a.value)
@@ -33,7 +35,7 @@ export function tradeTools(model, selectedA, selectedB, assumptions, includeWaiv
     `<section class="panel trade-tools"><div class="panel-heading"><h2>Start with a player or a goal</h2>`,
     `<button class="trade-button" id="open-finder">Find trade ideas →</button>`,
     `</div>`,
-    `<div class="link-content"><label for="trade-search">Search players across the league</label>`,
+    `<div class="link-content"><label for="trade-search">Search all ${model.players.length} players</label>${!model.linked ? `<button class="text-button" data-view="players">Browse all ${model.players.length} players →</button>` : ''}`,
     `<input id="trade-search" type="search" placeholder="Player name, position or NFL team" value="${esc(query)}" autocomplete="off"><div id="trade-search-results" aria-live="polite">${tradeSearch(model, query)}</div>`,
     `</div>`,
     `</section>`,

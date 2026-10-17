@@ -120,6 +120,11 @@ test('builder supports player search, assumptions, analysis, finder and loading 
     assert.equal(element('#main').innerHTML.includes('id="auth-password"'), false);
     await click('button[data-view]', { view: 'trade' });
     assert.ok(element('#main').innerHTML.includes('trade-search'));
+    await click('button[data-view]', { view: 'players' });
+    await click('[data-player]', { player: 'demo_7' });
+    assert.ok(element('#details-content').innerHTML.includes('Add to trade'));
+    await click('[data-trade-player]', { tradePlayer: 'demo_7' });
+    assert.ok(element('#main').innerHTML.includes('trade-search'));
     handlers.input({ target: { id: 'trade-search', value: 'Brock' } });
     assert.ok(element('#trade-search-results').innerHTML.includes('Brock Purdy'));
     await click('[data-trade-player]', { tradePlayer: 'demo_7' });

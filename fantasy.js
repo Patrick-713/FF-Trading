@@ -295,10 +295,7 @@ export function createFantasy(db, { fetcher = globalThis.fetch } = {}) {
         }
       picks = pickInventory(snapshot);
     } else {
-      teams = [
-        { id: 'demo_a', name: 'Example Team A', manager: 'You', playerIds: [] },
-        { id: 'demo_b', name: 'Example Team B', manager: 'Sample manager', playerIds: [] },
-      ];
+      teams = demoData.teams;
       slots = ['QB', 'RB', 'RB', 'WR', 'WR', 'TE', 'FLEX'];
       allPlayers = demoData.players.map((p) => ({
         ...p,
@@ -378,7 +375,7 @@ export function createFantasy(db, { fetcher = globalThis.fetch } = {}) {
         ties: t.ties ?? null,
         pointsFor: t.pointsFor ?? null,
         pointsAgainst: t.pointsAgainst ?? null,
-        rosterLimit: snapshot?.rosterLimit || (!snapshot ? 7 : null),
+        rosterLimit: snapshot?.rosterLimit || (!snapshot ? demoData.rosterLimit : null),
         protectedIds: t.protectedIds || [],
         playerValue: roster.reduce((s, p) => s + p.value, 0),
         pickValue: settings.mode === 'dynasty' ? ownedPicks.reduce((s, p) => s + p.value, 0) : 0,

@@ -44,6 +44,21 @@ test('public simulator uses real players, enforces redraft, persists scenarios a
     const redraft = await request('analysis', guest.cookie);
     assert.equal(redraft.data.settings.mode, 'redraft');
     assert.equal(redraft.data.picks.length, 0);
+    assert.equal(redraft.data.players.length, 300);
+    assert.equal(redraft.data.teams.length, 20);
+    assert.equal(new Set(redraft.data.players.map((p) => p.gsis)).size, 300);
+    assert.ok(redraft.data.players.every((p) => redraft.data.teams.some((t) => t.id === p.owner)));
+    assert.ok(redraft.data.teams.every((t) => t.playerCount === 15 && t.rosterLimit === 15));
+    const expanded = redraft.data.players.find(
+      (p) => p.id.startsWith('pool_') && p.owner !== 'demo_a',
+    );
+    const expandedTrade = await request('analysis/trade', guest.cookie, 'POST', {
+      teamA: 'demo_a',
+      teamB: expanded.owner,
+      sendA: ['demo_3'],
+      sendB: [expanded.id],
+    });
+    assert.equal(expandedTrade.status, 200);
     const input = { teamA: 'demo_a', teamB: 'demo_b', sendA: ['demo_3'], sendB: ['demo_7'] };
     const analyzed = await request('analysis/trade', guest.cookie, 'POST', input);
     assert.equal(analyzed.status, 200);
