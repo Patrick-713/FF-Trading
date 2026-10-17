@@ -95,7 +95,7 @@ test('builder supports player search, assumptions, analysis, finder and loading 
     );
     assert.ok(accountMarkup.indexOf('Sleeper connection') < accountMarkup.indexOf('One login.'));
     assert.equal((element('#main').innerHTML.match(/id="favorite-team"/g) || []).length, 1);
-    assert.equal(element('#sleeper-status').textContent, 'Sleeper linked � <TestManager>');
+    assert.equal(element('#sleeper-status').textContent, 'Sleeper linked: <TestManager>');
     assert.equal(element('#sleeper-status').hidden, false);
     await click('[data-auth-mode]', { authMode: 'login' });
     assert.ok(element('#main').innerHTML.includes('Welcome back'));

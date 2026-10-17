@@ -52,7 +52,7 @@ function toast(text) {
   setTimeout(() => $('#toast').classList.remove('visible'), 4000);
 }
 function intro(title, text, action = true) {
-  return `<div class="page-intro"><div><div class="eyebrow">FANTASY FOOTBALL. CLEARER DECISIONS.</div><h1>${title}</h1><p>${text}</p></div>${action ? (state.connection ? '<button class="primary" data-sync>Refresh league data ↻</button>' : '<button class="primary" data-view="account">Link your league ↗</button>') : ''}</div>`;
+  return `<div class="page-intro"><div><div class="eyebrow">FANTASY FOOTBALL. CLEARER DECISIONS.</div><h1>${title}</h1><p>${text}</p></div>${action ? (state.connection ? '<button class="primary" data-sync>Refresh league data â†»</button>' : '<button class="primary" data-view="account">Link your league â†—</button>') : ''}</div>`;
 }
 const currentTeam = () => model.teams.find((t) => t.id === model.ownTeam) || model.teams[0];
 function playerTable(players) {
@@ -63,7 +63,7 @@ function playerTable(players) {
       players
         .map((p) =>
           [
-            `<tr><td><button class="player-name" data-player="${esc(p.id)}"><span class="position">${esc(p.position)}</span><span><strong>${esc(p.name)}</strong><small>${esc(p.club)}${p.injury ? ' · ' + esc(p.injury) : ''}</small></span></button>`,
+            `<tr><td><button class="player-name" data-player="${esc(p.id)}"><span class="position">${esc(p.position)}</span><span><strong>${esc(p.name)}</strong><small>${esc(p.club)}${p.injury ? ' Â· ' + esc(p.injury) : ''}</small></span></button>`,
             `</td><td data-label="Value"><strong class="value-number">${fmt(p.value)}</strong></td><td data-label="FP / game">${p.games ? fmt(p.stats.ppg) : 'Not available'}</td><td data-label="Target share">${p.stats.targetShare === null ? 'Not available' : fmt(p.stats.targetShare) + '%'}</td><td data-label="WOPR">${p.stats.wopr === null ? 'Not available' : p.stats.wopr}</td><td data-label="Age">${p.age ?? 'Not available'}</td><td data-label="Sample"><span class="sample">${p.games ? p.games + ' games' : 'Estimate'}</span></td></tr>`,
           ].join(''),
         )
@@ -81,7 +81,7 @@ function teamView() {
       .sort((a, b) => b.value - a.value),
     picks = model.picks.filter((p) => p.owner === team.id);
   return [
-    `${intro('Know what your roster is worth.', `${model.settings.mode === 'dynasty' ? 'Long-term talent and draft capital' : 'Current production and opportunity'} · ${esc(team.name)}`)}<div class="stats"><article><span>Total roster value</span><h2>${fmt(team.playerValue + team.pickValue)} <small>VALUE</small></h2>`,
+    `${intro('Know what your roster is worth.', `${model.settings.mode === 'dynasty' ? 'Long-term talent and draft capital' : 'Current production and opportunity'} Â· ${esc(team.name)}`)}<div class="stats"><article><span>Total roster value</span><h2>${fmt(team.playerValue + team.pickValue)} <small>VALUE</small></h2>`,
     `<p>Players${model.settings.mode === 'dynasty' ? ' + future picks' : ''}</p>`,
     `</article>`,
     `<article><span>Player value</span><h2>${fmt(team.playerValue)}</h2>`,
@@ -101,7 +101,7 @@ function teamView() {
     `<section class="feature-card decision-card"><span class="eyebrow">BEFORE YOU MAKE A MOVE</span><h2>Explore the trade.<br>Keep the context.</h2>`,
     `<p>Compare players${model.settings.mode === 'dynasty' ? ' and draft picks' : ''}, roster value, position depth, and starter pace on both sides.</p>`,
     `<p>Switch between dynasty and redraft to see how time horizon changes the same players.</p>`,
-    `<button class="light-button" data-view="trade">Build a trade →</button>`,
+    `<button class="light-button" data-view="trade">Build a trade â†’</button>`,
     `</section>`,
     `</div>${model.settings.mode === 'dynasty' ? `<section class="panel picks-panel"><div class="panel-heading"><div><span class="eyebrow">DYNASTY DRAFT CAPITAL</span><h2>Future picks</h2></div><span class="muted">Unknown slots use mid-round estimates</span></div><div class="pick-grid">${picks.map((p) => `<article class="pick-card"><span>${p.year}</span><strong>Round ${p.round}</strong><small>Originally ${esc(p.originalTeam)}</small><b>${fmt(p.value)} VALUE</b><small>Late to early range ${p.low} to ${p.high}</small></article>`).join('') || '<p class="empty">Future picks are not available for this league. Dynasty leagues need draft-round settings and the traded-pick feed; sync Sleeper to refresh.</p>'}</div></section>` : ''}<section class="panel league-panel"><div class="panel-heading"><h2>League roster values</h2>`,
     `</div>`,
@@ -129,7 +129,7 @@ function assetList(team, side) {
   const selected = side === 'A' ? selectedA : selectedB;
   const players = model.players.filter((p) => p.owner === team).sort((a, b) => b.value - a.value),
     picks = model.picks.filter((p) => p.owner === team);
-  return `<div class="asset-list">${[...players, ...picks].map((a) => `<label class="asset-option"><input type="checkbox" data-side="${side}" value="${esc(a.id)}" ${selected.has(a.id) ? 'checked' : ''}><span class="position">${a.kind === 'pick' ? 'PICK' : esc(a.position)}</span><span class="asset-name"><strong>${esc(a.name)}</strong><small>${a.kind === 'pick' ? `${esc(a.originalTeam)} · unknown slot` : esc(a.club) + ' · ' + (a.games ? a.games + ' games' : 'low-confidence estimate')}</small></span><b>${fmt(a.value)}</b></label>`).join('')}</div>`;
+  return `<div class="asset-list">${[...players, ...picks].map((a) => `<label class="asset-option"><input type="checkbox" data-side="${side}" value="${esc(a.id)}" ${selected.has(a.id) ? 'checked' : ''}><span class="position">${a.kind === 'pick' ? 'PICK' : esc(a.position)}</span><span class="asset-name"><strong>${esc(a.name)}</strong><small>${a.kind === 'pick' ? `${esc(a.originalTeam)} Â· unknown slot` : esc(a.club) + ' Â· ' + (a.games ? a.games + ' games' : 'low-confidence estimate')}</small></span><b>${fmt(a.value)}</b></label>`).join('')}</div>`;
 }
 function tradeView() {
   if (!partner || !model.teams.some((t) => t.id === partner) || partner === model.ownTeam)
@@ -151,7 +151,7 @@ function tradeView() {
     `</div>`,
     `<div class="trade-actions"><p id="trade-error" class="error" role="alert"></p>`,
     `<button class="trade-button" id="clear-trade">Clear selections</button>`,
-    `<button class="primary" id="analyze-trade">Analyze trade ↗</button>`,
+    `<button class="primary" id="analyze-trade">Analyze trade â†—</button>`,
     `</div>`,
     `<div id="trade-result">${result ? resultView(result) : ''}</div>`,
   ].join('');
@@ -167,16 +167,16 @@ function resultView(r) {
   return tradeResult(r, model);
 }
 function savedView() {
-  return `${intro('Your trade notebook.', 'Saved comparisons stay with your account. Each shows the model and data at the time you saved it.', false)}<div class="saved-grid">${model.saved.map((s) => `<section class="panel result-card"><span class="eyebrow">${esc(s.result.settings.mode)} · Model ${esc(s.result.modelVersion || 'legacy / unversioned')} · ${esc(new Date(s.created).toLocaleString())}</span><h2>${esc(s.title)}</h2><p>${esc(s.result.summary)}</p><div class="result-metric"><span>Roster value change</span><strong>${signed(s.result.teamA.valueChange)}</strong></div><div class="result-metric"><span>Starter pace change</span><strong>${signed(s.result.teamA.paceChange)}${s.result.teamA.paceChange === null ? '' : ' PTS/WK'}</strong></div><button class="trade-button" data-load="${s.id}">Load selections →</button></section>`).join('') || '<section class="panel empty">Build and analyze a trade, then save the scenario here.</section>'}</div>`;
+  return `${intro('Your trade notebook.', 'Saved comparisons stay with your account. Each shows the model and data at the time you saved it.', false)}<div class="saved-grid">${model.saved.map((s) => `<section class="panel result-card"><span class="eyebrow">${esc(s.result.settings.mode)} Â· Model ${esc(s.result.modelVersion || 'legacy / unversioned')} Â· ${esc(new Date(s.created).toLocaleString())}</span><h2>${esc(s.title)}</h2><p>${esc(s.result.summary)}</p><div class="result-metric"><span>Roster value change</span><strong>${signed(s.result.teamA.valueChange)}</strong></div><div class="result-metric"><span>Starter pace change</span><strong>${signed(s.result.teamA.paceChange)}${s.result.teamA.paceChange === null ? '' : ' PTS/WK'}</strong></div><button class="trade-button" data-load="${s.id}">Load selections â†’</button></section>`).join('') || '<section class="panel empty">Build and analyze a trade, then save the scenario here.</section>'}</div>`;
 }
 function sleeperView() {
   const c = state.connection;
   return [
-    `<div class="account-connections"><h2>Sleeper connection</h2><p class="muted">Import your league to analyze your players, trade partners, and dynasty picks.</p>${c ? `<section class="panel linked-summary"><div class="panel-heading"><div><span class="eyebrow">SLEEPER CONNECTED</span><h2>${esc(c.league.name)}</h2></div><span class="pill">${esc(c.league.season)}</span></div><div class="link-content"><p>${esc(c.user.username)} · ${model.teams.length} teams · Last sync ${esc(new Date(c.syncedAt).toLocaleString())}</p><div class="link-actions"><button class="primary" data-sync>Sync Sleeper ↻</button><button class="trade-button" id="disconnect">Return to demo</button></div></div></section>` : ''}<section class="panel account-panel"><div class="panel-heading"><h2>Find your leagues</h2>`,
+    `<div class="account-connections"><h2>Sleeper connection</h2><p class="muted">Import your league to analyze your players, trade partners, and dynasty picks.</p>${c ? `<section class="panel linked-summary"><div class="panel-heading"><div><span class="eyebrow">SLEEPER CONNECTED</span><h2>${esc(c.league.name)}</h2></div><span class="pill">${esc(c.league.season)}</span></div><div class="link-content"><p>${esc(c.user.username)} Â· ${model.teams.length} teams Â· Last sync ${esc(new Date(c.syncedAt).toLocaleString())}</p><div class="link-actions"><button class="primary" data-sync>Sync Sleeper â†»</button><button class="trade-button" id="disconnect">Return to demo</button></div></div></section>` : ''}<section class="panel account-panel"><div class="panel-heading"><h2>Find your leagues</h2>`,
     `<span class="pill">NO PASSWORD</span></div>`,
     `<div class="link-content"><form id="sleeper-lookup"><label for="sleeper-username">Sleeper username</label>`,
     `<input id="sleeper-username" name="username" value="${esc(lookupResult?.user.username || c?.user.username || '')}" maxlength="40" required>`,
-    `<button class="primary full" id="lookup-submit">Find my leagues ↗</button>`,
+    `<button class="primary full" id="lookup-submit">Find my leagues â†—</button>`,
     `<p id="link-error" class="error" role="alert"></p>`,
     `</form>`,
     `<div id="league-results">${leagueResults()}</div>`,
@@ -187,7 +187,7 @@ function sleeperView() {
 }
 function leagueResults() {
   if (!lookupResult) return '';
-  return `<div class="results-heading"><span class="eyebrow">CHOOSE A LEAGUE</span><p>${lookupResult.leagues.length} leagues found in ${esc(lookupResult.season)}</p></div>${lookupResult.leagues.map((l) => `<div class="league-option"><div><strong>${esc(l.name)}</strong><small>${esc(l.season)} · ${l.teams} teams</small></div><button class="trade-button" data-link-league="${esc(l.id)}">Link league ↗</button></div>`).join('') || '<p>No NFL leagues found for that season.</p>'}`;
+  return `<div class="results-heading"><span class="eyebrow">CHOOSE A LEAGUE</span><p>${lookupResult.leagues.length} leagues found in ${esc(lookupResult.season)}</p></div>${lookupResult.leagues.map((l) => `<div class="league-option"><div><strong>${esc(l.name)}</strong><small>${esc(l.season)} Â· ${l.teams} teams</small></div><button class="trade-button" data-link-league="${esc(l.id)}">Link league â†—</button></div>`).join('') || '<p>No NFL leagues found for that season.</p>'}`;
 }
 // HTML fragments are joined without adding whitespace so formatting preserves the existing markup.
 /** Rebuild the active view from the current account, league and analysis state. */
@@ -213,7 +213,7 @@ function applyFavoriteTheme() {
   const team = favoriteTeam(state.preferences?.favoriteTeam);
   document.documentElement?.setAttribute('data-favorite-team', team?.id || '');
   const mark = $('#brand-mark');
-  mark.innerHTML = team ? team.id : 'ff<span>↗</span>';
+  mark.innerHTML = team ? team.id : 'ff<span>â†—</span>';
   mark.classList.toggle('team-mark', Boolean(team));
   mark.title = team ? team.name + ' fan' : 'FF Trading';
   $('#brand-subtitle').textContent = team ? team.id + ' FAN WORKSPACE' : 'ROSTER INTELLIGENCE';
@@ -234,19 +234,19 @@ function render() {
   const sleeperStatus = $('#sleeper-status');
   sleeperStatus.hidden = !state.connection;
   sleeperStatus.textContent = state.connection
-    ? `Sleeper linked � ${state.connection.user.username}`
+    ? `Sleeper linked: ${state.connection.user.username}`
     : '';
   $('#account-button').textContent = state.user ? 'My account' : 'Sign up / Log in';
   $('#profile-team').textContent = currentTeam().name;
   applyFavoriteTheme();
-  $('#profile-mode').textContent = state.user ? state.user.name : 'Guest · save with an account';
+  $('#profile-mode').textContent = state.user ? state.user.name : 'Guest Â· save with an account';
   $('#season-label').textContent = String(model.season);
   $('#week').textContent = model.settings.mode.toUpperCase();
   $('#format-switch').innerHTML = [
     `<div class="segmented format-modes"><button data-mode="redraft" class="${model.settings.mode === 'redraft' ? 'selected' : ''}">Redraft</button>`,
     `<button data-mode="dynasty" class="${model.settings.mode === 'dynasty' ? 'selected' : ''}">Dynasty</button>`,
     `</div>`,
-    `<div id="scoring-controls" class="format-details ${scoringExpanded ? 'expanded' : ''}"><button id="scoring-toggle" class="format-toggle" aria-expanded="${scoringExpanded}" aria-controls="league-scoring"><span>League scoring</span><span>${esc(model.settings.scoring.toUpperCase())} · ${model.settings.superflex ? 'Superflex' : '1 QB'} <b aria-hidden="true">⌄</b></span></button><div class="format-options" id="league-scoring"><label>Scoring<select id="scoring" aria-label="Reception scoring"><option value="ppr" ${model.settings.scoring === 'ppr' ? 'selected' : ''}>PPR</option><option value="half" ${model.settings.scoring === 'half' ? 'selected' : ''}>Half PPR</option><option value="standard" ${model.settings.scoring === 'standard' ? 'selected' : ''}>Standard</option></select>`,
+    `<div id="scoring-controls" class="format-details ${scoringExpanded ? 'expanded' : ''}"><button id="scoring-toggle" class="format-toggle" aria-expanded="${scoringExpanded}" aria-controls="league-scoring"><span>League scoring</span><span>${esc(model.settings.scoring.toUpperCase())} Â· ${model.settings.superflex ? 'Superflex' : '1 QB'} <b aria-hidden="true">âŒ„</b></span></button><div class="format-options" id="league-scoring"><label>Scoring<select id="scoring" aria-label="Reception scoring"><option value="ppr" ${model.settings.scoring === 'ppr' ? 'selected' : ''}>PPR</option><option value="half" ${model.settings.scoring === 'half' ? 'selected' : ''}>Half PPR</option><option value="standard" ${model.settings.scoring === 'standard' ? 'selected' : ''}>Standard</option></select>`,
     `</label>`,
     `<label>QB format<select id="qb-format" aria-label="Quarterback format"><option value="single" ${!model.settings.superflex ? 'selected' : ''}>1 QB</option><option value="superflex" ${model.settings.superflex ? 'selected' : ''}>Superflex / 2QB</option></select>`,
     `</label>`,
@@ -262,7 +262,7 @@ function render() {
       n.classList.toggle('active', n.dataset.view === (view === 'finder' ? 'trade' : view)),
     );
   const notice = [
-    `<div class="data-banner"><span class="dot"></span>${model.linked ? esc(state.connection.league.name) : 'Fictional demo league'} · ${esc(model.data.source)} · Model ${esc(model.modelVersion || 'legacy')} · ${model.data.season}, through week ${model.data.throughWeek} · ${model.data.matched}/${model.data.total} players with matched stats${model.linked ? ` · Analysis refreshed: ${model.data.refreshedAt ? esc(new Date(model.data.refreshedAt).toLocaleString()) : 'Not prepared'}${model.data.stale ? ' · Refresh recommended' : ''} <button class="text-button" data-sync>Refresh league data ↻</button>` : ''} <button class="text-button" id="methodology">How values work ↗</button>`,
+    `<div class="data-banner"><span class="dot"></span>${model.linked ? esc(state.connection.league.name) : 'Fictional demo league'} Â· ${esc(model.data.source)} Â· Model ${esc(model.modelVersion || 'legacy')} Â· ${model.data.season}, through week ${model.data.throughWeek} Â· ${model.data.matched}/${model.data.total} players with matched stats${model.linked ? ` Â· Analysis refreshed: ${model.data.refreshedAt ? esc(new Date(model.data.refreshedAt).toLocaleString()) : 'Not prepared'}${model.data.stale ? ' Â· Refresh recommended' : ''} <button class="text-button" data-sync>Refresh league data â†»</button>` : ''} <button class="text-button" id="methodology">How values work â†—</button>`,
     `</div>${model.data.warning ? `<p class="data-warning" role="status">${esc(model.data.warning)}</p>` : ''}`,
   ].join('');
   $('#main').innerHTML =
@@ -279,7 +279,7 @@ function render() {
               ? savedView()
               : accountView());
   $('#footer-disclaimer').textContent =
-    'Model estimates · No share trading · Simulations do not execute trades';
+    'Model estimates Â· No share trading Â· Simulations do not execute trades';
 }
 /** Load the account context before reading that account's active analysis. */
 async function reload() {
@@ -379,16 +379,16 @@ document.addEventListener('click', async (e) => {
     const p = model.players.find((p) => p.id === pbutton.dataset.player);
     showDetails(
       [
-        `<span class="eyebrow">${esc(p.position)} · ${esc(p.club)}</span><h2>${esc(p.name)}</h2>`,
+        `<span class="eyebrow">${esc(p.position)} Â· ${esc(p.club)}</span><h2>${esc(p.name)}</h2>`,
         `<div class="stat-pair"><span>Redraft <b>${p.redraft}</b></span><span>Dynasty <b>${p.dynasty}</b></span></div>`,
-        `<p>${esc(p.confidence)} · ${p.games} games · age ${p.age ?? 'unknown'}</p>`,
+        `<p>${esc(p.confidence)} Â· ${p.games} games Â· age ${p.age ?? 'unknown'}</p>`,
         `<table><tbody>${Object.entries(p.stats)
           .map(([k, v]) => `<tr><td>${esc(k)}</td><td>${v ?? 'Not available'}</td></tr>`)
           .join('')}</tbody>`,
-        `</table>${p.pickAnchor ? `<h3>Next-year pick anchor</h3><p>${p.pickAnchor.year} pick ${Math.ceil(p.pickAnchor.overall / p.pickAnchor.teams)}.${String(((p.pickAnchor.overall - 1) % p.pickAnchor.teams) + 1).padStart(2, '0')} · ${fmt(p.pickAnchor.pickValue)} value, less ${Math.round(p.pickAnchor.discount * 100)}% for observed performance: ${fmt(p.pickAnchor.value)}. Strong production can exceed this anchor. Source: ${esc(p.pickAnchor.source)}. This is a model assumption, not consensus ADP.</p>` : ''}${p.prospect ? `<h3>Dynasty prospect protection</h3><p>${esc(p.prospect.source)} · ${Math.round(p.prospect.priorWeight * 100)}% retained weight · ${p.prospect.opportunities} observed opportunities.</p><p>Prospect starting value: ${fmt(p.prospect.capital)} before age/QB adjustments. ${p.prospect.rookieDraft ? `Rookie pick #${p.prospect.rookieDraft.overall}; ${esc(p.prospect.rookieDraft.source || 'verified league context')}, not consensus ranking.` : 'Verified rookie draft position unavailable; no ranking assumed.'}</p>` : ''}<h3>Model components</h3>`,
+        `</table>${p.pickAnchor ? `<h3>Next-year pick anchor</h3><p>${p.pickAnchor.year} pick ${Math.ceil(p.pickAnchor.overall / p.pickAnchor.teams)}.${String(((p.pickAnchor.overall - 1) % p.pickAnchor.teams) + 1).padStart(2, '0')} Â· ${fmt(p.pickAnchor.pickValue)} value, less ${Math.round(p.pickAnchor.discount * 100)}% for observed performance: ${fmt(p.pickAnchor.value)}. Strong production can exceed this anchor. Source: ${esc(p.pickAnchor.source)}. This is a model assumption, not consensus ADP.</p>` : ''}${p.prospect ? `<h3>Dynasty prospect protection</h3><p>${esc(p.prospect.source)} Â· ${Math.round(p.prospect.priorWeight * 100)}% retained weight Â· ${p.prospect.opportunities} observed opportunities.</p><p>Prospect starting value: ${fmt(p.prospect.capital)} before age/QB adjustments. ${p.prospect.rookieDraft ? `Rookie pick #${p.prospect.rookieDraft.overall}; ${esc(p.prospect.rookieDraft.source || 'verified league context')}, not consensus ranking.` : 'Verified rookie draft position unavailable; no ranking assumed.'}</p>` : ''}<h3>Model components</h3>`,
         `<p>${Object.entries(p.breakdown)
           .map(([k, v]) => esc(k) + ': ' + v)
-          .join(' · ')}</p>`,
+          .join(' Â· ')}</p>`,
         `<p>${p.notes.map(esc).join(' ')}</p>`,
       ].join(''),
     );
@@ -397,14 +397,14 @@ document.addEventListener('click', async (e) => {
   if (e.target.closest('#methodology,#rules')) {
     showDetails(
       [
-        `<span class="eyebrow">TRANSPARENT MODEL · VERSION ${esc(model.modelVersion || 'legacy')}</span><h2>Values, not tokens.</h2>`,
+        `<span class="eyebrow">TRANSPARENT MODEL Â· VERSION ${esc(model.modelVersion || 'legacy')}</span><h2>Values, not tokens.</h2>`,
         `<p>${esc(model.methodology)}</p>`,
         `<h3>Redraft</h3>`,
         `<p>60% recent four-game scoring pace + 40% season pace, position baselines, usage, target share, WOPR, efficiency, and consistency. Listed injury statuses receive a simple availability discount, not an injury-duration prediction.</p>`,
         `<h3>Dynasty</h3>`,
         `<p>Adds position-specific age curves and NFL draft capital. Players in their first three NFL seasons retain a prospect prior that fades with tenure, games and opportunities. Verified rookie-only league draft results add limited context; they are not consensus rankings. Strong NFL production can exceed the prior. Age alone never identifies a rookie. Superflex increases QB value. Players without a statistical match receive explicitly low-confidence estimates.</p>`,
         `<h3>Future picks</h3>`,
-        `<p>Pick scenarios share the rookie anchor curve. In a 12-team league, next year’s 1.01 is 2,600, the middle first is 1,950, and a late first is 1,600. First-in-round, early, middle and late scenarios are estimates; each additional future year discounts 15%. These are estimates, not consensus draft rankings. Inventory assumes original picks and applies Sleeper’s traded-pick feed.</p>`,
+        `<p>Pick scenarios share the rookie anchor curve. In a 12-team league, next yearâ€™s 1.01 is 2,600, the middle first is 1,950, and a late first is 1,600. First-in-round, early, middle and late scenarios are estimates; each additional future year discounts 15%. These are estimates, not consensus draft rankings. Inventory assumes original picks and applies Sleeperâ€™s traded-pick feed.</p>`,
         `<h3>Scoring and limits</h3>`,
         `<p>The selected scoring preset, passing TD value, and TE reception bonus drive the model. Custom league bonuses, exact D/ST scoring, schedules, snap counts, route participation, and opponent adjustments are not included. Starter pace is optimized past production, not a rest-of-season forecast. Dynasty pick slots are unknown and use mid-round estimates.</p>`,
         `<p>Sources: <a href="https://docs.sleeper.com/" target="_blank" rel="noopener">Sleeper</a> and <a href="https://github.com/nflverse/nflverse-data/releases/tag/stats_player" target="_blank" rel="noopener">nflverse</a>. Stats cache refreshes after six hours; player metadata after 24 hours.</p>`,
@@ -417,14 +417,14 @@ document.addEventListener('click', async (e) => {
     if (e.target.closest('#find-trades')) {
       const button = $('#find-trades');
       button.disabled = true;
-      button.textContent = 'Searching…';
+      button.textContent = 'Searchingâ€¦';
       try {
         finder = await api('analysis/find', 'POST', { goal, includeWaivers });
         render();
       } finally {
         if (button.isConnected) {
           button.disabled = false;
-          button.textContent = 'Find trade ideas ↗';
+          button.textContent = 'Find trade ideas â†—';
         }
       }
       return;
@@ -455,7 +455,7 @@ document.addEventListener('click', async (e) => {
     }
     const link = e.target.closest('[data-link-league]');
     if (link || e.target.closest('[data-sync],#disconnect')) {
-      toast('Updating league data…');
+      toast('Updating league dataâ€¦');
       if (link)
         state = await api('sleeper/link', 'POST', {
           username: lookupResult.user.username,
