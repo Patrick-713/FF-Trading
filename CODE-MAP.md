@@ -75,3 +75,5 @@ Trade side selection lives in `addPlayerToSide` and `selectedPlayers` in `public
 `game-eligibility.js` defines evidence-backed game exclusions shared by current player valuation and historical aggregation. `game-eligibility.test.js` verifies that injury games leave the complete production sample while healthy low scores remain.
 
 `saved-news.js` validates and stores small news bookmarks under each account. `preferences.js` merges updates safely so saving a favorite team preserves saved stories. Saved trade participants are rendered from their historical result in `public/app.js`.
+
+`public/player-profile.js` renders stat explanations and compact game logs. `valuation.playerGameLog` scores recorded weekly rows; the account-scoped profile API requests those rows only when a profile opens. `player-profile.test.js` covers scoring, injury labels, escaping and keeping logs out of the full rankings payload.

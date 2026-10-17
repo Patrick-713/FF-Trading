@@ -134,11 +134,11 @@ export async function createApplication() {
     return s;
   }
   /** Read saved analysis inputs. Provider requests belong to importLeague. */
-  async function analysis(account, input) {
+  async function analysis(account, input, profilePlayer = null) {
     const s = await snapshot(account);
     // Prepared inputs already contain a small frozen catalog. Never reread the full provider catalog for them or demos.
     const catalog = s && !s.analysisRefreshedAt ? (await cached('players/nfl')) || {} : {};
-    return fantasy.model(account, s, catalog, input);
+    return fantasy.model(account, s, catalog, input, profilePlayer);
   }
   /** Prepare provider data first, then commit the league and its inputs together. */
   async function importLeague(account, username, leagueId) {
@@ -248,6 +248,7 @@ export async function createApplication() {
         '/api/auth/reset',
         '/api/auth/verify',
         '/api/analysis',
+        '/api/analysis/player',
         '/api/analysis/settings',
         '/api/analysis/refresh',
         '/api/analysis/trade',
@@ -261,6 +262,7 @@ export async function createApplication() {
         '/',
         '/app.js',
         '/trade-tools.js',
+        '/player-profile.js',
         '/nfl-teams.js',
         '/styles.css',
       ]);
@@ -358,6 +360,13 @@ export async function createApplication() {
           return json(res, 200, await state(account));
         if (req.method === 'GET' && path === '/api/analysis')
           return json(res, 200, await analysis(account));
+        if (req.method === 'GET' && path === '/api/analysis/player') {
+          const playerId = url.searchParams.get('id') || '';
+          if (!/^[A-Za-z0-9_-]{1,80}$/.test(playerId)) throw invalid('Choose a valid player.');
+          const profile = await analysis(account, undefined, playerId);
+          if (!profile) throw new AppError(404, 'NOT_FOUND', 'Player is not in this analysis.');
+          return json(res, 200, profile);
+        }
         if (req.method === 'PUT' && path === '/api/analysis/settings') {
           const input = await body(req),
             model = await analysis(account, input);
@@ -479,6 +488,7 @@ export async function createApplication() {
         '/': 'index.html',
         '/app.js': 'app.js',
         '/trade-tools.js': 'trade-tools.js',
+        '/player-profile.js': 'player-profile.js',
         '/nfl-teams.js': 'nfl-teams.js',
         '/styles.css': 'styles.css',
         '/favicon.svg': 'favicon.svg',

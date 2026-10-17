@@ -3482,3 +3482,115 @@ footer {
     min-width: 32px;
   }
 }
+
+/* Native stat disclosures work by touch, mouse and keyboard. */
+.profile-stats td {
+  vertical-align: top;
+}
+.profile-stats td:last-child {
+  text-align: right;
+  white-space: nowrap;
+}
+.stat-definition summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  cursor: pointer;
+  list-style: none;
+}
+.stat-definition summary::-webkit-details-marker {
+  display: none;
+}
+.stat-info {
+  display: grid;
+  place-items: center;
+  flex: 0 0 22px;
+  color: #83e9dc;
+}
+.stat-info svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+}
+.stat-definition[open] .stat-info {
+  color: #f0f4fa;
+}
+#details-dialog .stat-definition p {
+  margin: 4px 0 12px;
+  color: #b8c8da;
+  font-size: 12px;
+  line-height: 1.65;
+}
+.profile-game-log {
+  border-top: 1px solid var(--line);
+  margin-top: 28px;
+  padding-top: 4px;
+}
+.profile-game-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.profile-game {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  min-width: 0;
+  background: #192536;
+}
+.profile-game-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.profile-game-heading h4 {
+  margin: 0;
+  font-size: 14px;
+}
+.profile-game-heading strong {
+  color: #83e9dc;
+  font-size: 16px;
+  white-space: nowrap;
+}
+.profile-game-heading small {
+  font-size: 10px;
+}
+.profile-game dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 16px 0 0;
+}
+.profile-game dt {
+  font-size: 10px;
+  color: var(--muted);
+}
+.profile-game dd {
+  margin: 4px 0 0;
+  font-size: 13px;
+}
+.profile-game.game-excluded {
+  border-color: #927041;
+}
+#details-dialog .game-log-exclusion {
+  color: #f4ce91;
+  font-size: 11px;
+  line-height: 1.5;
+}
+@media (max-width: 760px) {
+  .profile-game-grid {
+    grid-template-columns: 1fr;
+  }
+  .profile-game dl {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.profile-stat-value {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-height: 44px;
+}

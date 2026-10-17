@@ -17,6 +17,7 @@ import {
   parseCSV,
   settingsFor,
   valuePlayer,
+  playerGameLog,
   pickInventory,
   pickValue,
   lineupPace,
@@ -224,7 +225,7 @@ export function createFantasy(db, { fetcher = globalThis.fetch } = {}) {
     }
   }
   /** Assemble player values and roster summaries from saved inputs and league settings. */
-  async function model(account, snapshot, catalog, input) {
+  async function model(account, snapshot, catalog, input, profilePlayer = null) {
     const league = snapshot?.league.id || DEMO_LEAGUE;
     const savedSnapshot = snapshot ? await frozenInputs(account, league) : null;
     const inputs = savedSnapshot?.inputs || null;
@@ -347,7 +348,7 @@ export function createFantasy(db, { fetcher = globalThis.fetch } = {}) {
         const ids = pastNames.get(playerMatchKey(p.name, p.position));
         if (ids?.size === 1) past = historical.players[[...ids][0]];
       }
-      return valuePlayer(
+      const valued = valuePlayer(
         p,
         (rows || []).sort((a, b) => Number(a.week) - Number(b.week)),
         settings,
@@ -356,7 +357,17 @@ export function createFantasy(db, { fetcher = globalThis.fetch } = {}) {
           ? { ...past, season: historical.season }
           : null,
       );
+      if (profilePlayer === p.id)
+        return { ...valued, gameLog: playerGameLog(p, rows || [], settings, season) };
+      return valued;
     });
+    // Profile reads return before team aggregation and saved-scenario queries.
+    if (profilePlayer !== null) {
+      const player = players.find((player) => player.id === profilePlayer);
+      return player
+        ? { gameLog: player.gameLog, position: player.position, season, settings }
+        : null;
+    }
     picks = picks.map((p) => ({
       ...p,
       value: pickValue(p, settings, season),

@@ -1,5 +1,5 @@
 /** Valuation functions use relative model units. They are transparent estimates rather than forecasts. */
-import { eligibleGames } from './game-eligibility.js';
+import { eligibleGames, gameExclusion } from './game-eligibility.js';
 import { invalid } from './errors.js';
 import { prospectProfile } from './prospects.js';
 import { scoringSignal } from './redraft-signal.js';
@@ -86,6 +86,30 @@ export function pointsFor(row, s) {
     num(row.def_tds) * 6 +
     num(row.def_fumbles_forced) * 2
   );
+}
+/** A small on-demand log from the same frozen weekly rows used by player valuation. */
+export function playerGameLog(player, rows, settings, season) {
+  return [...rows]
+    .sort((a, b) => Number(b.week) - Number(a.week))
+    .map((row) => ({
+      week: Number(row.week),
+      season: Number(row.season || season),
+      points: round(pointsFor(row, settings), 2),
+      passingYards: num(row.passing_yards),
+      passingTD: num(row.passing_tds),
+      interceptions: num(row.passing_interceptions),
+      attempts: num(row.attempts),
+      rushingYards: num(row.rushing_yards),
+      rushingTD: num(row.rushing_tds),
+      carries: num(row.carries),
+      receivingYards: num(row.receiving_yards),
+      receivingTD: num(row.receiving_tds),
+      receptions: num(row.receptions),
+      targets: num(row.targets),
+      fieldGoals: num(row.fg_made),
+      extraPoints: num(row.pat_made),
+      exclusion: gameExclusion(row, player, season),
+    }));
 }
 /** Combine observed production with an age-adjusted, fading dynasty prospect prior. */
 export function valuePlayer(

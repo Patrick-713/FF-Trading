@@ -1,4 +1,5 @@
 /** Browser application. Views render the current state; event handlers call the backend API. */
+import { profileStats, profileGameLog } from './player-profile.js';
 import { NFL_TEAMS, favoriteTeam } from './nfl-teams.js';
 import { tradeTools, tradeSearch, tradeResult, finderView } from './trade-tools.js';
 let state,
@@ -449,6 +450,8 @@ function render() {
 }
 /** Load the account context before reading that account's active analysis. */
 async function reload() {
+  profileRequest++;
+  profileLogs.clear();
   finder = null;
   tradeTeam = null;
 
@@ -474,6 +477,42 @@ async function changeSettings(settings) {
   result = null;
   render();
 }
+// Small session cache avoids refetching logs while browsing player profiles.
+const profileLogs = new Map();
+let profileRequest = 0;
+async function loadPlayerGameLog(id) {
+  const request = ++profileRequest;
+  const key = JSON.stringify([
+    state.account?.id,
+    state.connection?.league?.id,
+    model.modelVersion,
+    model.season,
+    model.settings,
+    model.data.refreshedAt,
+    model.data.fetched,
+    id,
+  ]);
+  const target = $('#player-game-log');
+  if (!target) return;
+  target.innerHTML = 'Loading game log…';
+  let entry = profileLogs.get(key);
+  if (!entry || entry.expires < Date.now()) {
+    entry = {
+      promise: api(`analysis/player?id=${encodeURIComponent(id)}`),
+      expires: Date.now() + 300000,
+    };
+    profileLogs.set(key, entry);
+    if (profileLogs.size > 8) profileLogs.delete(profileLogs.keys().next().value);
+  }
+  try {
+    const data = await entry.promise;
+    if (request === profileRequest && target.isConnected) target.innerHTML = profileGameLog(data);
+  } catch {
+    if (profileLogs.get(key) === entry) profileLogs.delete(key);
+    if (request === profileRequest && target.isConnected)
+      target.innerHTML = `<p>Game log is unavailable right now.</p><button class="trade-button" data-log-retry="${esc(id)}">Try again</button>`;
+  }
+}
 function showDetails(html) {
   $('#details-content').innerHTML = html;
   $('#details-dialog').showModal();
@@ -482,6 +521,7 @@ function showDetails(html) {
 document.addEventListener('click', async (e) => {
   const close = e.target.closest('[data-close]');
   if (close) {
+    profileRequest++;
     close.closest('dialog').close();
     return;
   }
@@ -580,9 +620,15 @@ document.addEventListener('click', async (e) => {
     render();
     return;
   }
+  const logRetry = e.target.closest('[data-log-retry]');
+  if (logRetry) {
+    void loadPlayerGameLog(logRetry.dataset.logRetry);
+    return;
+  }
   const pbutton = e.target.closest('[data-player]');
   if (pbutton) {
     const p = model.players.find((p) => p.id === pbutton.dataset.player);
+    if (!p) return;
     showDetails(
       [
         `<span class="eyebrow">${esc(p.position)} · ${esc(p.club)}</span><h2>${esc(p.name)}</h2>${model.teams.some((t) => t.id === p.owner) ? `<button class="primary" data-trade-player="${esc(p.id)}">Add to trade →</button>` : ''}`,
@@ -590,19 +636,16 @@ document.addEventListener('click', async (e) => {
         `${p.history ? `<p><strong>${p.history.season}:</strong> ${fmt(p.history.ppg)} fantasy points per game across ${p.history.games} games. Last-season context supplies ${Math.round(p.history.weight * 100)}% of the scoring estimate.</p>` : ''}`,
         `<p>${esc(p.confidence)} · ${p.games} games · age ${p.age ?? 'unknown'}</p>`,
         `${p.gameSample?.excluded.length ? `<p class="game-exclusions"><strong>Adjusted game sample:</strong> ${p.games} games included. ${p.gameSample.excluded.map((game) => `${game.season} Week ${game.week}: ${esc(game.reason)}${game.source ? ` (<a href="${esc(game.source)}" target="_blank" rel="noopener noreferrer">source</a>)` : ''}`).join('; ')}. Excluded from averages and usage. Recorded-game PPG before exclusions: ${p.gameSample.recordedPPG}.</p>` : ''}`,
-        `<table><tbody>${Object.entries(p.stats)
-          .map(
-            ([k, v]) =>
-              `<tr><td>${esc({ ppg: 'This season FP / game', recentPPG: 'Last four games FP / game', scoringEstimate: 'Scoring estimate', lastSeasonPPG: 'Last season FP / game', targetsPerGame: 'Targets / game', carriesPerGame: 'Carries / game', targetShare: 'Target share (%)', wopr: 'Receiving opportunity (WOPR)', adot: 'Average target depth', epaPerOpportunity: 'EPA / opportunity', consistency: 'Consistency', yardsPerTouch: 'Yards / touch' }[k] || k)}</td><td>${v ?? 'Not available'}</td></tr>`,
-          )
-          .join('')}</tbody>`,
-        `</table>${p.pickAnchor ? `<h3>Next-year pick anchor</h3><p>${p.pickAnchor.year} pick ${Math.ceil(p.pickAnchor.overall / p.pickAnchor.teams)}.${String(((p.pickAnchor.overall - 1) % p.pickAnchor.teams) + 1).padStart(2, '0')} · ${fmt(p.pickAnchor.pickValue)} value, less ${Math.round(p.pickAnchor.discount * 100)}% for observed performance: ${fmt(p.pickAnchor.value)}. Strong production can exceed this anchor. Source: ${esc(p.pickAnchor.source)}. This is a model assumption, not consensus ADP.</p>` : ''}${p.prospect ? `<h3>Dynasty prospect protection</h3><p>${esc(p.prospect.source)} · ${Math.round(p.prospect.priorWeight * 100)}% retained weight · ${p.prospect.opportunities} observed opportunities.</p><p>Prospect starting value: ${fmt(p.prospect.capital)} before age/QB adjustments. ${p.prospect.rookieDraft ? `Rookie pick #${p.prospect.rookieDraft.overall}; ${esc(p.prospect.rookieDraft.source || 'verified league context')}, not consensus ranking.` : 'Verified rookie draft position unavailable; no ranking assumed.'}</p>` : ''}<h3>Model components</h3>`,
+        profileStats(p.stats),
+        `${p.pickAnchor ? `<h3>Next-year pick anchor</h3><p>${p.pickAnchor.year} pick ${Math.ceil(p.pickAnchor.overall / p.pickAnchor.teams)}.${String(((p.pickAnchor.overall - 1) % p.pickAnchor.teams) + 1).padStart(2, '0')} · ${fmt(p.pickAnchor.pickValue)} value, less ${Math.round(p.pickAnchor.discount * 100)}% for observed performance: ${fmt(p.pickAnchor.value)}. Strong production can exceed this anchor. Source: ${esc(p.pickAnchor.source)}. This is a model assumption, not consensus ADP.</p>` : ''}${p.prospect ? `<h3>Dynasty prospect protection</h3><p>${esc(p.prospect.source)} · ${Math.round(p.prospect.priorWeight * 100)}% retained weight · ${p.prospect.opportunities} observed opportunities.</p><p>Prospect starting value: ${fmt(p.prospect.capital)} before age/QB adjustments. ${p.prospect.rookieDraft ? `Rookie pick #${p.prospect.rookieDraft.overall}; ${esc(p.prospect.rookieDraft.source || 'verified league context')}, not consensus ranking.` : 'Verified rookie draft position unavailable; no ranking assumed.'}</p>` : ''}<h3>Model components</h3>`,
         `<p>${Object.entries(p.breakdown)
           .map(([k, v]) => esc(k) + ': ' + v)
           .join(' · ')}</p>`,
         `<p>${p.notes.map(esc).join(' ')}</p>`,
+        '<section class="profile-game-log" aria-labelledby="game-log-title"><h3 id="game-log-title">Game Log</h3><div id="player-game-log">Loading game log…</div></section>',
       ].join(''),
     );
+    void loadPlayerGameLog(p.id);
     return;
   }
   if (e.target.closest('#methodology,#rules')) {

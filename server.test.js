@@ -123,6 +123,21 @@ test('API removes stocks, isolates settings, freezes analysis inputs, versions s
     const baselineCalls = readFileSync(calls, 'utf8');
     const model = await request('analysis', cookie);
     assert.ok(model.data.data.refreshedAt);
+    assert.ok(model.data.players.every((player) => !Object.hasOwn(player, 'gameLog')));
+    const profile = await request('analysis/player?id=101', cookie);
+    assert.equal(profile.status, 200);
+    assert.deepEqual(
+      profile.data.gameLog.map((row) => row.week),
+      [2, 1],
+    );
+    assert.equal(profile.data.gameLog[0].points, 18.4);
+    assert.equal('players' in profile.data, false);
+    assert.equal((await request('analysis/player?id=not-found', cookie)).status, 404);
+    assert.equal((await request('analysis/player?id=%3Cscript%3E', cookie)).status, 400);
+    const otherProfile = await request('analysis/player?id=101');
+    assert.equal(otherProfile.status, 404, 'Another guest cannot read this league snapshot');
+    assert.equal(readFileSync(calls, 'utf8'), baselineCalls, 'Profile reads never fetch providers');
+
     assert.equal(model.data.modelVersion, MODEL_VERSION);
     await request('analysis/settings', cookie, 'PUT', { mode: 'dynasty', scoring: 'half' });
     const offer = { teamA: 'sl_1', teamB: 'sl_2', sendA: ['101'], sendB: ['201'] };
