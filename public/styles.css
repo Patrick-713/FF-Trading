@@ -2746,6 +2746,10 @@ html[data-favorite-team]:not([data-favorite-team='']) .nav.active {
   margin-bottom: 20px;
 }
 @media (max-width: 760px) {
+  /* Account is always available in the phone's bottom navigation. */
+  #account-button {
+    display: none;
+  }
   .header-right {
     flex-wrap: wrap;
   }
