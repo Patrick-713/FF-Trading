@@ -274,10 +274,11 @@ function render() {
     finder: 'Trade Finder',
     saved: 'Saved Scenarios',
     news: 'NFL News',
-    account: 'Your account',
+    account: 'Account',
   };
   document.documentElement?.setAttribute('data-view', view);
   $('#page-name').textContent = names[view];
+  document.title = `${names[view] || 'My Team'} | FF Trading`;
   const sleeperStatus = $('#sleeper-status');
   sleeperStatus.hidden = !state.connection;
   sleeperStatus.textContent = state.connection

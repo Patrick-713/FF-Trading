@@ -446,13 +446,21 @@ export async function createApplication() {
         '/trade-tools.js': 'trade-tools.js',
         '/nfl-teams.js': 'nfl-teams.js',
         '/styles.css': 'styles.css',
+        '/favicon.svg': 'favicon.svg',
+        '/favicon.ico': 'favicon.ico',
+        '/apple-touch-icon.png': 'apple-touch-icon.png',
       };
       const file = files[url.pathname];
       if (!file) throw new AppError(404, 'NOT_FOUND', 'Not found.');
       res.writeHead(200, {
-        'Content-Type': { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css' }[
-          extname(file)
-        ],
+        'Content-Type': {
+          '.html': 'text/html',
+          '.js': 'text/javascript',
+          '.css': 'text/css',
+          '.svg': 'image/svg+xml',
+          '.ico': 'image/x-icon',
+          '.png': 'image/png',
+        }[extname(file)],
       });
       res.end(readFileSync(resolve(root, 'public', file)));
     } catch (error) {
