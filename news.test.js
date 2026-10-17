@@ -59,3 +59,36 @@ test('news shares fetches across instances, backs off outages and expires old st
   assert.equal((await a()).articles.length, 0);
   db.close();
 });
+
+test('publisher previews preserve their text and handle absent or malformed descriptions', () => {
+  const withDescription = (description) =>
+    feed(item('Preview story').replace('</item>', description + '</item>'));
+  const summary = 'A & B are expected to play. The team confirmed the update.';
+  assert.equal(
+    parseNews(
+      withDescription(
+        '<description>A &amp; B are expected to play. The team confirmed the update.</description>',
+      ),
+      clock,
+    )[0].summary,
+    summary,
+  );
+  assert.equal(parseNews(feed(item('No preview')), clock)[0].summary, '');
+  assert.equal(
+    parseNews(withDescription('<description><nested>Unexpected</nested></description>'), clock)[0]
+      .summary,
+    '',
+  );
+  assert.equal(
+    parseNews(withDescription('<description>' + 'a'.repeat(4001) + '</description>'), clock)[0]
+      .summary,
+    '',
+  );
+  assert.equal(
+    parseNews(
+      withDescription('<description><![CDATA[<img src=x onerror=alert(1)>]]></description>'),
+      clock,
+    )[0].summary,
+    '<img src=x onerror=alert(1)>',
+  );
+});

@@ -4,7 +4,7 @@ import { XMLParser, XMLValidator } from 'fast-xml-parser';
 const FEED = 'https://www.espn.com/espn/rss/nfl/news';
 const TTL = 600000,
   MAX_AGE = 7 * 86400000,
-  KEY = 'news:espn:nfl:v1';
+  KEY = 'news:espn:nfl:v2';
 
 export function parseNews(xml, now = Date.now()) {
   if (
@@ -24,6 +24,11 @@ export function parseNews(xml, now = Date.now()) {
   return (Array.isArray(items) ? items : [items])
     .flatMap((item) => {
       const title = typeof item.title === 'string' ? item.title.trim() : '';
+      // Keep the publisher's preview intact. Missing or oversized previews stay unavailable.
+      const summary =
+        typeof item.description === 'string' && item.description.length <= 4000
+          ? item.description.trim()
+          : '';
       const published = Date.parse(item.pubDate);
       let url;
       try {
@@ -45,7 +50,7 @@ export function parseNews(xml, now = Date.now()) {
       )
         return [];
       seen.add(url.href);
-      return [{ title, url: url.href, publishedAt: new Date(published).toISOString() }];
+      return [{ title, summary, url: url.href, publishedAt: new Date(published).toISOString() }];
     })
     .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))
     .slice(0, 20);
