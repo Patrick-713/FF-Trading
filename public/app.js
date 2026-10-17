@@ -707,15 +707,23 @@ document.addEventListener('submit', async (e) => {
     if (button?.isConnected) button.disabled = false;
   }
 });
-try {
+/** Handle email links on both fresh loads and navigation within an already-open tab. */
+function openEmailLink() {
   const link = new URLSearchParams(globalThis.location?.hash?.slice(1) || '');
-  if (['verify', 'reset'].includes(link.get('action')) && link.get('token')) {
-    emailAction = link.get('action');
-    emailToken = link.get('token');
-    authMode = emailAction;
-    view = 'account';
-    globalThis.history?.replaceState(null, '', globalThis.location.pathname);
-  }
+  if (!['verify', 'reset'].includes(link.get('action')) || !link.get('token')) return false;
+  emailAction = link.get('action');
+  emailToken = link.get('token');
+  authMode = emailAction;
+  view = 'account';
+  authNotice = '';
+  globalThis.history?.replaceState(null, '', globalThis.location.pathname);
+  return true;
+}
+globalThis.addEventListener?.('hashchange', () => {
+  if (openEmailLink() && model) render();
+});
+try {
+  openEmailLink();
   await reload();
   render();
 } catch (error) {

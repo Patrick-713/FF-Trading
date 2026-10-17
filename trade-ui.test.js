@@ -31,6 +31,7 @@ test('builder supports player search, assumptions, analysis, finder and loading 
     querySelectorAll: () => [],
     addEventListener: (type, fn) => (handlers[type] = fn),
   };
+  globalThis.addEventListener = (type, fn) => (handlers[type] = fn);
   globalThis.fetch = async (path, options = {}) => {
     const input = options.body ? JSON.parse(options.body) : {};
     let data;
@@ -144,9 +145,23 @@ test('builder supports player search, assumptions, analysis, finder and loading 
     await click('[data-mode]', { mode: 'dynasty' });
     await click('button[data-view]', { view: 'trade' });
     assert.ok(element('#main').innerHTML.includes('PICK'));
+    globalThis.location = { hash: '#action=reset&token=' + 'a'.repeat(64), pathname: '/' };
+    let clearedLink = false;
+    globalThis.history = {
+      replaceState() {
+        clearedLink = true;
+      },
+    };
+    handlers.hashchange();
+    assert.ok(element('#main').innerHTML.includes('Choose a new password'));
+    assert.ok(element('#main').innerHTML.includes('Update password'));
+    assert.ok(clearedLink, 'email token is removed from the address bar');
   } finally {
     globalThis.setTimeout = realTimeout;
     delete globalThis.document;
+    delete globalThis.addEventListener;
+    delete globalThis.location;
+    delete globalThis.history;
     delete globalThis.fetch;
     db.close();
   }
