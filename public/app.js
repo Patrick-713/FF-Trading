@@ -683,7 +683,7 @@ document.addEventListener('submit', async (e) => {
       toast('Your account is ready.');
     }
   } catch (error) {
-    const errorBox = $('#auth-error') || $('#link-error');
+    const errorBox = form.id === 'sleeper-lookup' ? $('#link-error') : $('#auth-error');
     if (errorBox) errorBox.textContent = error.message;
     else toast(error.message);
   } finally {
