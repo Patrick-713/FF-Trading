@@ -1,5 +1,6 @@
 /** HTTP entry point. Routes identify the account, validate input and call the service modules. */
 import { createNews } from './news.js';
+import { storyUrl, saveStory, removeStory } from './saved-news.js';
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { dirname, resolve, extname } from 'node:path';
@@ -236,6 +237,7 @@ export async function createApplication() {
       const routes = new Set([
         '/api/health',
         '/api/news',
+        '/api/news/saved',
         '/api/state',
         '/api/preferences',
         '/api/auth/login',
@@ -316,6 +318,27 @@ export async function createApplication() {
             ),
           );
         const account = await session(req, res);
+        if (path === '/api/news/saved') {
+          if (req.method === 'GET')
+            return json(res, 200, { preferences: await readPreferences(db, account) });
+          if (['POST', 'DELETE'].includes(req.method)) {
+            await consumeLimit(db, 'saved-news:' + account, 60, 60000);
+            const input = await body(req),
+              url = storyUrl(input.url);
+            if (req.method === 'DELETE')
+              return json(res, 200, { preferences: await removeStory(db, account, url) });
+            const preferences = await readPreferences(db, account);
+            if (preferences.savedStories?.some((story) => story.url === url))
+              return json(res, 200, { preferences });
+            // The client supplies only a URL. Titles and dates come from the validated feed.
+            const article = (await news()).articles.find((article) => article.url === url);
+            if (!article)
+              throw invalid(
+                'This headline has left the news feed. Refresh news and choose a current story.',
+              );
+            return json(res, 200, { preferences: await saveStory(db, account, article) });
+          }
+        }
         if (req.method === 'PUT' && path === '/api/preferences') {
           await consumeLimit(db, 'preferences:' + account, 60, 3600000);
           const preferences = await savePreferences(db, account, await body(req));

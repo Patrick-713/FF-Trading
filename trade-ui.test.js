@@ -157,6 +157,16 @@ test('builder supports player search, standard analysis, finder and loading save
     );
     element('#scenario-title').value = 'Offline trade';
     await click('#save-scenario');
+    await click('button[data-view]', { view: 'account' });
+    await click('[data-account-section]', { accountSection: 'saved' });
+    assert.ok(element('#main').innerHTML.includes('Team A sends'));
+    assert.ok(element('#main').innerHTML.includes('Team B sends'));
+    for (const asset of [...model.saved[0].result.sent, ...model.saved[0].result.received])
+      assert.ok(
+        element('#main').innerHTML.includes(asset.name),
+        'Saved trade shows original asset name',
+      );
+
     await click('#clear-trade');
     await click('[data-load]', { load: 'saved' });
     await click('#analyze-trade');

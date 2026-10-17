@@ -234,9 +234,26 @@ function assetSum(ids) {
 function resultView(r) {
   return tradeResult(r, model);
 }
-function savedView() {
-  return `${intro('Saved Notes', 'Your saved trade comparisons, with the values and data recorded when you saved them.', false)}<div class="saved-grid">${model.saved.map((s) => `<section class="panel result-card"><span class="eyebrow">${esc(s.result.settings.mode)} · Model ${esc(s.result.modelVersion || 'legacy / unversioned')} · ${esc(new Date(s.created).toLocaleString())}</span><h2>${esc(s.title)}</h2><p>${esc(s.result.summary)}</p><div class="result-metric"><span>Roster value change</span><strong>${signed(s.result.teamA.valueChange)}</strong></div>${s.result.customTeams ? '' : `<div class="result-metric"><span>Starter pace change</span><strong>${signed(s.result.teamA.paceChange)}${s.result.teamA.paceChange === null ? '' : ' PTS/WK'}</strong></div>`}<button class="trade-button" data-load="${s.id}">Load selections →</button></section>`).join('') || '<section class="panel empty">Build and analyze a trade, then save the scenario here.</section>'}</div>`;
+/** Saved result assets preserve the names and picks as they were when analyzed. */
+function savedTradeSide(saved, side) {
+  const recorded = side === 'A' ? saved.result.sent : saved.result.received;
+  const assets =
+    recorded ||
+    (saved.input?.[side === 'A' ? 'sendA' : 'sendB'] || []).map(
+      (id) =>
+        [...model.players, ...model.picks].find((asset) => asset.id === id) || {
+          name: 'Asset no longer in current data',
+        },
+    );
+  return `<section><h3>Team ${side} sends</h3><ul>${assets.map((asset) => `<li><strong>${esc(asset.name)}</strong>${asset.kind === 'pick' ? '<small>Draft pick</small>' : asset.position ? `<small>${esc(asset.position)}${asset.club ? ' · ' + esc(asset.club) : ''}</small>` : ''}</li>`).join('') || '<li>Selections unavailable</li>'}</ul></section>`;
 }
+function savedView() {
+  const stories = state.preferences?.savedStories || [];
+  return `${intro('Saved Notes', 'Your trade comparisons and stories to revisit.', false)}
+    <section class="saved-section" aria-labelledby="saved-trades-heading"><h2 id="saved-trades-heading">Saved trades <span class="pill">${model.saved.length}</span></h2><div class="saved-grid">${model.saved.map((s) => `<article class="panel result-card"><span class="eyebrow">${esc(s.result.settings.mode)} · Model ${esc(s.result.modelVersion || 'legacy / unversioned')} · ${esc(new Date(s.created).toLocaleString())}</span><h2>${esc(s.title)}</h2><div class="saved-trade-sides">${savedTradeSide(s, 'A')}${savedTradeSide(s, 'B')}</div><p>${esc(s.result.summary)}</p><div class="result-metric"><span>Roster value change</span><strong>${signed(s.result.teamA.valueChange)}</strong></div>${s.result.customTeams ? '' : `<div class="result-metric"><span>Starter pace change</span><strong>${signed(s.result.teamA.paceChange)}${s.result.teamA.paceChange === null ? '' : ' PTS/WK'}</strong></div>`}<button class="trade-button" data-load="${esc(s.id)}">Load selections →</button></article>`).join('') || '<div class="panel empty">Analyze a trade and save it to see the players on both sides here.</div>'}</div></section>
+    <section class="saved-section" aria-labelledby="saved-stories-heading"><h2 id="saved-stories-heading">Saved stories <span class="pill">${stories.length}</span></h2><p class="muted">Bookmarks stay here after headlines leave the news feed.</p><div class="news-grid saved-stories">${stories.map((article) => `<article class="news-card"><div class="news-meta"><span>ESPN</span><time datetime="${esc(article.publishedAt)}">${esc(new Date(article.publishedAt).toLocaleDateString())}</time></div><h3><a href="${esc(article.url)}" target="_blank" rel="noopener noreferrer">${esc(article.title)}</a></h3><div class="news-card-actions"><a class="news-read" href="${esc(article.url)}" target="_blank" rel="noopener noreferrer">Read on ESPN ↗</a><button class="story-save" data-story-remove="${esc(article.url)}" aria-label="Remove saved story: ${esc(article.title)}">Remove</button></div></article>`).join('') || '<div class="panel empty">Find a story in NFL News and select Save story. <button class="text-button" data-view="news">Browse NFL News →</button></div>'}</div></section>`;
+}
+
 function sleeperView() {
   const c = state.connection;
   return [
@@ -303,9 +320,9 @@ function newsView() {
     });
   return (
     intro('Around the NFL', 'The latest headlines, straight from ESPN.', false) +
-    `<section class="news-toolbar"><div><strong>NFL news</strong><p>Checks for updates every 10 minutes while this tab is open.</p></div><button class="light-button" data-news-refresh ${newsLoading ? 'disabled' : ''}>${newsLoading ? 'Checking…' : 'Check for updates'}</button></section>
+    `<section class="news-toolbar"><div><strong>NFL news</strong><p>Checks for updates every 10 minutes while this tab is open.</p></div><div class="news-toolbar-actions"><button class="trade-button" data-account-section="saved">Saved stories (${state.preferences?.savedStories?.length || 0})</button><button class="light-button" data-news-refresh ${newsLoading ? 'disabled' : ''}>${newsLoading ? 'Checking…' : 'Check for updates'}</button></div></section>
     <p class="news-status" role="status">${newsError ? esc(newsError) : newsData?.checkedAt ? `Last checked ${esc(date(newsData.checkedAt))}.` : newsData ? 'News is temporarily unavailable.' : 'Loading headlines…'}${newsData?.stale ? ' Updates are delayed. Showing the last available headlines.' : ''}</p>
-    <div class="news-grid">${(newsData?.articles || []).map((article) => `<article class="news-card"><div class="news-meta"><span>ESPN</span><time datetime="${esc(article.publishedAt)}">${esc(date(article.publishedAt))}</time></div><h2><a href="${esc(article.url)}" target="_blank" rel="noopener noreferrer">${esc(article.title)}</a></h2>${article.summary ? `<details class="news-summary"><summary>Quick summary<span class="sr-only">: ${esc(article.title)}</span></summary><div><p>${esc(article.summary)}</p><small>ESPN article preview</small></div></details>` : '<p class="news-preview-unavailable">Preview unavailable for this story.</p>'}<a class="news-read" href="${esc(article.url)}" target="_blank" rel="noopener noreferrer">Read full article on ESPN ↗<span class="sr-only">: ${esc(article.title)}</span></a></article>`).join('')}</div>
+    <div class="news-grid">${(newsData?.articles || []).map((article) => `<article class="news-card"><div class="news-meta"><span>ESPN</span><time datetime="${esc(article.publishedAt)}">${esc(date(article.publishedAt))}</time></div><h2><a href="${esc(article.url)}" target="_blank" rel="noopener noreferrer">${esc(article.title)}</a></h2>${article.summary ? `<details class="news-summary"><summary>Quick summary<span class="sr-only">: ${esc(article.title)}</span></summary><div><p>${esc(article.summary)}</p><small>ESPN article preview</small></div></details>` : '<p class="news-preview-unavailable">Preview unavailable for this story.</p>'}<a class="news-read" href="${esc(article.url)}" target="_blank" rel="noopener noreferrer">Read full article on ESPN ↗<span class="sr-only">: ${esc(article.title)}</span></a><button class="story-save" data-story-save="${esc(article.url)}" aria-pressed="${Boolean(state.preferences?.savedStories?.some((saved) => saved.url === article.url))}" aria-label="${state.preferences?.savedStories?.some((saved) => saved.url === article.url) ? 'Unsave' : 'Save'} story: ${esc(article.title)}">${state.preferences?.savedStories?.some((saved) => saved.url === article.url) ? 'Saved ✓' : 'Save story'}</button></article>`).join('')}</div>
     ${newsData && !newsData.articles.length ? '<p>No recent headlines are available. Please check again later.</p>' : ''}
     <p class="news-credit">Headlines and previews provided by ESPN. Articles open on the publisher’s website. News does not automatically change player values.</p>`
   );
@@ -575,6 +592,23 @@ document.addEventListener('click', async (e) => {
   }
   try {
     busy = true;
+    const storyButton = e.target.closest('[data-story-save],[data-story-remove]');
+    if (storyButton) {
+      const url = storyButton.dataset.storySave || storyButton.dataset.storyRemove;
+      const remove =
+        Boolean(storyButton.dataset.storyRemove) ||
+        state.preferences?.savedStories?.some((story) => story.url === url);
+      storyButton.disabled = true;
+      try {
+        const response = await api('news/saved', remove ? 'DELETE' : 'POST', { url });
+        state.preferences = response.preferences;
+        render();
+        toast(remove ? 'Story removed from Saved Notes.' : 'Story saved to Account, Saved Notes.');
+      } finally {
+        storyButton.disabled = false;
+      }
+      return;
+    }
     if (e.target.closest('#find-trades')) {
       const button = $('#find-trades');
       button.disabled = true;

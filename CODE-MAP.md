@@ -73,3 +73,5 @@ Trade side selection lives in `addPlayerToSide` and `selectedPlayers` in `public
 `draft-values.js` defines the 2.5 dynasty pick curve. `pick-calibration.test.js` checks dated elite-player exchange benchmarks and pick ordering across league sizes. `dynasty-pick-calibration.json` records the before/after scale, with no claim of predictive or market accuracy. `prospects.js` uses this curve for verified rookie draft context.
 
 `game-eligibility.js` defines evidence-backed game exclusions shared by current player valuation and historical aggregation. `game-eligibility.test.js` verifies that injury games leave the complete production sample while healthy low scores remain.
+
+`saved-news.js` validates and stores small news bookmarks under each account. `preferences.js` merges updates safely so saving a favorite team preserves saved stories. Saved trade participants are rendered from their historical result in `public/app.js`.

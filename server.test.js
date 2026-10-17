@@ -224,3 +224,67 @@ test('provider failure returns 503 without committing a partial league import', 
     }
   }
 });
+
+test('news bookmarks validate the feed, persist across requests and isolate accounts', async () => {
+  const folder = mkdtempSync(join(tmpdir(), 'ff-news-saved-'));
+  const port = 51000 + Math.floor(Math.random() * 1000);
+  const child = spawn(process.execPath, ['--import', './fixtures/news-fetch.mjs', 'server.js'], {
+    env: { ...process.env, PORT: String(port), DB_PATH: join(folder, 'test.sqlite') },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  try {
+    await new Promise((resolve, reject) => {
+      child.stdout.on('data', (chunk) => {
+        if (String(chunk).includes('running at')) resolve();
+      });
+      child.once('error', reject);
+      child.once('exit', (code) => reject(new Error('Server exited ' + code)));
+    });
+    async function request(path, cookie = '', method = 'GET', input) {
+      const response = await fetch(`http://127.0.0.1:${port}/api/${path}`, {
+        method,
+        headers: { Cookie: cookie, 'Content-Type': 'application/json' },
+        ...(input ? { body: JSON.stringify(input) } : {}),
+      });
+      return {
+        status: response.status,
+        cookie: response.headers.get('set-cookie')?.split(';')[0],
+        data: await response.json(),
+      };
+    }
+    const a = await request('state'),
+      b = await request('state');
+    const feed = await request('news'),
+      url = feed.data.articles[0].url;
+    const saved = await request('news/saved', a.cookie, 'POST', { url, title: 'Forged title' });
+    assert.equal(saved.status, 200);
+    assert.equal(saved.data.preferences.savedStories[0].title, feed.data.articles[0].title);
+    assert.equal(
+      (await request('news/saved', a.cookie, 'POST', { url })).data.preferences.savedStories.length,
+      1,
+    );
+    assert.equal((await request('news/saved', b.cookie)).data.preferences.savedStories, undefined);
+    assert.equal(
+      (await request('news/saved', a.cookie, 'POST', { url: 'https://www.espn.com/fake' })).status,
+      400,
+    );
+    assert.equal(
+      (await request('news/saved', a.cookie, 'POST', { url: 'https://evil.test/' })).status,
+      400,
+    );
+    await request('preferences', a.cookie, 'PUT', { favoriteTeam: 'MIN' });
+    const state = (await request('state', a.cookie)).data;
+    assert.equal(state.preferences.savedStories.length, 1);
+    assert.equal(state.preferences.favoriteTeam, 'MIN');
+    // Rolling out of the feed does not delete persisted bookmarks or block removal.
+    const disk = new DatabaseSync(join(folder, 'test.sqlite'));
+    disk.prepare('DELETE FROM fantasy_cache').run();
+    disk.close();
+    assert.equal((await request('news/saved', a.cookie)).data.preferences.savedStories.length, 1);
+    await request('news/saved', a.cookie, 'DELETE', { url });
+    assert.equal((await request('state', a.cookie)).data.preferences.savedStories.length, 0);
+  } finally {
+    child.kill();
+    await once(child, 'exit');
+  }
+});

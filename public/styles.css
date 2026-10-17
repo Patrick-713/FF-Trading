@@ -3220,3 +3220,114 @@ footer {
     gap: 4px;
   }
 }
+
+/* Saved comparisons lead with the assets; bookmarks share the news card styling. */
+.saved-section {
+  margin-bottom: 32px;
+}
+.saved-section > h2 {
+  font-size: 20px;
+  margin-bottom: 16px;
+}
+.saved-trade-sides {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 20px 0;
+}
+.saved-trade-sides section {
+  background: #172333;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 14px;
+  min-width: 0;
+}
+.saved-trade-sides h3 {
+  font-size: 12px;
+  color: #92a9c5;
+  margin: 0 0 12px;
+}
+.saved-trade-sides ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.saved-trade-sides li + li {
+  margin-top: 12px;
+}
+.saved-trade-sides strong,
+.saved-trade-sides small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.saved-trade-sides strong {
+  font-size: 14px;
+}
+.saved-trade-sides small {
+  margin-top: 4px;
+  color: #92a9c5;
+  font-size: 11px;
+}
+.story-save {
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: transparent;
+  color: #c8d6e8;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.news-card > .story-save {
+  display: block;
+  margin-top: 12px;
+  align-self: flex-start;
+}
+.story-save[aria-pressed='true'] {
+  color: var(--lime);
+  border-color: var(--lime);
+}
+.story-save:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+.news-card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: auto;
+}
+.saved-stories h3 {
+  font-size: 18px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.saved-stories h3 a {
+  color: inherit;
+  text-decoration: none;
+}
+@media (max-width: 760px) {
+  .saved-trade-sides {
+    grid-template-columns: 1fr;
+  }
+  .news-card > .story-save {
+    display: block;
+    width: 100%;
+  }
+}
+
+.news-toolbar-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.news-toolbar-actions button {
+  min-height: 44px;
+}
+@media (max-width: 760px) {
+  .news-toolbar-actions button {
+    flex: 1;
+  }
+}
