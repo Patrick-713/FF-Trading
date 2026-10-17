@@ -330,7 +330,8 @@ document.addEventListener('click', async (e) => {
     scoringToggle.setAttribute('aria-expanded', String(scoringExpanded));
     return;
   }
-  const nav = e.target.closest('[data-view]');
+  // The root also carries data-view for responsive styling. Only buttons navigate.
+  const nav = e.target.closest('button[data-view]');
   if (nav) {
     view = nav.dataset.view;
     render();

@@ -66,13 +66,27 @@ test('builder supports player search, assumptions, analysis, finder and loading 
   };
   const click = async (selector, dataset = {}) =>
     handlers.click({
-      target: { closest: (s) => (s.split(',').includes(selector) ? { dataset } : null) },
+      target: {
+        closest: (s) => {
+          // Match the real root attribute: every descendant has a data-view ancestor.
+          if (s === '[data-view]') return { dataset: { view: 'account' } };
+          return s.split(',').includes(selector) ? { dataset } : null;
+        },
+      },
     });
   const change = async (target) => handlers.change({ target: { matches: () => false, ...target } });
   try {
     await import('./public/app.js');
     assert.ok(element('#main').innerHTML.includes('Know what your roster'));
-    await click('[data-view]', { view: 'trade' });
+    await click('button[data-view]', { view: 'account' });
+    await click('[data-auth-mode]', { authMode: 'login' });
+    assert.ok(element('#main').innerHTML.includes('Welcome back'));
+    const loginMarkup = element('#main').innerHTML;
+    await click('input');
+    assert.equal(element('#main').innerHTML, loginMarkup);
+    await click('[data-auth-mode]', { authMode: 'register' });
+    assert.ok(element('#main').innerHTML.includes('Create account'));
+    await click('button[data-view]', { view: 'trade' });
     assert.ok(element('#main').innerHTML.includes('trade-search'));
     handlers.input({ target: { id: 'trade-search', value: 'Leo' } });
     assert.ok(element('#trade-search-results').innerHTML.includes('Leo Walker'));
@@ -104,7 +118,7 @@ test('builder supports player search, assumptions, analysis, finder and loading 
     await click('#find-trades');
     assert.ok(element('#main').innerHTML.includes('candidate offers'));
     await click('[data-mode]', { mode: 'dynasty' });
-    await click('[data-view]', { view: 'trade' });
+    await click('button[data-view]', { view: 'trade' });
     assert.ok(element('#main').innerHTML.includes('PICK'));
   } finally {
     globalThis.setTimeout = realTimeout;
