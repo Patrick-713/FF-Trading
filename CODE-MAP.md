@@ -61,3 +61,5 @@ The versioned rookie-benchmarks.js file records explicit owner-supplied assumpti
 ## Historical inputs and evaluation
 
 Read `stat-inputs.js` for compact provider inputs, `redraft-signal.js` for the fading last-season blend, and `history-data.test.js` for scoring preservation, no look-ahead, frozen history and reduced payload reads. `backtest-redraft.js` is an explicit offline historical scoring check; `redraft-validation.json` records training and holdout results. `compact-data.js` is manual, backed-up maintenance and defaults to a dry run.
+
+`news.js` provides cached public NFL headlines. `news.test.js` covers feed validation, concurrent requests, shared caching, outage backoff and old-story expiry. The News view and visible-tab refresh live in `public/app.js`.

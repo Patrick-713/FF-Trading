@@ -89,3 +89,11 @@ Prepared reads no longer fetch the full Sleeper player catalog. Frozen inputs ar
 Current provider rows retain only scoring and usage fields. Last-season data is one per-player summary rather than another weekly file in every account. Current stats keep their six-hour cache; successful historical summaries share a 30-day cache and failed history lookups back off for 15 minutes. No scheduled polling or paid feed is added. Reads and scoring changes remain offline. Missing historical data degrades to the current model without losing the previous prepared snapshot on a failed current-stat import.
 
 `node compact-data.js` previews an existing-input compaction. After testing in preview, `node compact-data.js --apply` creates an ignored backup and updates inputs atomically. It checks that PPR, half PPR and standard historical row scores are unchanged. Local historical validation files can seed prior-year summaries. Account identities, roster links, refresh timestamps and saved trade results are retained.
+
+## NFL news
+
+`news.js` reads ESPN's public NFL RSS feed. `GET /api/news` is public and never creates an account or reads a user's league. The browser checks on opening News and every ten minutes while the tab is visible. A manual check respects the same shared cache.
+
+The service stores up to 20 headlines in `fantasy_cache`, with a ten-minute freshness window. A separate expiring cache lease coordinates cloud instances; a process-local promise coalesces requests and a one-minute memory cache reduces database reads. Failed provider requests back off for ten minutes and retain the last successful timestamp. Stories older than seven days are hidden. Empty and delayed feeds are described in the interface rather than filled with sample news.
+
+Requests have a ten-second timeout and a 256 KB body limit. XML declarations of external entities are rejected. Only valid publication dates and HTTPS links on ESPN's allowed hosts are accepted, and the browser escapes feed text. Headlines stay unchanged, credit ESPN and link to the publisher. News is independent of valuations and does not trigger league refreshes. This adds no API key, paid service, scheduled job or database migration.

@@ -1,4 +1,5 @@
 /** HTTP entry point. Routes identify the account, validate input and call the service modules. */
+import { createNews } from './news.js';
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { dirname, resolve, extname } from 'node:path';
@@ -19,6 +20,7 @@ export async function createApplication() {
   const db = await openDatabase();
   const auth = createAuth(db),
     fantasy = createFantasy(db);
+  const news = createNews(db);
   const sleeper = createSleeperClient({
     cache: {
       async get(path) {
@@ -227,6 +229,7 @@ export async function createApplication() {
       // Log only a fixed route name, never caller-controlled path/query values.
       const routes = new Set([
         '/api/health',
+        '/api/news',
         '/api/state',
         '/api/preferences',
         '/api/auth/login',
@@ -259,6 +262,14 @@ export async function createApplication() {
         if (req.method === 'GET' && path === '/api/health') {
           await db.prepare('SELECT 1 AS ready').get();
           return json(res, 200, { ok: true, storage: db.remote ? 'postgres' : 'sqlite' });
+        }
+        if (req.method === 'GET' && path === '/api/news') {
+          const headlines = await news();
+          res.writeHead(200, {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'public, s-maxage=60',
+          });
+          return res.end(JSON.stringify(headlines));
         }
         if (req.method !== 'GET') {
           const origin =

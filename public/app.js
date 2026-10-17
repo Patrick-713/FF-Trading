@@ -220,6 +220,52 @@ function applyFavoriteTheme() {
   $('#profile-avatar').textContent = team?.id || 'FF';
 }
 
+// News refreshes only while this view is visible. It never changes player valuations.
+let newsData = null,
+  newsLoading = false,
+  newsError = '',
+  newsRequestedAt = 0;
+function newsView() {
+  const date = (value) =>
+    new Date(value).toLocaleString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  return (
+    intro('Around the NFL', 'The latest headlines, straight from ESPN.', false) +
+    `<section class="news-toolbar"><div><strong>NFL news</strong><p>Checks for updates every 10 minutes while this tab is open.</p></div><button class="light-button" data-news-refresh ${newsLoading ? 'disabled' : ''}>${newsLoading ? 'Checking…' : 'Check for updates'}</button></section>
+    <p class="news-status" role="status">${newsError ? esc(newsError) : newsData?.checkedAt ? `Last checked ${esc(date(newsData.checkedAt))}.` : newsData ? 'News is temporarily unavailable.' : 'Loading headlines…'}${newsData?.stale ? ' Updates are delayed. Showing the last available headlines.' : ''}</p>
+    <div class="news-grid">${(newsData?.articles || []).map((article) => `<article class="news-card"><div class="news-meta"><span>ESPN</span><time datetime="${esc(article.publishedAt)}">${esc(date(article.publishedAt))}</time></div><h2><a href="${esc(article.url)}" target="_blank" rel="noopener noreferrer">${esc(article.title)}</a></h2><a class="news-read" href="${esc(article.url)}" target="_blank" rel="noopener noreferrer">Read on ESPN ↗<span class="sr-only">: ${esc(article.title)}</span></a></article>`).join('')}</div>
+    ${newsData && !newsData.articles.length ? '<p>No recent headlines are available. Please check again later.</p>' : ''}
+    <p class="news-credit">Headlines provided by ESPN. Articles open on the publisher’s website. News does not automatically change player values.</p>`
+  );
+}
+async function loadNews() {
+  if (newsLoading || Date.now() - newsRequestedAt < 60000) return;
+  newsLoading = true;
+  newsRequestedAt = Date.now();
+  newsError = '';
+  if (view === 'news') render();
+  try {
+    const response = await fetch('/api/news', { signal: AbortSignal.timeout(15000) });
+    if (!response.ok) throw new Error('News is unavailable right now. Please try again shortly.');
+    newsData = await response.json();
+  } catch {
+    newsError = 'News is unavailable right now. Please try again shortly.';
+  } finally {
+    newsLoading = false;
+    if (view === 'news') render();
+  }
+}
+setInterval(() => {
+  if (view === 'news' && !document.hidden) void loadNews();
+}, 600000).unref?.();
+document.addEventListener('visibilitychange', () => {
+  if (view === 'news' && !document.hidden && Date.now() - newsRequestedAt >= 600000)
+    void loadNews();
+});
 function render() {
   const names = {
     team: 'My Team',
@@ -227,6 +273,7 @@ function render() {
     trade: 'Trade Simulator',
     finder: 'Trade Finder',
     saved: 'Saved Scenarios',
+    news: 'NFL News',
     account: 'Your account',
   };
   document.documentElement?.setAttribute('data-view', view);
@@ -266,7 +313,7 @@ function render() {
     `</div>${model.data.warning ? `<p class="data-warning" role="status">${esc(model.data.warning)}</p>` : ''}`,
   ].join('');
   $('#main').innerHTML =
-    notice +
+    (view === 'news' ? '' : notice) +
     (view === 'team'
       ? teamView()
       : view === 'players'
@@ -277,7 +324,9 @@ function render() {
             ? finderView(model, finder, goal)
             : view === 'saved'
               ? savedView()
-              : accountView());
+              : view === 'news'
+                ? newsView()
+                : accountView());
   $('#footer-disclaimer').textContent =
     'Model estimates · No share trading · Simulations do not execute trades';
 }
@@ -329,10 +378,15 @@ document.addEventListener('click', async (e) => {
     return;
   }
   // The root also carries data-view for responsive styling. Only buttons navigate.
+  if (e.target.closest('[data-news-refresh]')) {
+    void loadNews();
+    return;
+  }
   const nav = e.target.closest('button[data-view]');
   if (nav) {
     view = ['sleeper', 'more'].includes(nav.dataset.view) ? 'account' : nav.dataset.view;
     render();
+    if (view === 'news' && (!newsData || Date.now() - newsRequestedAt >= 600000)) void loadNews();
     if (globalThis.matchMedia?.('(max-width: 760px)').matches)
       globalThis.scrollTo({ top: 0, behavior: 'auto' });
     return;
