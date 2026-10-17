@@ -8,6 +8,7 @@ import { AppError, invalid, publicError, logRequest } from './errors.js';
 import { openDatabase } from './storage.js';
 import { consumeLimit, clientAddress } from './security.js';
 import { createAuth } from './auth.js';
+import { readPreferences, savePreferences } from './preferences.js';
 import { createSleeperClient, validLeague } from './sleeper.js';
 import { createFantasy } from './fantasy.js';
 import { loadRookieDrafts } from './prospects.js';
@@ -86,6 +87,7 @@ export async function createApplication() {
       account: { id: account },
       connection: (await connection(account))?.data || null,
       user: await auth.profile(account),
+      preferences: await readPreferences(db, account),
     };
   }
   async function cached(path) {
@@ -226,6 +228,7 @@ export async function createApplication() {
       const routes = new Set([
         '/api/health',
         '/api/state',
+        '/api/preferences',
         '/api/auth/login',
         '/api/auth/logout',
         '/api/auth/register',
@@ -244,6 +247,7 @@ export async function createApplication() {
         '/',
         '/app.js',
         '/trade-tools.js',
+        '/nfl-teams.js',
         '/styles.css',
       ]);
       path = routes.has(url.pathname) ? url.pathname : 'unknown';
@@ -276,6 +280,11 @@ export async function createApplication() {
           return json(res, 200, { ...(await state(r.account)), recoveryCode: r.recoveryCode });
         }
         const account = await session(req, res);
+        if (req.method === 'PUT' && path === '/api/preferences') {
+          await consumeLimit(db, 'preferences:' + account, 60, 3600000);
+          const preferences = await savePreferences(db, account, await body(req));
+          return json(res, 200, { preferences });
+        }
         if (req.method === 'POST' && path === '/api/auth/register') {
           if (await isRefreshing(account))
             throw new AppError(
@@ -405,6 +414,7 @@ export async function createApplication() {
         '/': 'index.html',
         '/app.js': 'app.js',
         '/trade-tools.js': 'trade-tools.js',
+        '/nfl-teams.js': 'nfl-teams.js',
         '/styles.css': 'styles.css',
       };
       const file = files[url.pathname];

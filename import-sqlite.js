@@ -18,6 +18,7 @@ migrate(source);
 const db = await openDatabase();
 const tables = {
   accounts: ['id', 'created'],
+  account_preferences: ['account', 'data'],
   users: ['id', 'email', 'name', 'account', 'salt', 'hash', 'recovery', 'created'],
   login_sessions: ['token', 'user', 'expires'],
   sleeper_links: ['account', 'league', 'data'],

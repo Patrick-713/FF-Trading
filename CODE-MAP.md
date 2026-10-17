@@ -14,6 +14,8 @@ Start with one user action and follow it through the files. The existing folder 
 
 ## Where each responsibility lives
 
+**Personalization:** `preferences.js` validates and saves account-scoped favorite NFL teams. `public/nfl-teams.js` is the shared list of team identifiers and display accents. `PUT /api/preferences` updates the current account only, and `/api/state` returns that preference after login on any device. Team styling does not affect valuations. The Sleeper lookup uses the provider's current NFL season automatically.
+
 **The browser:** `public/index.html` provides the page shell. `public/styles.css` controls its appearance. `public/app.js` owns view state and event handling. `public/trade-tools.js` contains the trade-related view templates. Dynamic names and descriptions are escaped before they are inserted into HTML.
 
 **The HTTP boundary:** `application.js` routes requests, applies account context, coordinates refreshes and returns JSON. Look at `session`, `analysis` and `importLeague` before reading the route handler.

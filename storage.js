@@ -41,7 +41,7 @@ export async function openDatabase({ migrateSchema = false } = {}) {
         if (new URL(connectionString).hostname.includes('-pooler.'))
           throw new Error('Schema migration requires a direct connection.');
         await migratePostgres(db);
-      } else if (!(await db.prepare('SELECT 1 FROM schema_migrations WHERE version=2').get()))
+      } else if (!(await db.prepare('SELECT 1 FROM schema_migrations WHERE version=3').get()))
         throw new Error('Database schema migration is required.');
       return db;
     } catch (error) {
@@ -71,6 +71,9 @@ export async function openDatabase({ migrateSchema = false } = {}) {
     await backup(db, resolve(folder, 'before-backend-v3-' + Date.now() + '.sqlite'));
   }
   migrate(db);
+  db.exec(
+    'CREATE TABLE IF NOT EXISTS account_preferences(account TEXT PRIMARY KEY REFERENCES accounts(id),data TEXT NOT NULL);',
+  );
   db.exec(
     'CREATE TABLE IF NOT EXISTS resource_limits(key TEXT PRIMARY KEY,attempts INTEGER NOT NULL,expires INTEGER NOT NULL); CREATE TABLE IF NOT EXISTS refresh_locks(account TEXT PRIMARY KEY REFERENCES accounts(id),token TEXT NOT NULL,expires INTEGER NOT NULL);',
   );

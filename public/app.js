@@ -1,4 +1,5 @@
 /** Browser application. Views render the current state; event handlers call the backend API. */
+import { NFL_TEAMS, favoriteTeam } from './nfl-teams.js';
 import { tradeTools, tradeSearch, tradeResult, finderView } from './trade-tools.js';
 let state,
   model,
@@ -6,6 +7,7 @@ let state,
   busy = false,
   lookupResult = null,
   authMode = 'register',
+  scoringExpanded = false,
   partner = null,
   selectedA = new Set(),
   selectedB = new Set(),
@@ -170,8 +172,8 @@ function sleeperView() {
     `${intro('Bring your real league.', 'Read-only Sleeper import. Your players, trade partners, scoring context, and dynasty draft capital.', false)}${c ? `<section class="panel linked-summary"><div class="panel-heading"><div><span class="eyebrow">SLEEPER CONNECTED</span><h2>${esc(c.league.name)}</h2></div><span class="pill">${esc(c.league.season)}</span></div><div class="link-content"><p>${esc(c.user.username)} · ${model.teams.length} teams · Last sync ${esc(new Date(c.syncedAt).toLocaleString())}</p><div class="link-actions"><button class="primary" data-sync>Sync Sleeper ↻</button><button class="trade-button" id="disconnect">Return to demo</button></div></div></section>` : ''}<section class="panel account-panel"><div class="panel-heading"><h2>Find your leagues</h2>`,
     `<span class="pill">NO PASSWORD</span></div>`,
     `<div class="link-content"><form id="sleeper-lookup"><label for="sleeper-username">Sleeper username</label>`,
-    `<input id="sleeper-username" name="username" value="${esc(lookupResult?.user.username || c?.user.username || '')}" maxlength="40" required><label for="sleeper-season">Season (optional)</label>`,
-    `<input id="sleeper-season" name="season" type="number" min="2017" max="2100" placeholder="Current NFL season"><button class="primary full" id="lookup-submit">Find my leagues ↗</button>`,
+    `<input id="sleeper-username" name="username" value="${esc(lookupResult?.user.username || c?.user.username || '')}" maxlength="40" required>${teamPicker()}`,
+    `<button class="primary full" id="lookup-submit">Find my leagues ↗</button>`,
     `<p id="link-error" class="error" role="alert"></p>`,
     `</form>`,
     `<div id="league-results">${leagueResults()}</div>`,
@@ -186,6 +188,35 @@ function leagueResults() {
 }
 // HTML fragments are joined without adding whitespace so formatting preserves the existing markup.
 /** Rebuild the active view from the current account, league and analysis state. */
+
+/** Cosmetic preferences never change fantasy valuations or a linked roster. */
+function teamPicker() {
+  return (
+    '<div class="team-preference"><label for="favorite-team">Favorite NFL team</label><select id="favorite-team" name="favoriteTeam"><option value="">Choose a team (optional)</option>' +
+    NFL_TEAMS.map(
+      (team) =>
+        '<option value="' +
+        team.id +
+        '"' +
+        (state.preferences?.favoriteTeam === team.id ? ' selected' : '') +
+        '>' +
+        esc(team.name) +
+        '</option>',
+    ).join('') +
+    '</select><p class="preference-note">A team badge and colors for your workspace. You can change this anytime.</p><p id="preference-status" class="preference-status" role="status"></p></div>'
+  );
+}
+function applyFavoriteTheme() {
+  const team = favoriteTeam(state.preferences?.favoriteTeam);
+  document.documentElement?.setAttribute('data-favorite-team', team?.id || '');
+  const mark = $('#brand-mark');
+  mark.innerHTML = team ? team.id : 'ff<span>↗</span>';
+  mark.classList.toggle('team-mark', Boolean(team));
+  mark.title = team ? team.name + ' fan' : 'FF Trading';
+  $('#brand-subtitle').textContent = team ? team.id + ' FAN WORKSPACE' : 'ROSTER INTELLIGENCE';
+  $('#profile-avatar').textContent = team?.id || 'FF';
+}
+
 function render() {
   const names = {
     team: 'My Team',
@@ -199,7 +230,7 @@ function render() {
   $('#page-name').textContent = names[view];
   $('#account-button').textContent = state.user ? 'My account' : 'Sign up / Log in';
   $('#profile-team').textContent = currentTeam().name;
-  $('#profile-avatar').textContent = 'FF';
+  applyFavoriteTheme();
   $('#profile-mode').textContent = state.user ? state.user.name : 'Guest · save with an account';
   $('#season-label').textContent = String(model.season);
   $('#week').textContent = model.settings.mode.toUpperCase();
@@ -207,7 +238,7 @@ function render() {
     `<div class="segmented format-modes"><button data-mode="redraft" class="${model.settings.mode === 'redraft' ? 'selected' : ''}">Redraft</button>`,
     `<button data-mode="dynasty" class="${model.settings.mode === 'dynasty' ? 'selected' : ''}">Dynasty</button>`,
     `</div>`,
-    `<div class="format-options"><label>Scoring<select id="scoring" aria-label="Reception scoring"><option value="ppr" ${model.settings.scoring === 'ppr' ? 'selected' : ''}>PPR</option><option value="half" ${model.settings.scoring === 'half' ? 'selected' : ''}>Half PPR</option><option value="standard" ${model.settings.scoring === 'standard' ? 'selected' : ''}>Standard</option></select>`,
+    `<div id="scoring-controls" class="format-details ${scoringExpanded ? 'expanded' : ''}"><button id="scoring-toggle" class="format-toggle" aria-expanded="${scoringExpanded}" aria-controls="league-scoring"><span>League scoring</span><span>${esc(model.settings.scoring.toUpperCase())} · ${model.settings.superflex ? 'Superflex' : '1 QB'} <b aria-hidden="true">⌄</b></span></button><div class="format-options" id="league-scoring"><label>Scoring<select id="scoring" aria-label="Reception scoring"><option value="ppr" ${model.settings.scoring === 'ppr' ? 'selected' : ''}>PPR</option><option value="half" ${model.settings.scoring === 'half' ? 'selected' : ''}>Half PPR</option><option value="standard" ${model.settings.scoring === 'standard' ? 'selected' : ''}>Standard</option></select>`,
     `</label>`,
     `<label>QB format<select id="qb-format" aria-label="Quarterback format"><option value="single" ${!model.settings.superflex ? 'selected' : ''}>1 QB</option><option value="superflex" ${model.settings.superflex ? 'selected' : ''}>Superflex / 2QB</option></select>`,
     `</label>`,
@@ -215,7 +246,7 @@ function render() {
     `</label>`,
     `<label>TE bonus<select id="te-premium" aria-label="Tight end reception bonus">${[0, 0.5, 1].map((n) => `<option ${model.settings.tePremium === n ? 'selected' : ''}>${n}</option>`).join('')}</select>`,
     `</label>`,
-    `</div>`,
+    `</div></div>`,
   ].join('');
   document
     .querySelectorAll('.nav')
@@ -284,10 +315,19 @@ document.addEventListener('click', async (e) => {
     return;
   }
   if (busy || !model) return;
+  const scoringToggle = e.target.closest('#scoring-toggle');
+  if (scoringToggle) {
+    scoringExpanded = !scoringExpanded;
+    $('#scoring-controls').classList.toggle('expanded', scoringExpanded);
+    scoringToggle.setAttribute('aria-expanded', String(scoringExpanded));
+    return;
+  }
   const nav = e.target.closest('[data-view]');
   if (nav) {
     view = nav.dataset.view;
     render();
+    if (globalThis.matchMedia?.('(max-width: 760px)').matches)
+      globalThis.scrollTo({ top: 0, behavior: 'auto' });
     return;
   }
   if (e.target.closest('#open-finder')) {
@@ -493,6 +533,24 @@ document.addEventListener('click', async (e) => {
 document.addEventListener('change', async (e) => {
   if (busy) return;
   const t = e.target;
+  if (t.id === 'favorite-team') {
+    busy = true;
+    t.disabled = true;
+    try {
+      const response = await api('preferences', 'PUT', { favoriteTeam: t.value || null });
+      state.preferences = response.preferences;
+      applyFavoriteTheme();
+      $('#preference-status').textContent = 'Team preference saved.';
+    } catch (error) {
+      t.value = state.preferences?.favoriteTeam || '';
+      $('#preference-status').textContent = error.message;
+    } finally {
+      t.disabled = false;
+      busy = false;
+    }
+    return;
+  }
+
   if (t.id === 'trade-goal') {
     goal = t.value;
     finder = null;
@@ -593,7 +651,6 @@ document.addEventListener('submit', async (e) => {
       $('#link-error').textContent = '';
       lookupResult = await api('sleeper/lookup', 'POST', {
         username: $('#sleeper-username').value.trim(),
-        season: $('#sleeper-season').value || undefined,
       });
       $('#league-results').innerHTML = leagueResults();
     }
@@ -643,7 +700,7 @@ function accountView() {
     return [
       `${intro('Your league. Your account.', 'Your linked leagues and analyses are saved to your FF Trading account.', false)}<section class="panel account-panel"><div class="panel-heading"><h2>${esc(state.user.name)}</h2>`,
       `<span class="pill positive">SIGNED IN</span></div>`,
-      `<div class="link-content"><p>${esc(state.user.email)}</p>`,
+      `<div class="link-content"><p>${esc(state.user.email)}</p>${teamPicker()}`,
       `<p>Log in from another browser using the same FF Trading server to access this workspace. Your Sleeper import is separate from this login.</p>`,
       `<p class="muted">Email is your sign-in identifier; email verification and emailed resets are not enabled. Keep your recovery code somewhere safe.</p>`,
       `<div class="link-actions"><button class="primary" data-view="sleeper">Manage Sleeper link</button>`,
@@ -666,7 +723,7 @@ function accountView() {
     `<input id="auth-password" name="password" type="password" autocomplete="${signup || recovery ? 'new-password' : 'current-password'}" minlength="12" maxlength="128" required><p class="fine-print">Use 12 to 128 characters. ${signup ? 'Your current guest workspace and league links will be saved to this account.' : 'Logging in opens the saved workspace for that account.'}</p>`,
     `<button class="primary full" id="auth-submit">${signup ? 'Create free account' : recovery ? 'Reset password' : 'Log in'}</button>`,
     `<p id="auth-error" class="error" role="alert"></p>`,
-    `</form>`,
+    `</form>${teamPicker()}`,
     `<button class="trade-button" data-auth-mode="recover">Forgot password? Use a recovery code</button>`,
     `</div>`,
     `</section>`,
@@ -675,7 +732,7 @@ function accountView() {
     `<p>Your FF Trading password is separate from Sleeper. We never ask for your Sleeper password.</p>`,
     `<h3>Save your recovery code.</h3>`,
     `<p>You’ll receive a recovery code once at sign-up. It lets you reset a forgotten password without an email service. Email verification and email delivery aren’t enabled.</p>`,
-    `<p>This app is currently hosted on this computer. Cross-device access becomes available when the same app and database are hosted online.</p>`,
+    `<p>Your account works across phones and computers. Sign in to access your saved leagues and analyses.</p>`,
     `</section>`,
     `</div>`,
   ].join('');

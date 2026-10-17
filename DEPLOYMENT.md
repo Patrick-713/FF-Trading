@@ -22,6 +22,8 @@ The normal tests use temporary databases and synthetic providers. `cloud.test.js
 
 ## Schema changes
 
+Schema version 3 adds `account_preferences` for favorite-team personalization. It is additive: existing accounts and saved leagues stay intact, and older deployed code can keep running during the migration. Local SQLite creates the same preference table at startup.
+
 Migrations are explicit release steps, not application startup work. Test an additive migration on preview first. With the direct preview DATABASE_URL in an ignored env file, run:
 
 ```sh

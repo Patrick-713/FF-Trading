@@ -74,6 +74,7 @@ export async function migratePostgres(db) {
     await db.exec(`
       CREATE TABLE IF NOT EXISTS schema_migrations(version INTEGER PRIMARY KEY,applied TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS accounts(id TEXT PRIMARY KEY,created TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP::text);
+      CREATE TABLE IF NOT EXISTS account_preferences(account TEXT PRIMARY KEY REFERENCES accounts(id),data TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS users(id TEXT PRIMARY KEY,email TEXT UNIQUE NOT NULL,name TEXT NOT NULL,account TEXT UNIQUE NOT NULL REFERENCES accounts(id),salt TEXT NOT NULL,hash TEXT NOT NULL,recovery TEXT NOT NULL,created TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS login_sessions(token TEXT PRIMARY KEY,"user" TEXT NOT NULL REFERENCES users(id),expires BIGINT NOT NULL);
       CREATE TABLE IF NOT EXISTS auth_limits(key TEXT PRIMARY KEY,attempts INTEGER NOT NULL,expires BIGINT NOT NULL);
@@ -91,5 +92,8 @@ export async function migratePostgres(db) {
     await db
       .prepare('INSERT INTO schema_migrations VALUES (?,?) ON CONFLICT(version) DO NOTHING')
       .run(2, new Date().toISOString());
+    await db
+      .prepare('INSERT INTO schema_migrations VALUES (?,?) ON CONFLICT(version) DO NOTHING')
+      .run(3, new Date().toISOString());
   });
 }

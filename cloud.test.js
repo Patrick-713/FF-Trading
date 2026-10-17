@@ -43,6 +43,10 @@ test(
       }
       assert.equal((await request(a, 'health')).data.storage, 'postgres');
       const guests = await Promise.all([request(a, 'state'), request(b, 'state')]);
+      assert.equal(
+        (await request(a, 'preferences', guests[0].cookie, { favoriteTeam: 'BUF' }, 'PUT')).status,
+        200,
+      );
       const users = await Promise.all(
         guests.map((g, i) =>
           request(i ? b : a, 'auth/register', g.cookie, {
@@ -53,6 +57,8 @@ test(
         ),
       );
       users.forEach((u) => assert.equal(u.status, 200));
+      assert.equal(users[0].data.preferences.favoriteTeam, 'BUF');
+      assert.equal(users[1].data.preferences.favoriteTeam, null);
       assert.notEqual(users[0].data.account.id, users[1].data.account.id);
       const link = { username: 'testmanager', leagueId: '1234567890123' };
       const links = await Promise.all(
@@ -91,6 +97,10 @@ test(
       assert.equal((await request(a, 'analysis', users[1].cookie)).data.saved.length, 0);
       // A fresh application and connection pool must read previously committed state.
       const fresh = await start();
+      assert.equal(
+        (await request(fresh, 'state', users[0].cookie)).data.preferences.favoriteTeam,
+        'BUF',
+      );
       assert.equal(
         (await request(fresh, 'state', users[0].cookie)).data.account.id,
         users[0].data.account.id,

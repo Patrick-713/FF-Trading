@@ -3,7 +3,7 @@
   <head
     ><meta charset="UTF-8" /><meta
       name="viewport"
-      content="width=device-width, initial-scale=1" /><meta
+      content="width=device-width, initial-scale=1, viewport-fit=cover" /><meta
       name="theme-color"
       content="#1e2534" /><meta
       name="description"
@@ -14,16 +14,23 @@
   <body>
     <aside class="sidebar"
       ><a class="brand" href="/" aria-label="FF Trading home"
-        ><span class="brand-icon">ff<span>↗</span></span
-        ><span>FF Trading<small>ROSTER INTELLIGENCE</small></span></a
+        ><span class="brand-icon" id="brand-mark">ff<span>↗</span></span
+        ><span>FF Trading<small id="brand-subtitle">ROSTER INTELLIGENCE</small></span></a
       ><div class="nav-label">WORKSPACE</div
       ><nav aria-label="Main navigation"
-        ><button class="nav active" data-view="team">◈ <span>My Team</span></button
-        ><button class="nav" data-view="players">↗ <span>Player Values</span></button
-        ><button class="nav" data-view="trade">⇄ <span>Trade Simulator</span></button
-        ><button class="nav" data-view="saved">▤ <span>Saved Scenarios</span></button
-        ><button class="nav" data-view="sleeper">⛓ <span>Link Sleeper</span></button
-        ><button class="nav" data-view="account">◉ <span>Account</span></button></nav
+        ><button class="nav active" aria-label="My Team" data-view="team"
+          >◈ <span data-phone-label="My Team">My Team</span></button
+        ><button class="nav" aria-label="Player Values" data-view="players"
+          >↗ <span data-phone-label="Players">Player Values</span></button
+        ><button class="nav" aria-label="Trade Simulator" data-view="trade"
+          >⇄ <span data-phone-label="Trade">Trade Simulator</span></button
+        ><button class="nav" aria-label="Saved Scenarios" data-view="saved"
+          >▤ <span data-phone-label="Saved">Saved Scenarios</span></button
+        ><button class="nav" aria-label="Link Sleeper" data-view="sleeper"
+          >⛓ <span data-phone-label="Sleeper">Link Sleeper</span></button
+        ><button class="nav" aria-label="Account" data-view="account"
+          >◉ <span data-phone-label="Account">Account</span></button
+        ></nav
       ><div class="sidebar-bottom"
         ><div class="demo-card"
           ><span class="dot"></span> DYNASTY + REDRAFT<small

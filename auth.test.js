@@ -30,7 +30,7 @@ test('login preserves linked leagues and saved analyses, isolates accounts, rota
   }
   async function request(path, cookie, body, headers = {}) {
     const r = await fetch(`http://127.0.0.1:${port}/api/${path}`, {
-      method: body ? 'POST' : 'GET',
+      method: path === 'preferences' ? 'PUT' : body ? 'POST' : 'GET',
       headers: { Cookie: cookie || '', 'Content-Type': 'application/json', ...headers },
       ...(body ? { body: JSON.stringify(body) } : {}),
     });
@@ -55,6 +55,7 @@ test('login preserves linked leagues and saved analyses, isolates accounts, rota
       title: 'Preserved analysis',
     });
     assert.equal(saved.status, 200);
+    assert.equal((await request('preferences', guest.cookie, { favoriteTeam: 'BUF' })).status, 200);
     const credentials = {
       email: 'Manager@example.test',
       password: 'synthetic test passphrase',
@@ -67,6 +68,7 @@ test('login preserves linked leagues and saved analyses, isolates accounts, rota
     const signup = await request('auth/register', guest.cookie, credentials);
     assert.equal(signup.status, 200);
     assert.equal(signup.data.user.email, 'manager@example.test');
+    assert.equal(signup.data.preferences.favoriteTeam, 'BUF');
     assert.ok(signup.data.account.id);
     assert.equal(signup.data.connection.league.name, 'Integration League');
     assert.match(signup.cookie, /^ff_auth=/);
@@ -83,6 +85,11 @@ test('login preserves linked leagues and saved analyses, isolates accounts, rota
     assert.equal(wrong.status, 401);
     const login = await request('auth/login', '', credentials);
     assert.equal(login.status, 200);
+    assert.equal(login.data.preferences.favoriteTeam, 'BUF');
+    assert.equal(
+      (await request('preferences', login.cookie, { favoriteTeam: '<script>' })).status,
+      400,
+    );
     assert.notEqual(login.cookie, signup.cookie);
     assert.equal(
       (await request('analysis', login.cookie)).data.saved[0].title,
@@ -96,6 +103,7 @@ test('login preserves linked leagues and saved analyses, isolates accounts, rota
       name: 'Other manager',
     });
     assert.equal(other.data.connection, null);
+    assert.equal(other.data.preferences.favoriteTeam, null);
     assert.notEqual(other.data.account.id, login.data.account.id);
     const csrf = await request(
       'auth/logout',
@@ -108,6 +116,7 @@ test('login preserves linked leagues and saved analyses, isolates accounts, rota
     await once(child, 'exit');
     await start();
     assert.equal((await request('state', login.cookie)).data.user.email, 'manager@example.test');
+    assert.equal((await request('state', login.cookie)).data.preferences.favoriteTeam, 'BUF');
     await request('auth/logout', login.cookie, {});
     assert.equal((await request('state', login.cookie)).data.user, null);
     assert.equal((await request('state', signup.cookie)).data.user.email, 'manager@example.test');

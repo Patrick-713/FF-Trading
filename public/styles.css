@@ -2321,3 +2321,306 @@ select {
     width: 100%;
   }
 }
+
+/* Team accents are intentionally separate from positive and negative valuation colors. */
+html[data-favorite-team='ARI'] {
+  --fan-accent: #ef667e;
+}
+html[data-favorite-team='ATL'] {
+  --fan-accent: #ee6b77;
+}
+html[data-favorite-team='BAL'] {
+  --fan-accent: #b5a1f2;
+}
+html[data-favorite-team='BUF'] {
+  --fan-accent: #76aaff;
+}
+html[data-favorite-team='CAR'] {
+  --fan-accent: #56c6f2;
+}
+html[data-favorite-team='CHI'] {
+  --fan-accent: #ffad74;
+}
+html[data-favorite-team='CIN'] {
+  --fan-accent: #ff9b67;
+}
+html[data-favorite-team='CLE'] {
+  --fan-accent: #f59a67;
+}
+html[data-favorite-team='DAL'] {
+  --fan-accent: #a6c6ee;
+}
+html[data-favorite-team='DEN'] {
+  --fan-accent: #ffa16f;
+}
+html[data-favorite-team='DET'] {
+  --fan-accent: #73bff0;
+}
+html[data-favorite-team='GB'] {
+  --fan-accent: #f3cc6b;
+}
+html[data-favorite-team='HOU'] {
+  --fan-accent: #ec7d8d;
+}
+html[data-favorite-team='IND'] {
+  --fan-accent: #86aef5;
+}
+html[data-favorite-team='JAX'] {
+  --fan-accent: #67d3cf;
+}
+html[data-favorite-team='KC'] {
+  --fan-accent: #ff8998;
+}
+html[data-favorite-team='LV'] {
+  --fan-accent: #c8d0dc;
+}
+html[data-favorite-team='LAC'] {
+  --fan-accent: #7dceff;
+}
+html[data-favorite-team='LAR'] {
+  --fan-accent: #f1cf6d;
+}
+html[data-favorite-team='MIA'] {
+  --fan-accent: #6ee2d4;
+}
+html[data-favorite-team='MIN'] {
+  --fan-accent: #bca1f5;
+}
+html[data-favorite-team='NE'] {
+  --fan-accent: #9abbe5;
+}
+html[data-favorite-team='NO'] {
+  --fan-accent: #e4d1a0;
+}
+html[data-favorite-team='NYG'] {
+  --fan-accent: #83aff7;
+}
+html[data-favorite-team='NYJ'] {
+  --fan-accent: #78cfac;
+}
+html[data-favorite-team='PHI'] {
+  --fan-accent: #71cfbf;
+}
+html[data-favorite-team='PIT'] {
+  --fan-accent: #f4cf65;
+}
+html[data-favorite-team='SF'] {
+  --fan-accent: #f18a91;
+}
+html[data-favorite-team='SEA'] {
+  --fan-accent: #9bd87b;
+}
+html[data-favorite-team='TB'] {
+  --fan-accent: #f58d92;
+}
+html[data-favorite-team='TEN'] {
+  --fan-accent: #8ec9ee;
+}
+html[data-favorite-team='WAS'] {
+  --fan-accent: #e9b873;
+}
+.brand-icon {
+  flex-shrink: 0;
+}
+.brand-icon.team-mark {
+  background: var(--fan-accent);
+  color: #142130;
+  font-size: 15px;
+  font-style: normal;
+  letter-spacing: 1px;
+}
+html[data-favorite-team]:not([data-favorite-team='']) .brand small {
+  color: var(--fan-accent);
+}
+html[data-favorite-team]:not([data-favorite-team='']) .nav.active {
+  box-shadow: inset 3px 0 var(--fan-accent);
+}
+.team-preference {
+  margin: 22px 0;
+}
+.team-preference select {
+  width: 100%;
+  min-height: 44px;
+}
+.team-preference .preference-note {
+  font-size: 11px;
+  line-height: 1.6;
+  margin: 9px 0 0;
+}
+.preference-status {
+  font-size: 11px;
+  color: var(--muted);
+}
+.preference-status:empty {
+  display: none;
+}
+/* Keep phone chrome in its own flow; long titles must never push into account controls. */
+@media (max-width: 760px) {
+  .sidebar {
+    padding: max(14px, env(safe-area-inset-top)) 16px 14px;
+  }
+  .brand {
+    gap: 11px;
+    min-width: 0;
+    width: fit-content;
+  }
+  .brand > span:last-child {
+    min-width: 0;
+  }
+  .brand small {
+    font-size: 7px;
+    letter-spacing: 1.3px;
+  }
+  .brand-icon:not(.team-mark) > span {
+    display: none;
+  }
+  header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px;
+    min-height: 62px;
+    height: auto;
+    padding: 9px 16px;
+  }
+  header > div:first-child {
+    min-width: 0;
+  }
+  #page-name {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 13px;
+  }
+  .header-right {
+    gap: 8px;
+    min-width: 0;
+  }
+  .header-right .season {
+    display: none;
+  }
+  #account-button {
+    max-width: 138px;
+    white-space: nowrap;
+    min-height: 44px;
+  }
+  .sidebar nav {
+    padding: 6px 5px calc(6px + env(safe-area-inset-bottom));
+    gap: 3px;
+  }
+  .sidebar .nav {
+    min-height: 54px;
+    gap: 6px;
+    padding: 6px 0;
+  }
+  .sidebar .nav span[data-phone-label] {
+    font-size: 0;
+    min-height: 14px;
+  }
+  .sidebar .nav span[data-phone-label]::after {
+    content: attr(data-phone-label);
+    font-size: 10px;
+    line-height: 1.2;
+  }
+  .format-options {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .format-options select {
+    font-size: 16px;
+    padding: 10px;
+  }
+  .format-options label {
+    font-size: 11px;
+  }
+  .format-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .team-preference select {
+    font-size: 16px;
+    min-height: 48px;
+  }
+  .team-preference .preference-note,
+  .preference-status {
+    font-size: 12px;
+  }
+  .link-actions {
+    flex-wrap: wrap;
+  }
+  .link-actions button {
+    white-space: normal;
+  }
+  .account-panel .panel-heading {
+    flex-wrap: wrap;
+  }
+  .page-intro h1 {
+    text-wrap: balance;
+  }
+  .search-player > div,
+  .league-option > div {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  dialog {
+    overflow-y: auto;
+  }
+}
+
+.format-details {
+  display: contents;
+}
+.format-toggle {
+  display: none;
+}
+@media (max-width: 760px) {
+  .format-details {
+    display: block;
+    width: 100%;
+  }
+  .format-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    min-height: 44px;
+    background: transparent;
+    border: 0;
+    border-top: 1px solid var(--line);
+    padding: 12px 0 0;
+    text-align: left;
+    font-size: 12px;
+    color: #d5e1ef;
+  }
+  .format-toggle > span:last-child {
+    color: var(--muted);
+    font-size: 11px;
+  }
+  .format-toggle b {
+    margin-left: 8px;
+    display: inline-block;
+    transition: transform 0.15s;
+  }
+  .format-details.expanded .format-toggle b {
+    transform: rotate(180deg);
+  }
+  .format-details:not(.expanded) .format-options {
+    display: none;
+  }
+  .format-details.expanded .format-options {
+    margin-top: 14px;
+  }
+  .format-bar {
+    gap: 8px;
+  }
+  .data-banner {
+    font-size: 10px;
+    line-height: 1.6;
+    margin-bottom: 20px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .format-toggle b {
+    transition: none;
+  }
+}
