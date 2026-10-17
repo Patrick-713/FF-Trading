@@ -29,7 +29,7 @@ export function tradeSearch(model, query = '') {
   }`;
 }
 
-export function tradeTools(model, selectedA, selectedB, assumptions, includeWaivers, query) {
+export function tradeTools(model, query = '') {
   return [
     `<section class="panel trade-tools"><div class="panel-heading"><h2>Add players to either side</h2>`,
     model.linked ? `<button class="trade-button" id="open-finder">Find trade ideas →</button>` : '',
@@ -38,24 +38,6 @@ export function tradeTools(model, selectedA, selectedB, assumptions, includeWaiv
     `<input id="trade-search" type="search" placeholder="Player name, position or NFL team" value="${esc(query)}" autocomplete="off"><div id="trade-search-results" aria-live="polite">${tradeSearch(model, query)}</div>`,
     `</div>`,
     `</section>`,
-  ].join('');
-}
-export function tradeAssumptions(model, selectedA, selectedB, assumptions, includeWaivers) {
-  const assets = [...model.players, ...model.picks].filter(
-    (a) => selectedA.has(a.id) || selectedB.has(a.id),
-  );
-  return [
-    `<details class="panel assumption-panel"><summary>Scenario assumptions ${assets.length ? '· ' + assets.length + ' selected assets' : ''}</summary><div class="link-content"><p class="muted">Workload scales past-scoring pace and current value. ${model.settings.mode === 'dynasty' ? 'Development changes dynasty value only; it is a scenario assumption, not a growth forecast. Picks have no known draft position.' : 'Adjust workload to explore a change in playing time.'}</p>`,
-    `${model.linked ? `<label class="waiver-toggle"><input id="include-waivers" type="checkbox" ${includeWaivers ? 'checked' : ''}> Suggest waiver replacements for spots this trade opens</label>` : ''}${
-      assets
-        .map((a) => {
-          const v = assumptions[a.id] || {};
-          return `<div class="assumption-row"><strong>${esc(a.name)}</strong>${a.kind === 'pick' ? `<label>Pick position<select data-assumption="tier" data-asset="${esc(a.id)}">${['first', 'early', 'mid', 'late'].map((t) => `<option value="${t}" ${t === (v.tier || 'mid') ? 'selected' : ''}>${t === 'first' ? 'First in round' : t}</option>`).join('')}</select></label>` : `<label>Workload<select data-assumption="workload" data-asset="${esc(a.id)}">${[0.5, 0.7, 0.85, 1, 1.15, 1.3, 1.5].map((n) => `<option value="${n}" ${n === (v.workload ?? 1) ? 'selected' : ''}>${Math.round(n * 100)}%</option>`).join('')}</select></label>${model.settings.mode === 'dynasty' ? `<label>Dynasty development<select data-assumption="development" data-asset="${esc(a.id)}">${[0.5, 0.7, 0.85, 1, 1.15, 1.3, 1.5].map((n) => `<option value="${n}" ${n === (v.development ?? 1) ? 'selected' : ''}>${Math.round(n * 100)}%</option>`).join('')}</select></label>` : ''}`}</div>`;
-        })
-        .join('') || '<p>Select assets below to adjust individual assumptions.</p>'
-    }<button class="trade-button" id="reset-assumptions">Reset assumptions</button>`,
-    `</div>`,
-    `</details>`,
   ].join('');
 }
 function lineupTable(before, after, available = true) {
@@ -97,12 +79,6 @@ export function tradeResult(r, model) {
     `<p>${r.customTeams ? 'Team A sends' : 'Send'} ${fmt(r.give)} · ${r.customTeams ? 'Team B sends' : 'Receive'} ${fmt(r.get)} · ${signed(r.difference)}% exchange difference</p>`,
     `</section>`,
     `<div class="trade-builder">${panel(r.teamA)}${panel(r.teamB)}</div>`,
-    `<section class="panel result-card"><h3>How sensitive is this trade?</h3>`,
-    `<p>Unadjusted model: ${signed(r.baseline.difference)}% exchange difference. Your assumptions: ${signed(r.difference)}%.</p>`,
-    `<p><b>${r.verdictFlips ? 'The verdict changes under the tested assumptions.' : 'The verdict stays the same in these tested cases.'}</b> These are illustrative bounds, not probabilities.</p>`,
-    `<div class="sensitivity-grid">${r.sensitivity.map((c) => `<article><strong>${esc(c.label)}</strong><p>${esc(c.verdict)} · ${signed(c.difference)}%</p><small>${r.customTeams ? 'Workload scenario' : `Starter pace ${signed(c.paceChange)}`}${model.settings.mode === 'dynasty' ? ` · Dynasty ${signed(c.futureChange)}` : ''}</small></article>`).join('')}</div>`,
-    `<p class="muted">${model.settings.mode === 'dynasty' ? 'Stress test: incoming workload ±15% and dynasty development ±10%, with opposite changes to outgoing players; incoming picks early / late with outgoing picks reversed.' : 'Stress test: incoming workload changes by 15%, with opposite changes to outgoing players.'} Multipliers stop at 50 to 150%.</p>`,
-    `</section>`,
     `<div class="scenario-save"><label for="scenario-title">Scenario name</label>`,
     `<input id="scenario-title" maxlength="80" placeholder="e.g. Improve my WR room"><button class="primary" id="save-scenario">Save this scenario</button>`,
     `</div>`,

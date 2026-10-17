@@ -75,7 +75,7 @@ Both managers receive separate current-production and dynasty-value comparisons,
 
 Active capacity comes from Sleeper's starter/bench slot configuration. IR/taxi players are excluded from active starters and automatic cuts. Incoming players default to active spots; real IR/taxi eligibility needs review. For an over-capacity roster the engine suggests cuts that minimize starter-pace loss, breaking ties by lowest model value. Trade-created openings can receive suggested replacements from the imported free-agent pool; unrelated pre-existing openings are not auto-filled. Replacements are conditional on availability and waiver rules. Disable them to see the trade without assumed additions. If capacity is missing or no replacement exists, the report says so. Net roster changes include these cuts/additions; exchange value is shown separately. Cuts and waiver suggestions are automatic planning assumptions and are not submitted anywhere.
 
-Selected players accept workload and dynasty-development multipliers from 50 to 150%. Workload scales current value and starter pace, while development scales dynasty value only. Future picks accept early/mid/late assumptions. The report compares the unadjusted model with the user's scenario and two stress cases: incoming workload ±15%, development ±10%, and pick slots early/late, with the opposite adjustments to outgoing assets. These cases are illustrative bounds, not probabilities. The exchange-value verdict uses a ±10% balanced band and shows whether the verdict changes in a tested case. Saved scenarios retain assumptions and the waiver setting; reloading recalculates only when the user analyzes again.
+Trades use standard model values. Manual workload, development and pick-slot adjustments and stress-test variants are no longer supported. Loading a saved trade restores players only, then compares current values. Future picks use the standard unknown-slot midpoint.
 
 Trade Finder searches singles and two-for-one exchanges, using up to 28 assets per team, the top 14 for paired packages, and up to 12 targets. It filters to exchanges within 20% value, prefilters for the selected goal, and evaluates up to 100 candidates with per-team quotas. Results require goal progress and a benefit to the partner in starter pace, current value, or dynasty value, with no modeled roster-value loss greater than 25% of the exchange (minimum allowance 100 units). It shows up to eight ideas, at most two per partner. This is a bounded search, not an exhaustive optimizer or a prediction of manager acceptance; an empty result does not mean no good trade exists.
 
@@ -89,19 +89,19 @@ For online access, host the same server and persistent database behind HTTPS, se
 
 ## Analysis API
 
-| Method | Endpoint                  | Purpose                                                                                                                                                          |
-| ------ | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| GET    | `/api/analysis`           | Player values, teams, picks, settings, data coverage, saved scenarios                                                                                            |
-| PUT    | `/api/analysis/settings`  | `mode`, `scoring`, `superflex`, `tePremium`, `passTD`                                                                                                            |
-| POST   | `/api/analysis/trade`     | `teamA`, `teamB`, `sendA`, `sendB` asset IDs; optional `assumptions` keyed by selected asset ID (`workload`, `development`, `tier`) and `includeWaivers` boolean |
-| POST   | `/api/analysis/find`      | `goal`: `WR`, `RB`, `QB`, `TE`, `younger`, `picks`, `contend`, or `rebuild`; optional `includeWaivers`                                                           |
-| POST   | `/api/analysis/refresh`   | Explicitly refresh the active league and freeze its analysis inputs                                                                                              |
-| POST   | `/api/analysis/save`      | Same selections plus optional `title`                                                                                                                            |
-| POST   | `/api/sleeper/lookup`     | `username`, optional `season`                                                                                                                                    |
-| POST   | `/api/sleeper/link`       | `username`, `leagueId`                                                                                                                                           |
-| POST   | `/api/sleeper/sync`       | Refresh active league                                                                                                                                            |
-| POST   | `/api/sleeper/activate`   | Select an already-linked `leagueId` owned by the current account, without fetching providers                                                                     |
-| POST   | `/api/sleeper/disconnect` | Return to the real-player example simulator                                                                                                                      |
+| Method | Endpoint                  | Purpose                                                                                                                  |
+| ------ | ------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| GET    | `/api/analysis`           | Player values, teams, picks, settings, data coverage, saved scenarios                                                    |
+| PUT    | `/api/analysis/settings`  | `mode`, `scoring`, `superflex`, `tePremium`, `passTD`                                                                    |
+| POST   | `/api/analysis/trade`     | `teamA`, `teamB`, `sendA`, `sendB` asset IDs; optional `customTeams` for public comparisons and `includeWaivers` boolean |
+| POST   | `/api/analysis/find`      | `goal`: `WR`, `RB`, `QB`, `TE`, `younger`, `picks`, `contend`, or `rebuild`; optional `includeWaivers`                   |
+| POST   | `/api/analysis/refresh`   | Explicitly refresh the active league and freeze its analysis inputs                                                      |
+| POST   | `/api/analysis/save`      | Same selections plus optional `title`                                                                                    |
+| POST   | `/api/sleeper/lookup`     | `username`, optional `season`                                                                                            |
+| POST   | `/api/sleeper/link`       | `username`, `leagueId`                                                                                                   |
+| POST   | `/api/sleeper/sync`       | Refresh active league                                                                                                    |
+| POST   | `/api/sleeper/activate`   | Select an already-linked `leagueId` owned by the current account, without fetching providers                             |
+| POST   | `/api/sleeper/disconnect` | Return to the real-player example simulator                                                                              |
 
 Account endpoints are `/api/auth/register`, `/login`, `/logout`, `/forgot`, `/reset`, `/verification`, and `/verify`. `/api/state` returns the current account identity, user profile and active league connection. Stock trading routes, tables and runtime calculations have been removed. See [BACKEND.md](BACKEND.md) for migrations, refresh behavior, model evaluation and errors. SQLite files and backups under `data/` are ignored by Git.
 
@@ -129,4 +129,4 @@ Run `npm run evaluate:historical` manually to download 2023–2025 public nflver
 
 League format is applied automatically: unlinked examples and linked redraft leagues use redraft; Sleeper dynasty leagues include dynasty values and picks. Both trade sides can select any team in the linked league. My Team includes league standings ordered by record, with total points breaking ties. It shows season points for, points against, records from the last Sleeper sync, and FF Score (the combined player and draft pick model value). This is not a claim of official playoff seeding.
 
-The public trade builder lets any player in the 300-player pool go on either side, with explicit Team A / Team B buttons and Move / Remove controls. These custom comparisons use only selected players; they do not infer a real lineup or waiver pool. Linked Sleeper trades retain actual roster ownership: selecting a player changes that side’s team, and moving a player across swaps the comparison teams. Scenario assumptions are optional and follow the main builder.
+The public trade builder lets any player in the 300-player pool go on either side, with explicit Team A / Team B buttons and Move / Remove controls. These custom comparisons use only selected players; they do not infer a real lineup or waiver pool. Linked Sleeper trades retain actual roster ownership: selecting a player changes that side’s team, and moving a player across swaps the comparison teams. Trades use standard model values without manual adjustments.

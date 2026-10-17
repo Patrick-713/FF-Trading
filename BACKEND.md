@@ -15,7 +15,7 @@ FF Trading is a Node.js HTTP service, a PostgreSQL database in production, SQLit
 | `sleeper.js`                            | Fixed-origin public league imports, caching and timeouts                       |
 | `fantasy.js`                            | Statistics refresh, frozen analysis inputs, league settings and model assembly |
 | `valuation.js`, `prospects.js`          | Production values, dynasty priors, scoring and lineup optimization             |
-| `trade-engine.js`                       | Ownership checks, roster consequences, assumptions and bounded offer discovery |
+| `trade-engine.js`                       | Ownership checks, roster consequences and bounded offer discovery              |
 | `model-version.js`, `evaluate-model.js` | Explicit model identity and repeatable behavioral evaluation                   |
 | `errors.js`                             | Public error policy and allowlisted request logging                            |
 
@@ -35,7 +35,7 @@ Analysis exposes three separate flags: `ready` for a usable prepared model, `pro
 
 ## Settings and saved results
 
-`league_settings` has a composite primary key `(account, league)`, with `demo-real-2026-v1` for the real-player example rosters. Earlier fictional demo saves remain stored separately and are not reinterpreted as real-player selections. `PUT /api/analysis/settings` is the only HTTP operation that writes valuation settings. Switching leagues loads that league's settings/defaults. Saved scenarios remain scoped to their account and league, and retain selections, assumptions, waiver setting, complete result, model version, statistics timestamp and analysis-refresh timestamp. Older linked-league scenarios retain their recorded result and can load selections against the current league format.
+`league_settings` has a composite primary key `(account, league)`, with `demo-real-2026-v1` for the real-player example rosters. Earlier fictional demo saves remain stored separately and are not reinterpreted as real-player selections. `PUT /api/analysis/settings` is the only HTTP operation that writes valuation settings. Switching leagues loads that league's settings/defaults. Saved scenarios remain scoped to their account and league, and retain selections, waiver setting, complete result, model version, statistics timestamp and analysis-refresh timestamp. Older linked-league scenarios retain their recorded result and can load selections against the current league format.
 
 ## Data migrations
 
@@ -105,3 +105,5 @@ League format comes from the linked Sleeper league type and cannot be changed by
 League standings order teams by record (win percentage, counting a tie as half a win), then wins and season points. FF Score displays the existing combined playerValue and pickValue without changing the ordering or making provider calls.
 
 `customTeams` is allowed only when `model.linked === false`. The trade engine creates a temporary selected-player comparison and disables waiver additions. It rejects duplicate/unknown assets and never mutates the original model. Linked leagues reject this flag and continue to validate every asset against its actual owner. Saved comparisons retain the flag for replay. Public comparison results omit inferred lineup and roster-consequence displays.
+
+Manual value adjustments are removed. The engine rejects nonempty legacy `assumptions` input, normalizes standard model values and unknown pick slots, and no longer generates sensitivity variants. The browser does not restore legacy adjustment or waiver settings; new analyses disable hypothetical waiver additions. Historical saved results remain stored, while loading their players recalculates against current standard values.

@@ -9,66 +9,21 @@ const hasProspectData = (asset) =>
   asset.prospect && asset.prospect.source !== 'Limited metadata prior';
 const verdict = (n) => (Math.abs(n) <= 10 ? 'Balanced' : n > 0 ? 'Favors you' : 'Favors partner');
 
-/** Validate scenario adjustments only for the assets selected in this exchange. */
-function assumptionsFor(input, assets) {
-  const source = input.assumptions ?? {};
-  if (
-    !source ||
-    typeof source !== 'object' ||
-    Array.isArray(source) ||
-    Object.keys(source).length > 40
-  )
-    throw invalid('Invalid scenario assumptions.');
-  const result = {};
-  for (const [id, a] of Object.entries(source)) {
-    const asset = assets.find((p) => p.id === id);
-    if (!asset || !a || typeof a !== 'object' || Array.isArray(a))
-      throw invalid('Assumptions must refer to selected assets.');
-    const workload = a.workload ?? 1,
-      development = a.development ?? 1,
-      tier = a.tier ?? 'mid';
-    if (
-      typeof workload !== 'number' ||
-      !Number.isFinite(workload) ||
-      workload < 0.5 ||
-      workload > 1.5 ||
-      typeof development !== 'number' ||
-      !Number.isFinite(development) ||
-      development < 0.5 ||
-      development > 1.5 ||
-      !['first', 'early', 'mid', 'late'].includes(tier) ||
-      (tier === 'first' && asset.kind !== 'pick')
-    )
-      throw invalid(
-        'Use workload/development multipliers from 0.5 to 1.5 and early, mid, or late picks.',
-      );
-    result[id] = { workload, development, tier };
-  }
-  return result;
-}
-function adjust(asset, assumptions, model) {
-  const a = assumptions[asset.id] || {};
+/** Use the model's standard values, including the default midpoint for unknown pick slots. */
+function standardAsset(asset, model) {
   if (asset.kind === 'pick')
     return {
       ...asset,
-      value: pickValue(asset, model.settings, model.season, a.tier || 'mid'),
-      dynasty: pickValue(
-        asset,
-        { ...model.settings, mode: 'dynasty' },
-        model.season,
-        a.tier || 'mid',
-      ),
+      value: pickValue(asset, model.settings, model.season),
+      dynasty: pickValue(asset, { ...model.settings, mode: 'dynasty' }, model.season),
       redraft: 0,
     };
-  const redraft = Math.round((asset.redraft ?? asset.value) * (a.workload ?? 1));
-  const dynasty = Math.round(
-    (asset.dynasty ?? asset.value) * (a.workload ?? 1) * (a.development ?? 1),
-  );
+  const redraft = Math.round(asset.redraft ?? asset.value),
+    dynasty = Math.round(asset.dynasty ?? asset.value);
   return {
     ...asset,
     redraft,
     dynasty,
-    pace: round(asset.pace * (a.workload ?? 1)),
     value: model.settings.mode === 'dynasty' ? dynasty : redraft,
   };
 }
@@ -193,8 +148,8 @@ function rosterReport(model, assets, id, outgoing, incoming, options = {}) {
     ),
   };
 }
-function compare(model, input, assumptions) {
-  const assets = [...model.players, ...model.picks].map((a) => adjust(a, assumptions, model));
+function compare(model, input) {
+  const assets = [...model.players, ...model.picks].map((a) => standardAsset(a, model));
   const a = input.sendA.map((id) => assets.find((p) => p.id === id)),
     b = input.sendB.map((id) => assets.find((p) => p.id === id));
   const options = { waivers: input.includeWaivers !== false, claimed: new Set() };
@@ -211,8 +166,8 @@ function compare(model, input, assumptions) {
     teamB: rosterReport(model, assets, input.teamB, b, a, options),
   };
 }
-/** Validate both sides, compare their rosters and optionally stress-test assumptions. */
-export function analyzeTrade(model, input, { sensitivity = true } = {}) {
+/** Validate both sides and compare the standard model values without manual adjustments. */
+export function analyzeTrade(model, input) {
   if (
     !input ||
     input.teamA === input.teamB ||
@@ -272,39 +227,15 @@ export function analyzeTrade(model, input, { sensitivity = true } = {}) {
     }
   if (input.includeWaivers !== undefined && typeof input.includeWaivers !== 'boolean')
     throw invalid('Invalid waiver setting.');
-  const assumptions = assumptionsFor(
-      input,
-      assets.filter((a) => ids.includes(a.id)),
-    ),
-    r = compare(model, input, assumptions);
-  const base = Object.keys(assumptions).length ? compare(model, input, {}) : r;
-  let cases = [];
-  if (sensitivity)
-    cases = [-1, 1].map((direction) => {
-      const changed = { ...assumptions };
-      for (const id of ids) {
-        const asset = assets.find((a) => a.id === id),
-          incoming = sendB.includes(id),
-          sign = (incoming ? 1 : -1) * direction,
-          a = assumptions[id] || {};
-        changed[id] =
-          asset.kind === 'pick'
-            ? { ...a, tier: sign > 0 ? (a.tier === 'first' ? 'first' : 'early') : 'late' }
-            : {
-                ...a,
-                workload: Math.max(0.5, Math.min(1.5, (a.workload ?? 1) * (1 + sign * 0.15))),
-                development: Math.max(0.5, Math.min(1.5, (a.development ?? 1) * (1 + sign * 0.1))),
-              };
-      }
-      const outcome = compare(model, input, changed);
-      return {
-        label: direction < 0 ? 'Adverse for you' : 'Favorable for you',
-        difference: outcome.difference,
-        verdict: verdict(outcome.difference),
-        paceChange: outcome.teamA.paceChange,
-        futureChange: outcome.teamA.future.change,
-      };
-    });
+  if (
+    input.assumptions !== undefined &&
+    (!input.assumptions ||
+      typeof input.assumptions !== 'object' ||
+      Array.isArray(input.assumptions) ||
+      Object.keys(input.assumptions).length)
+  )
+    throw invalid('Manual value adjustments are no longer supported. Use standard model values.');
+  const r = compare(model, input);
   return {
     ...r,
     modelVersion: MODEL_VERSION,
@@ -316,15 +247,7 @@ export function analyzeTrade(model, input, { sensitivity = true } = {}) {
     },
     settings: model.settings,
     customTeams: input.customTeams === true,
-    assumptions,
-    baseline: {
-      difference: base.difference,
-      paceChange: base.teamA.paceChange,
-      futureChange: base.teamA.future.change,
-    },
-    sensitivity: cases,
     verdict: verdict(r.difference),
-    verdictFlips: cases.some((c) => c.verdict !== verdict(r.difference)),
     summary:
       Math.abs(r.difference) <= 10
         ? 'Values are within 10%'
@@ -339,7 +262,6 @@ export function analyzeTrade(model, input, { sensitivity = true } = {}) {
       ? [
           'Custom player comparison only. Actual rosters, starter lineups, cuts and waiver additions are not modeled.',
           'Player values are model estimates, not forecasts. Nothing is submitted to Sleeper.',
-          'Sensitivity cases test workload assumptions, not probabilities.',
         ]
       : [
           ...(model.data?.prospectOnly
@@ -355,7 +277,6 @@ export function analyzeTrade(model, input, { sensitivity = true } = {}) {
                 'Active roster capacity is unavailable for at least one team; required cuts cannot be verified.',
               ]
             : []),
-          'Sensitivity cases are assumption bounds, not probabilities. Workload scales pace/current value; development scales dynasty value only.',
         ],
   };
 }
@@ -494,7 +415,7 @@ export function findTrades(model, input = {}) {
       .slice(0, 100);
   const offers = [];
   for (const c of shortlist) {
-    const r = analyzeTrade(model, c.input, { sensitivity: false }),
+    const r = analyzeTrade(model, c.input),
       gain = score(r),
       partner = r.teamB;
     // Both sides need a measurable benefit, without a large modeled roster-value loss.

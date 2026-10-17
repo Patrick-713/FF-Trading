@@ -385,7 +385,6 @@ export async function createApplication() {
                 customTeams: input.customTeams === true,
                 sendA: input.sendA,
                 sendB: input.sendB,
-                assumptions: result.assumptions,
                 includeWaivers: input.includeWaivers !== false,
               },
               result,

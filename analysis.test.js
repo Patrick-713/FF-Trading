@@ -100,21 +100,16 @@ test('public simulator uses real players, enforces redraft, persists scenarios a
     const adjusted = {
       ...input,
       includeWaivers: false,
-      assumptions: { demo_7: { workload: 0.85, development: 1.3 } },
     };
     const saved = await request('analysis/save', guest.cookie, 'POST', {
       ...adjusted,
       title: 'Test comparison',
     });
     assert.equal(saved.data.saved.length, 1);
-    assert.deepEqual(saved.data.saved[0].input.assumptions.demo_7, {
-      workload: 0.85,
-      development: 1.3,
-      tier: 'mid',
-    });
+    assert.equal(saved.data.saved[0].input.assumptions, undefined);
     assert.equal(saved.data.saved[0].input.includeWaivers, false);
     assert.ok(saved.data.saved[0].result.teamA.afterLineup);
-    assert.equal(saved.data.saved[0].result.sensitivity.length, 2);
+    assert.equal(saved.data.saved[0].result.sensitivity, undefined);
     const ideas = await request('analysis/find', guest.cookie, 'POST', { goal: 'WR' });
     assert.equal(ideas.status, 200);
     assert.ok(Array.isArray(ideas.data.offers));

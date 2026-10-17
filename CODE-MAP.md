@@ -40,7 +40,7 @@ A prepared snapshot and completed-game production are different things. A dynast
 
 ## Reading the tests
 
-Read a test's description first, then its synthetic inputs, then the assertions. `fantasy-regression.test.js` covers ownership-independent player values, imported TE bonuses and preseason readiness. `trade-engine.test.js` covers roster consequences and assumptions. `server.test.js` verifies the HTTP flow. `auth.test.js` checks account isolation and email password resets. `database.test.js` checks preservation and rollback during migration. `site-copy.test.js` checks the punctuation rule for site templates.
+Read a test's description first, then its synthetic inputs, then the assertions. `fantasy-regression.test.js` covers ownership-independent player values, imported TE bonuses and preseason readiness. `trade-engine.test.js` covers roster consequences, standard values and rejection of manual adjustments. `server.test.js` verifies the HTTP flow. `auth.test.js` checks account isolation and email password resets. `database.test.js` checks preservation and rollback during migration. `site-copy.test.js` checks the punctuation rule for site templates.
 
 `evaluate-model.js` produces a repeatable model behavior report. It is separate from a historical forecast-accuracy study. `model-version.js` identifies which model produced a saved result.
 
@@ -66,4 +66,4 @@ Read `stat-inputs.js` for compact provider inputs, `redraft-signal.js` for the f
 
 `demo-data.json` is the dated real-player reference dataset for the unlinked redraft simulator. `sleeper.js` imports season standings and league format; `public/app.js` renders standings and team selectors. `application.js` validates a selected comparison team for the trade finder.
 
-Trade side selection lives in `addPlayerToSide` and `selectedPlayers` in `public/app.js`. `public/trade-tools.js` supplies explicit Team A / Team B search buttons and optional assumptions. `trade-side-ui.test.js` tests unrestricted public assignment, moving, deduplication and removal. `trade-engine.js` keeps custom public comparisons isolated from linked-league ownership checks.
+Trade side selection lives in `addPlayerToSide` and `selectedPlayers` in `public/app.js`. `public/trade-tools.js` supplies explicit Team A / Team B search buttons. `trade-side-ui.test.js` tests unrestricted public assignment, moving, deduplication and removal. `trade-engine.js` keeps custom public comparisons isolated from linked-league ownership checks.

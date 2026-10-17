@@ -5,7 +5,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { createFantasy } from './fantasy.js';
 import { analyzeTrade, findTrades } from './trade-engine.js';
 
-test('builder supports player search, assumptions, analysis, finder and loading saved selections offline', async () => {
+test('builder supports player search, standard analysis, finder and loading saved selections offline', async () => {
   const db = new DatabaseSync(':memory:');
   db.exec("CREATE TABLE accounts(id TEXT PRIMARY KEY); INSERT INTO accounts VALUES ('guest');");
   const fantasy = createFantasy(db);
@@ -58,7 +58,11 @@ test('builder supports player search, assumptions, analysis, finder and loading 
           id: 'saved',
           title: input.title,
           created: new Date().toISOString(),
-          input,
+          input: {
+            ...input,
+            assumptions: { demo_7: { workload: 0.5, development: 1.5 } },
+            includeWaivers: true,
+          },
           result: analyzeTrade(model, input),
         },
       ];
@@ -137,25 +141,22 @@ test('builder supports player search, assumptions, analysis, finder and loading 
     await click('[data-trade-player]', { tradePlayer: 'demo_3' });
     assert.equal(element('#main').innerHTML.includes('Dynasty development'), false);
     assert.equal(element('#format-switch').innerHTML.includes('data-mode='), false);
-    await change({
-      id: '',
-      dataset: { asset: 'demo_7', assumption: 'workload' },
-      value: '0.85',
-      matches: (s) => s === '[data-assumption]',
-    });
-    await change({ id: 'include-waivers', checked: false });
+    assert.equal(element('#main').innerHTML.includes('Scenario assumptions'), false);
     await click('#analyze-trade');
     assert.deepEqual(lastInput.sendB, ['demo_7']);
     assert.deepEqual(lastInput.sendA, ['demo_3']);
-    assert.equal(lastInput.assumptions.demo_7.workload, 0.85);
+    assert.equal(lastInput.assumptions, undefined);
     assert.equal(lastInput.includeWaivers, false);
-    assert.ok(element('#trade-result').innerHTML.includes('How sensitive is this trade?'));
+    assert.equal(
+      element('#trade-result').innerHTML.includes('How sensitive is this trade?'),
+      false,
+    );
     element('#scenario-title').value = 'Offline trade';
     await click('#save-scenario');
     await click('#clear-trade');
     await click('[data-load]', { load: 'saved' });
     await click('#analyze-trade');
-    assert.equal(lastInput.assumptions.demo_7.workload, 0.85);
+    assert.equal(lastInput.assumptions, undefined);
     assert.equal(lastInput.includeWaivers, false);
     await click('#open-finder');
     assert.ok(element('#main').innerHTML.includes('Find your next move'));

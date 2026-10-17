@@ -1,12 +1,6 @@
 /** Browser application. Views render the current state; event handlers call the backend API. */
 import { NFL_TEAMS, favoriteTeam } from './nfl-teams.js';
-import {
-  tradeTools,
-  tradeAssumptions,
-  tradeSearch,
-  tradeResult,
-  finderView,
-} from './trade-tools.js';
+import { tradeTools, tradeSearch, tradeResult, finderView } from './trade-tools.js';
 let state,
   model,
   view = 'team',
@@ -26,9 +20,7 @@ let state,
   rosterTeam = null,
   tradeTeam = null,
   showStandings = false;
-let assumptions = {},
-  includeWaivers = true,
-  tradeQuery = '',
+let tradeQuery = '',
   finder = null,
   goal = 'WR';
 const $ = (s) => document.querySelector(s),
@@ -207,7 +199,7 @@ function tradeView() {
     partner = model.teams.find((t) => t.id !== tradeOwn().id)?.id;
   const own = tradeOwn();
   return [
-    `${intro('Test the trade. See both sides.', `Choose players${model.settings.mode === 'dynasty' ? ' and dynasty picks' : ''} to exchange. ${model.linked ? 'Uses your Sleeper league format. Your real roster stays unchanged.' : `Search ${model.players.length} real NFL players. Add them to Team A or Team B, then compare the trade. No roster setup needed.`}`, false)}${tradeTools(tradeModel(), selectedA, selectedB, assumptions, includeWaivers, tradeQuery)}<div class="trade-builder"><section class="panel"><div class="panel-heading"><div><span class="eyebrow">TEAM A SENDS</span><label class="sr-only" for="trade-team">Team to trade from</label>${model.linked ? `<select id="trade-team" aria-label="Team to trade from">${model.teams.map((t) => `<option value="${esc(t.id)}" ${own.id === t.id ? 'selected' : ''}>${esc(t.name)}${t.id === model.ownTeam && model.linked ? ' (Your team)' : ''}</option>`).join('')}</select>` : '<h2>Team A</h2>'}`,
+    `${intro('Test the trade. See both sides.', `Choose players${model.settings.mode === 'dynasty' ? ' and dynasty picks' : ''} to exchange. ${model.linked ? 'Uses your Sleeper league format. Your real roster stays unchanged.' : `Search ${model.players.length} real NFL players. Add them to Team A or Team B, then compare the trade. No roster setup needed.`}`, false)}${tradeTools(tradeModel(), tradeQuery)}<div class="trade-builder"><section class="panel"><div class="panel-heading"><div><span class="eyebrow">TEAM A SENDS</span><label class="sr-only" for="trade-team">Team to trade from</label>${model.linked ? `<select id="trade-team" aria-label="Team to trade from">${model.teams.map((t) => `<option value="${esc(t.id)}" ${own.id === t.id ? 'selected' : ''}>${esc(t.name)}${t.id === model.ownTeam && model.linked ? ' (Your team)' : ''}</option>`).join('')}</select>` : '<h2>Team A</h2>'}`,
     `</div>`,
     `<span id="sum-A" class="value-number">${assetSum(selectedA)}</span></div>${selectedPlayers('A')}${model.linked ? `<details class="team-roster-picker"><summary>Choose from this roster</summary>${assetList(own.id, 'A')}</details>` : ''}</section>`,
     `<section class="panel"><div class="panel-heading"><div><span class="eyebrow">TEAM B SENDS</span>${
@@ -228,7 +220,6 @@ function tradeView() {
     `<button class="trade-button" id="clear-trade">Clear selections</button>`,
     `<button class="primary" id="analyze-trade" ${!selectedA.size || !selectedB.size ? 'disabled' : ''}>Analyze trade ↗</button>`,
     `</div>`,
-    tradeAssumptions(model, selectedA, selectedB, assumptions, includeWaivers),
     `<div id="trade-result">${result ? resultView(result) : ''}</div>`,
   ].join('');
 }
@@ -409,7 +400,7 @@ function render() {
 async function reload() {
   finder = null;
   tradeTeam = null;
-  assumptions = {};
+
   tradeQuery = '';
   state = await api('state');
   model = await api('analysis');
@@ -419,17 +410,14 @@ const tradeInput = () => ({
   teamB: partner,
   sendA: [...selectedA],
   sendB: [...selectedB],
-  assumptions: Object.fromEntries(
-    Object.entries(assumptions).filter(([id]) => selectedA.has(id) || selectedB.has(id)),
-  ),
   customTeams: !model.linked,
-  includeWaivers: model.linked ? includeWaivers : false,
+  includeWaivers: false,
 });
 async function changeSettings(settings) {
   model = await api('analysis/settings', 'PUT', { ...model.settings, ...settings });
   selectedA.clear();
   selectedB.clear();
-  assumptions = {};
+
   finder = null;
   if (goal === 'picks' && model.settings.mode !== 'dynasty') goal = 'WR';
   result = null;
@@ -487,7 +475,6 @@ document.addEventListener('click', async (e) => {
   if (remove) {
     selectedA.delete(remove.dataset.removeAsset);
     selectedB.delete(remove.dataset.removeAsset);
-    delete assumptions[remove.dataset.removeAsset];
     result = null;
     render();
     return;
@@ -546,7 +533,7 @@ document.addEventListener('click', async (e) => {
         `<p>Use values to compare players and picks in your league. A higher number means more value in the format you selected.</p>`,
         `<h3>Redraft</h3><p>This season's scoring, targets, and carries matter most. Last season provides a starting point when there are only a few new games. It matters less as this season develops.</p>`,
         `<h3>Dynasty</h3><p>We also consider age, draft position, and future potential. A highly drafted rookie can keep value through a slow start. For rookies with draft context, next year's equivalent pick is a starting point, adjusted for performance.</p>`,
-        `<h3>Draft picks</h3><p>Earlier picks are worth more. Future picks use an estimated slot until the order is known. You can change that assumption in a trade.</p>`,
+        `<h3>Draft picks</h3><p>Earlier picks are worth more. Future picks use a mid-round estimate until the order is known.</p>`,
         `<p>Values are estimates. Injuries and role changes can move faster than the data. Starter pace shows this season's past scoring, not a prediction.</p>`,
         `<details><summary>Data sources and updates</summary><p>League data comes from Sleeper. Game statistics come from nflverse. Current stats are cached for six hours; last-season summaries for 30 days. Refresh league data to update your analysis.</p><p>We do not currently include expert projections, route participation, matchup forecasts, or every custom scoring bonus. Model ${esc(model.modelVersion)}.</p><p><a href="https://docs.sleeper.com/" target="_blank" rel="noopener">Sleeper documentation</a> · <a href="https://github.com/nflverse/nflverse-data/releases/tag/stats_player" target="_blank" rel="noopener">nflverse statistics</a></p></details>`,
       ].join(''),
@@ -560,7 +547,11 @@ document.addEventListener('click', async (e) => {
       button.disabled = true;
       button.textContent = 'Searching…';
       try {
-        finder = await api('analysis/find', 'POST', { goal, includeWaivers, teamA: tradeOwn().id });
+        finder = await api('analysis/find', 'POST', {
+          goal,
+          includeWaivers: false,
+          teamA: tradeOwn().id,
+        });
         render();
       } finally {
         if (button.isConnected) {
@@ -577,16 +568,9 @@ document.addEventListener('click', async (e) => {
       partner = o.input.teamB;
       selectedA = new Set(o.input.sendA);
       selectedB = new Set(o.input.sendB);
-      assumptions = {};
-      includeWaivers = o.input.includeWaivers;
+
       view = 'trade';
       result = await api('analysis/trade', 'POST', tradeInput());
-      render();
-      return;
-    }
-    if (e.target.closest('#reset-assumptions')) {
-      assumptions = {};
-      result = null;
       render();
       return;
     }
@@ -606,7 +590,7 @@ document.addEventListener('click', async (e) => {
       model = await api('analysis');
       selectedA.clear();
       selectedB.clear();
-      assumptions = {};
+
       finder = null;
       tradeQuery = '';
       result = null;
@@ -627,7 +611,7 @@ document.addEventListener('click', async (e) => {
       view = 'account';
       selectedA.clear();
       selectedB.clear();
-      assumptions = {};
+
       finder = null;
       tradeQuery = '';
       result = null;
@@ -637,7 +621,7 @@ document.addEventListener('click', async (e) => {
     if (e.target.closest('#clear-trade')) {
       selectedA.clear();
       selectedB.clear();
-      assumptions = {};
+
       result = null;
       render();
       return;
@@ -663,8 +647,7 @@ document.addEventListener('click', async (e) => {
       partner = s.input.teamB;
       selectedA = new Set(s.input.sendA);
       selectedB = new Set(s.input.sendB);
-      assumptions = s.input.assumptions || {};
-      includeWaivers = s.input.includeWaivers !== false;
+
       view = 'trade';
       result = null;
       render();
@@ -679,7 +662,7 @@ document.addEventListener('click', async (e) => {
     busy = false;
   }
 });
-// Apply selection, assumption and scoring changes from the active view.
+// Apply player selections and scoring changes from the active view.
 document.addEventListener('change', async (e) => {
   if (busy) return;
   const t = e.target;
@@ -707,23 +690,6 @@ document.addEventListener('change', async (e) => {
     render();
     return;
   }
-  if (t.matches('[data-assumption]')) {
-    const id = t.dataset.asset,
-      key = t.dataset.assumption;
-    assumptions[id] = {
-      ...(assumptions[id] || {}),
-      [key]: key === 'tier' ? t.value : Number(t.value),
-    };
-    result = null;
-    $('#trade-result').innerHTML = '';
-    return;
-  }
-  if (t.id === 'include-waivers') {
-    includeWaivers = t.checked;
-    result = null;
-    $('#trade-result').innerHTML = '';
-    return;
-  }
   if (t.matches('[data-side]')) {
     const set = t.dataset.side === 'A' ? selectedA : selectedB;
     t.checked ? set.add(t.value) : set.delete(t.value);
@@ -740,7 +706,7 @@ document.addEventListener('change', async (e) => {
     partner = null;
     selectedA.clear();
     selectedB.clear();
-    assumptions = {};
+
     result = null;
     finder = null;
     render();
@@ -842,7 +808,7 @@ document.addEventListener('submit', async (e) => {
       lookupResult = null;
       selectedA.clear();
       selectedB.clear();
-      assumptions = {};
+
       finder = null;
       tradeQuery = '';
       result = null;

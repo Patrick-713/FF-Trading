@@ -1,13 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { analyzeTrade, findTrades } from './trade-engine.js';
-import {
-  tradeSearch,
-  tradeTools,
-  tradeAssumptions,
-  tradeResult,
-  finderView,
-} from './public/trade-tools.js';
+import { tradeSearch, tradeTools, tradeResult, finderView } from './public/trade-tools.js';
 const player = (id, owner, position, pace, value, age = 25) => ({
   id,
   owner,
@@ -91,26 +85,23 @@ test('unknown capacity is explicit and an empty waiver pool does not fabricate r
   assert.equal(r.teamB.roster.capacity, null);
   assert.match(r.notes.join(' '), /capacity is unavailable/);
 });
-test('workload and development assumptions change the correct horizon and can flip verdicts', () => {
+test('trade comparisons use standard values and reject manual adjustments', () => {
   const m = fixture(),
-    r = analyzeTrade(m, { ...input, assumptions: { bw: { workload: 0.7, development: 1.5 } } });
-  assert.equal(r.received[0].redraft, 1050);
-  assert.equal(r.received[0].dynasty, 1575);
-  assert.equal(r.received[0].pace, 28);
-  assert.equal(r.baseline.difference, 0);
-  assert.equal(r.sensitivity.length, 2);
-  assert.ok(r.verdictFlips);
-  assert.equal(r.teamA.current.change, -450);
-  assert.equal(r.teamA.future.change, 75);
+    r = analyzeTrade(m, input);
+  const asset = m.players.find((p) => p.id === 'bw');
+  assert.equal(r.received[0].redraft, asset.redraft);
+  assert.equal(r.received[0].dynasty, asset.dynasty);
+  assert.equal(r.received[0].pace, asset.pace);
+  assert.equal(r.sensitivity, undefined);
   for (const assumptions of [
-    { bw: { workload: Infinity } },
-    { bw: { development: 2 } },
-    { bw: { tier: 'first' } },
-    { fa: { workload: 1 } },
+    { bw: { workload: 0.7 } },
+    { bw: { development: 1.5 } },
+    { bw: { tier: 'early' } },
   ])
-    assert.throws(() => analyzeTrade(m, { ...input, assumptions }));
+    assert.throws(() => analyzeTrade(m, { ...input, assumptions }), /no longer supported/);
 });
-test('pick position scenarios save dynasty changes without inventing immediate points', () => {
+
+test('dynasty picks use standard midpoint values without inventing immediate points', () => {
   const m = fixture();
   m.picks = [
     { id: 'pick', kind: 'pick', owner: 'b', name: '2027 first', round: 1, year: 2027, value: 1050 },
@@ -119,9 +110,8 @@ test('pick position scenarios save dynasty changes without inventing immediate p
     ...input,
     sendB: ['pick'],
     includeWaivers: false,
-    assumptions: { pick: { tier: 'early' } },
   });
-  assert.equal(r.received[0].value, 2450);
+  assert.equal(r.received[0].value, 1950);
   assert.equal(r.received[0].redraft, 0);
   assert.equal(r.received[0].pace, undefined);
   assert.equal(r.teamA.current.change, -1500);
@@ -163,9 +153,7 @@ test('player search shows ownership, handles free agents and escapes imported na
   const fa = tradeSearch(m, 'fa');
   assert.ok(fa.includes('Free agent'));
   assert.ok(!fa.includes('data-trade-player="fa"'));
-  assert.ok(
-    tradeAssumptions(m, new Set(['aq']), new Set(['bw']), {}, true).includes('Dynasty development'),
-  );
+  assert.equal(tradeTools(m, '').includes('Scenario assumptions'), false);
   assert.ok(tradeResult(analyzeTrade(m, input), m).includes('Optimized lineup before / after'));
   assert.ok(finderView(m, findTrades(m, { goal: 'WR' }), 'WR').includes('data-offer'));
 });
