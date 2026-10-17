@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { migrate } from './database.js';
 import { createFantasy } from './fantasy.js';
-import { compactRows, summarizeHistory, compactInputs } from './stat-inputs.js';
+import { compactRows, summarizeHistory, compactInputs, historyNameIndex } from './stat-inputs.js';
 import { valuePlayer, settingsFor, pointsFor } from './valuation.js';
 import { historyWeight } from './redraft-signal.js';
 
@@ -146,4 +146,29 @@ test('history is shared and cached; frozen history survives cache changes and mo
   } finally {
     db.close();
   }
+});
+
+test('history name fallback is retained only for an unambiguous name and position', () => {
+  const history = {
+    season: 2025,
+    players: {
+      G: { name: 'Veteran', position: 'WR' },
+      H: { name: 'Other', position: 'RB' },
+      I: { name: 'Other', position: 'RB' },
+    },
+  };
+  const packed = compactInputs(
+    {
+      statistics: { rows: [] },
+      catalog: {
+        v: { full_name: 'Veteran', position: 'WR' },
+        o: { full_name: 'Other', position: 'RB' },
+      },
+      metadata: {},
+      history,
+    },
+    ['v', 'o'],
+  );
+  assert.deepEqual(Object.keys(packed.history.players), ['G']);
+  assert.equal(historyNameIndex(history.players).get('other:RB').size, 2);
 });

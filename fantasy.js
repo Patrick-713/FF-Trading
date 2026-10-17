@@ -2,7 +2,13 @@
 import { normalizePlayer } from './player-metadata.js';
 import { leagueDefaults } from './league-format.js';
 import { provider } from './errors.js';
-import { compactRows, compactInputs, summarizeHistory } from './stat-inputs.js';
+import {
+  compactRows,
+  compactInputs,
+  summarizeHistory,
+  playerMatchKey,
+  historyNameIndex,
+} from './stat-inputs.js';
 import { MODEL_VERSION } from './model-version.js';
 import {
   parseCSV,
@@ -382,19 +388,25 @@ export function createFantasy(db, { fetcher = globalThis.fetch } = {}) {
       if (!byName.has(k)) byName.set(k, new Set());
       byName.get(k).add(r.player_id);
     }
+    const pastNames = historyNameIndex(historical?.players);
     const players = allPlayers.map((p) => {
       let rows = p.gsis ? byGSIS.get(p.gsis) : null;
       if (!rows) {
         const ids = byName.get(normal(p.name) + ':' + p.position);
         if (ids?.size === 1) rows = byGSIS.get([...ids][0]);
       }
+      let past = historical?.players?.[p.gsis] || historical?.players?.[rows?.[0]?.player_id];
+      if (!past) {
+        const ids = pastNames.get(playerMatchKey(p.name, p.position));
+        if (ids?.size === 1) past = historical.players[[...ids][0]];
+      }
       return valuePlayer(
         p,
         (rows || []).sort((a, b) => Number(a.week) - Number(b.week)),
         settings,
         season,
-        historical?.players?.[p.gsis] && p.experience !== 0 && p.draftYear !== season
-          ? { ...historical.players[p.gsis], season: historical.season }
+        past && p.experience !== 0 && p.draftYear !== season
+          ? { ...past, season: historical.season }
           : null,
       );
     });

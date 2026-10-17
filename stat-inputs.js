@@ -37,6 +37,25 @@ const fields = [
   'rushing_epa',
   'receiving_epa',
 ];
+export function playerMatchKey(name, position) {
+  return (
+    String(name || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '')
+      .replace(/(jr|sr|iii|ii|iv)$/, '') +
+    ':' +
+    position
+  );
+}
+export function historyNameIndex(players = {}) {
+  const result = new Map();
+  for (const [id, p] of Object.entries(players)) {
+    const key = playerMatchKey(p.name, p.position);
+    if (!result.has(key)) result.set(key, new Set());
+    result.get(key).add(id);
+  }
+  return result;
+}
 export function compactRows(rows) {
   return rows.map((row) => {
     const result = Object.fromEntries(
@@ -104,6 +123,15 @@ export function compactInputs(inputs, rostered = []) {
       .map((p) => p.gsis_id)
       .filter(Boolean),
   );
+  const names = new Set(
+    Object.values(catalog).map((p) =>
+      playerMatchKey(
+        p.full_name || p.name || [p.first_name, p.last_name].filter(Boolean).join(' '),
+        p.position,
+      ),
+    ),
+  );
+  const nameIndex = historyNameIndex(inputs.history?.players);
   return {
     ...inputs,
     ...(inputs.history
@@ -111,7 +139,12 @@ export function compactInputs(inputs, rostered = []) {
           history: {
             ...inputs.history,
             players: Object.fromEntries(
-              Object.entries(inputs.history.players || {}).filter(([id]) => ids.has(id)),
+              Object.entries(inputs.history.players || {}).filter(
+                ([id, p]) =>
+                  ids.has(id) ||
+                  (names.has(playerMatchKey(p.name, p.position)) &&
+                    nameIndex.get(playerMatchKey(p.name, p.position))?.size === 1),
+              ),
             ),
           },
         }
