@@ -2726,3 +2726,32 @@ html[data-favorite-team]:not([data-favorite-team='']) .nav.active {
     gap: 12px;
   }
 }
+
+/* Keep the linked identity visible without crowding the phone header. */
+.sleeper-status {
+  color: var(--accent, #58e5c5);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.sleeper-status[hidden] {
+  display: none;
+}
+.account-connections {
+  margin-top: 32px;
+}
+.account-connections > h2 {
+  margin-bottom: 8px;
+}
+.account-connections > .muted {
+  margin-bottom: 20px;
+}
+@media (max-width: 760px) {
+  .header-right {
+    flex-wrap: wrap;
+  }
+  .sleeper-status {
+    flex-basis: 100%;
+    text-align: right;
+    font-size: 11px;
+  }
+}

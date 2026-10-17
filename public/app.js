@@ -49,7 +49,7 @@ function toast(text) {
   setTimeout(() => $('#toast').classList.remove('visible'), 4000);
 }
 function intro(title, text, action = true) {
-  return `<div class="page-intro"><div><div class="eyebrow">FANTASY FOOTBALL. CLEARER DECISIONS.</div><h1>${title}</h1><p>${text}</p></div>${action ? (state.connection ? '<button class="primary" data-sync>Refresh league data ↻</button>' : '<button class="primary" data-view="sleeper">Link your league ↗</button>') : ''}</div>`;
+  return `<div class="page-intro"><div><div class="eyebrow">FANTASY FOOTBALL. CLEARER DECISIONS.</div><h1>${title}</h1><p>${text}</p></div>${action ? (state.connection ? '<button class="primary" data-sync>Refresh league data ↻</button>' : '<button class="primary" data-view="account">Link your league ↗</button>') : ''}</div>`;
 }
 const currentTeam = () => model.teams.find((t) => t.id === model.ownTeam) || model.teams[0];
 function playerTable(players) {
@@ -169,17 +169,17 @@ function savedView() {
 function sleeperView() {
   const c = state.connection;
   return [
-    `${intro('Bring your real league.', 'Read-only Sleeper import. Your players, trade partners, scoring context, and dynasty draft capital.', false)}${c ? `<section class="panel linked-summary"><div class="panel-heading"><div><span class="eyebrow">SLEEPER CONNECTED</span><h2>${esc(c.league.name)}</h2></div><span class="pill">${esc(c.league.season)}</span></div><div class="link-content"><p>${esc(c.user.username)} · ${model.teams.length} teams · Last sync ${esc(new Date(c.syncedAt).toLocaleString())}</p><div class="link-actions"><button class="primary" data-sync>Sync Sleeper ↻</button><button class="trade-button" id="disconnect">Return to demo</button></div></div></section>` : ''}<section class="panel account-panel"><div class="panel-heading"><h2>Find your leagues</h2>`,
+    `<div class="account-connections"><h2>Sleeper connection</h2><p class="muted">Import your league to analyze your players, trade partners, and dynasty picks.</p>${c ? `<section class="panel linked-summary"><div class="panel-heading"><div><span class="eyebrow">SLEEPER CONNECTED</span><h2>${esc(c.league.name)}</h2></div><span class="pill">${esc(c.league.season)}</span></div><div class="link-content"><p>${esc(c.user.username)} · ${model.teams.length} teams · Last sync ${esc(new Date(c.syncedAt).toLocaleString())}</p><div class="link-actions"><button class="primary" data-sync>Sync Sleeper ↻</button><button class="trade-button" id="disconnect">Return to demo</button></div></div></section>` : ''}<section class="panel account-panel"><div class="panel-heading"><h2>Find your leagues</h2>`,
     `<span class="pill">NO PASSWORD</span></div>`,
     `<div class="link-content"><form id="sleeper-lookup"><label for="sleeper-username">Sleeper username</label>`,
-    `<input id="sleeper-username" name="username" value="${esc(lookupResult?.user.username || c?.user.username || '')}" maxlength="40" required>${teamPicker()}`,
+    `<input id="sleeper-username" name="username" value="${esc(lookupResult?.user.username || c?.user.username || '')}" maxlength="40" required>`,
     `<button class="primary full" id="lookup-submit">Find my leagues ↗</button>`,
     `<p id="link-error" class="error" role="alert"></p>`,
     `</form>`,
     `<div id="league-results">${leagueResults()}</div>`,
     `<p class="fine-print">Public data lookup does not verify Sleeper ownership. Lineup changes and real trades remain in Sleeper.</p>`,
     `</div>`,
-    `</section>`,
+    `</section></div>`,
   ].join('');
 }
 function leagueResults() {
@@ -224,12 +224,15 @@ function render() {
     trade: 'Trade Simulator',
     finder: 'Trade Finder',
     saved: 'Saved Scenarios',
-    sleeper: 'Link Sleeper',
     account: 'Your account',
-    more: 'More',
   };
   document.documentElement?.setAttribute('data-view', view);
   $('#page-name').textContent = names[view];
+  const sleeperStatus = $('#sleeper-status');
+  sleeperStatus.hidden = !state.connection;
+  sleeperStatus.textContent = state.connection
+    ? `Sleeper linked � ${state.connection.user.username}`
+    : '';
   $('#account-button').textContent = state.user ? 'My account' : 'Sign up / Log in';
   $('#profile-team').textContent = currentTeam().name;
   applyFavoriteTheme();
@@ -253,11 +256,7 @@ function render() {
   document
     .querySelectorAll('.nav')
     .forEach((n) =>
-      n.classList.toggle(
-        'active',
-        n.dataset.view === (view === 'finder' ? 'trade' : view) ||
-          (n.dataset.view === 'more' && ['more', 'account', 'sleeper'].includes(view)),
-      ),
+      n.classList.toggle('active', n.dataset.view === (view === 'finder' ? 'trade' : view)),
     );
   const notice = [
     `<div class="data-banner"><span class="dot"></span>${model.linked ? esc(state.connection.league.name) : 'Fictional demo league'} · ${esc(model.data.source)} · Model ${esc(model.modelVersion || 'legacy')} · ${model.data.season}, through week ${model.data.throughWeek} · ${model.data.matched}/${model.data.total} players with matched stats${model.linked ? ` · Analysis refreshed: ${model.data.refreshedAt ? esc(new Date(model.data.refreshedAt).toLocaleString()) : 'Not prepared'}${model.data.stale ? ' · Refresh recommended' : ''} <button class="text-button" data-sync>Refresh league data ↻</button>` : ''} <button class="text-button" id="methodology">How values work ↗</button>`,
@@ -275,11 +274,7 @@ function render() {
             ? finderView(model, finder, goal)
             : view === 'saved'
               ? savedView()
-              : view === 'sleeper'
-                ? sleeperView()
-                : view === 'more'
-                  ? moreView()
-                  : accountView());
+              : accountView());
   $('#footer-disclaimer').textContent =
     'Model estimates · No share trading · Simulations do not execute trades';
 }
@@ -333,7 +328,7 @@ document.addEventListener('click', async (e) => {
   // The root also carries data-view for responsive styling. Only buttons navigate.
   const nav = e.target.closest('button[data-view]');
   if (nav) {
-    view = nav.dataset.view;
+    view = ['sleeper', 'more'].includes(nav.dataset.view) ? 'account' : nav.dataset.view;
     render();
     if (globalThis.matchMedia?.('(max-width: 760px)').matches)
       globalThis.scrollTo({ top: 0, behavior: 'auto' });
@@ -705,6 +700,10 @@ try {
 }
 
 function accountView() {
+  return accountIdentity() + sleeperView();
+}
+
+function accountIdentity() {
   if (state.user)
     return [
       `${intro('Your league. Your account.', 'Your linked leagues and analyses are saved to your FF Trading account.', false)}<section class="panel account-panel"><div class="panel-heading"><h2>${esc(state.user.name)}</h2>`,
@@ -712,7 +711,7 @@ function accountView() {
       `<div class="link-content"><p>${esc(state.user.email)}</p>${teamPicker()}`,
       `<p>Log in from another browser using the same FF Trading server to access this workspace. Your Sleeper import is separate from this login.</p>`,
       `<p class="muted">Email is your sign-in identifier; email verification and emailed resets are not enabled. Keep your recovery code somewhere safe.</p>`,
-      `<div class="link-actions"><button class="primary" data-view="sleeper">Manage Sleeper link</button>`,
+      `<div class="link-actions">`,
       `<button class="trade-button" id="logout">Log out</button>`,
       `</div>`,
       `<p id="auth-error" class="error" role="alert"></p>`,
@@ -745,20 +744,4 @@ function accountView() {
     `</section>`,
     `</div>`,
   ].join('');
-}
-
-/** Utility destinations stay easy to find without crowding the phone tab bar. */
-function moreView() {
-  return (
-    intro('Make it yours.', 'Your account and league connections, in one place.', false) +
-    '<div class="more-menu"><button class="panel menu-destination" data-view="sleeper"><span class="menu-symbol" aria-hidden="true">↗</span><span><strong>League connections</strong><small>' +
-    esc(state.connection?.league.name || 'Connect or manage your Sleeper league') +
-    '</small></span><span aria-hidden="true">→</span></button><button class="panel menu-destination" data-view="account"><span class="menu-symbol" aria-hidden="true">◉</span><span><strong>Your account</strong><small>' +
-    esc(
-      state.user
-        ? state.user.name + ' · Favorite team and settings'
-        : 'Sign in, save your leagues, and choose your team',
-    ) +
-    '</small></span><span aria-hidden="true">→</span></button></div>'
-  );
 }

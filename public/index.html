@@ -75,23 +75,7 @@
           >
             <path d="M6 3h12v18l-6-4-6 4Z" /></svg
           ><span data-phone-label="Saved">Saved Scenarios</span></button
-        ><button class="nav secondary-nav" aria-label="Link Sleeper" data-view="sleeper"
-          >⛓
-          <svg
-            class="phone-nav-icon"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.8"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            aria-hidden="true"
-          >
-            <path
-              d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-2 2M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l2-2"
-            /></svg
-          ><span data-phone-label="Sleeper">Link Sleeper</span></button
-        ><button class="nav secondary-nav" aria-label="Account" data-view="account"
+        ><button class="nav" aria-label="Account" data-view="account"
           >◉
           <svg
             class="phone-nav-icon"
@@ -106,21 +90,6 @@
             <circle cx="12" cy="8" r="4" />
             <path d="M4 21v-2a8 8 0 0 1 16 0v2" /></svg
           ><span data-phone-label="Account">Account</span></button
-        ><button class="nav phone-more" aria-label="More" data-view="more"
-          ><svg
-            class="phone-nav-icon"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.8"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            aria-hidden="true"
-          >
-            <circle cx="5" cy="12" r="1" />
-            <circle cx="12" cy="12" r="1" />
-            <circle cx="19" cy="12" r="1" /></svg
-          ><span data-phone-label="More">More</span></button
         ></nav
       ><div class="sidebar-bottom"
         ><div class="demo-card"
@@ -142,6 +111,7 @@
           ><span class="breadcrumb">Workspace</span><span class="slash">/</span
           ><span id="page-name">Overview</span></div
         ><div class="header-right"
+          ><span id="sleeper-status" class="sleeper-status" role="status" hidden></span
           ><span class="season"
             ><span id="season-label">DEMO SEASON</span> · <span id="week">WEEK 8</span></span
           ><button class="trade-button" id="account-button" data-view="account"

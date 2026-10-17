@@ -34,7 +34,15 @@ test('builder supports player search, assumptions, analysis, finder and loading 
   globalThis.fetch = async (path, options = {}) => {
     const input = options.body ? JSON.parse(options.body) : {};
     let data;
-    if (path === '/api/state') data = { connection: null, user: null };
+    if (path === '/api/state')
+      data = {
+        connection: {
+          user: { username: '<TestManager>' },
+          league: { name: 'Test league', season: 2026 },
+          syncedAt: new Date().toISOString(),
+        },
+        user: null,
+      };
     else if (path === '/api/analysis') data = model;
     else if (path === '/api/analysis/settings') {
       model = await fantasy.model('guest', null, {}, input);
@@ -79,6 +87,10 @@ test('builder supports player search, assumptions, analysis, finder and loading 
     await import('./public/app.js');
     assert.ok(element('#main').innerHTML.includes('Know what your roster'));
     await click('button[data-view]', { view: 'account' });
+    assert.ok(element('#main').innerHTML.includes('id="sleeper-lookup"'));
+    assert.equal((element('#main').innerHTML.match(/id="favorite-team"/g) || []).length, 1);
+    assert.equal(element('#sleeper-status').textContent, 'Sleeper linked � <TestManager>');
+    assert.equal(element('#sleeper-status').hidden, false);
     await click('[data-auth-mode]', { authMode: 'login' });
     assert.ok(element('#main').innerHTML.includes('Welcome back'));
     const loginMarkup = element('#main').innerHTML;
