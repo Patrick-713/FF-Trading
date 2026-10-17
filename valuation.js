@@ -1,4 +1,5 @@
 /** Valuation functions use relative model units. They are transparent estimates rather than forecasts. */
+import { eligibleGames } from './game-eligibility.js';
 import { invalid } from './errors.js';
 import { prospectProfile } from './prospects.js';
 import { scoringSignal } from './redraft-signal.js';
@@ -94,6 +95,9 @@ export function valuePlayer(
   season = new Date().getUTCFullYear(),
   previous = null,
 ) {
+  const recordedRows = rows;
+  const sample = eligibleGames(rows, player, season);
+  rows = sample.included;
   const games = rows.length,
     score = rows.map((r) => pointsFor(r, s)),
     ppg = games ? score.reduce((a, b) => a + b, 0) / games : 0;
@@ -249,6 +253,15 @@ export function valuePlayer(
     pace: round(pace),
     confidence: !games && history ? 'Last-season baseline' : confidence,
     games,
+    gameSample: {
+      recordedGames: recordedRows.length,
+      excluded: sample.excluded,
+      recordedPPG: recordedRows.length
+        ? round(
+            recordedRows.reduce((total, row) => total + pointsFor(row, s), 0) / recordedRows.length,
+          )
+        : null,
+    },
     prospect,
     pickAnchor,
     history: history
@@ -286,6 +299,11 @@ export function valuePlayer(
       draftPrior: prior,
     },
     notes: [
+      ...(sample.excluded.length
+        ? [
+            `Excluded ${sample.excluded.length} confirmed injury or non-playing game rows from production averages, recent form, and usage.`,
+          ]
+        : []),
       ...(pickAnchor
         ? [
             `Dynasty pick anchor: ${pickAnchor.year} rookie pick #${pickAnchor.overall}, ${pickAnchor.pickValue} value with a ${Math.round(pickAnchor.discount * 100)}% evidence discount. Established production can exceed this estimate.`,

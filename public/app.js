@@ -543,6 +543,7 @@ document.addEventListener('click', async (e) => {
         `<div class="stat-pair"><span>Redraft <b>${p.redraft}</b></span><span>Dynasty <b>${p.dynasty}</b></span></div>`,
         `${p.history ? `<p><strong>${p.history.season}:</strong> ${fmt(p.history.ppg)} fantasy points per game across ${p.history.games} games. Last-season context supplies ${Math.round(p.history.weight * 100)}% of the scoring estimate.</p>` : ''}`,
         `<p>${esc(p.confidence)} · ${p.games} games · age ${p.age ?? 'unknown'}</p>`,
+        `${p.gameSample?.excluded.length ? `<p class="game-exclusions"><strong>Adjusted game sample:</strong> ${p.games} games included. ${p.gameSample.excluded.map((game) => `${game.season} Week ${game.week}: ${esc(game.reason)}${game.source ? ` (<a href="${esc(game.source)}" target="_blank" rel="noopener noreferrer">source</a>)` : ''}`).join('; ')}. Excluded from averages and usage. Recorded-game PPG before exclusions: ${p.gameSample.recordedPPG}.</p>` : ''}`,
         `<table><tbody>${Object.entries(p.stats)
           .map(
             ([k, v]) =>
@@ -563,7 +564,7 @@ document.addEventListener('click', async (e) => {
       [
         `<h2>How player values work</h2>`,
         `<p>Use values to compare players and picks in your league. A higher number means more value in the format you selected.</p>`,
-        `<h3>Redraft</h3><p>This season's scoring, targets, and carries matter most. Last season provides a starting point when there are only a few new games. It matters less as this season develops.</p>`,
+        `<h3>Redraft</h3><p>This season's scoring, targets, and carries matter most. Last season provides a starting point when there are only a few new games. It matters less as this season develops.</p><p>Missed games do not count as zeroes. Confirmed injury games are excluded from averages and usage, with the exclusions listed in player details. Injury coverage is reviewed and incomplete; low scores alone never remove a game. Current injury status can still reduce a player's availability estimate.</p>`,
         `<h3>Dynasty</h3><p>We also consider age, draft position, and future potential. A highly drafted rookie can keep value through a slow start. For rookies with draft context, next year's equivalent pick is a starting point, adjusted for performance.</p>`,
         `<h3>Draft picks</h3><p>Earlier picks are worth more. An unknown first is worth less than a proven elite player. Early picks carry a premium; later rounds and distant years are worth less. Unknown slots use a mid-round estimate.</p>`,
         `<p>Values are estimates. Injuries and role changes can move faster than the data. Starter pace shows this season's past scoring, not a prediction.</p>`,

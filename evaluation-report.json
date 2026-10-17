@@ -1,5 +1,5 @@
 {
-  "modelVersion": "2.5.0",
+  "modelVersion": "2.6.0",
   "evaluationType": "Synthetic behavioral regression; not predictive validation",
   "cases": [
     {

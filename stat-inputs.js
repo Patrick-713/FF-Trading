@@ -1,3 +1,4 @@
+import { gameExclusion } from './game-eligibility.js';
 /** Only retain provider fields that our scoring, matching and usage calculations read. */
 export const SCORING_FIELDS = [
   'passing_yards',
@@ -59,7 +60,17 @@ export function historyNameIndex(players = {}) {
 export function compactRows(rows) {
   return rows.map((row) => {
     const result = Object.fromEntries(
-      ['player_id', 'player_display_name', 'position', 'week', 'team', 'season', 'season_type']
+      [
+        'player_id',
+        'player_display_name',
+        'position',
+        'week',
+        'team',
+        'season',
+        'season_type',
+        'game_participation',
+        'game_evidence_source',
+      ]
         .filter((key) => row[key] != null)
         .map((key) => [key, row[key]]),
     );
@@ -85,6 +96,11 @@ export function summarizeHistory(rows, season) {
       totals: {},
       available: {},
     });
+    const excluded = gameExclusion(row, {}, season);
+    if (excluded) {
+      (p.excluded ||= []).push({ week: Number(row.week), ...excluded });
+      continue;
+    }
     p.games++;
     for (const key of fields)
       if (row[key] !== '' && row[key] != null && Number.isFinite(Number(row[key]))) {
