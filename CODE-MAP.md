@@ -63,3 +63,5 @@ The versioned rookie-benchmarks.js file records explicit owner-supplied assumpti
 Read `stat-inputs.js` for compact provider inputs, `redraft-signal.js` for the fading last-season blend, and `history-data.test.js` for scoring preservation, no look-ahead, frozen history and reduced payload reads. `backtest-redraft.js` is an explicit offline historical scoring check; `redraft-validation.json` records training and holdout results. `compact-data.js` is manual, backed-up maintenance and defaults to a dry run.
 
 `news.js` provides cached public NFL headlines. `news.test.js` covers feed validation, concurrent requests, shared caching, outage backoff and old-story expiry. The News view and visible-tab refresh live in `public/app.js`.
+
+`demo-data.json` is the dated real-player reference dataset for the unlinked redraft simulator. `sleeper.js` imports season standings and league format; `public/app.js` renders standings and team selectors. `application.js` validates a selected comparison team for the trade finder.

@@ -5,7 +5,7 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { once } from 'node:events';
-test('analysis API supports both formats, persists scenarios, and never executes a roster trade', async () => {
+test('public simulator uses real players, enforces redraft, persists scenarios and never executes a roster trade', async () => {
   const port = 60000 + Math.floor(Math.random() * 3000),
     folder = mkdtempSync(join(tmpdir(), 'ff-analysis-'));
   let child;
@@ -54,13 +54,16 @@ test('analysis API supports both formats, persists scenarios, and never executes
       superflex: true,
     });
     assert.equal(dynasty.status, 200);
-    assert.equal(dynasty.data.picks.length, 18);
-    const pick = dynasty.data.picks.find((p) => p.owner === 'demo_a');
+    assert.equal(dynasty.data.settings.mode, 'redraft');
+    assert.equal(dynasty.data.picks.length, 0);
+    assert.equal(redraft.data.players[0].name, 'Josh Allen');
+    assert.match(redraft.data.data.source, /nflverse/);
+    const pick = { id: 'unavailable-pick' };
     const picks = await request('analysis/trade', guest.cookie, 'POST', {
       ...input,
       sendA: [pick.id],
     });
-    assert.equal(picks.status, 200);
+    assert.equal(picks.status, 400);
     const adjusted = {
       ...input,
       includeWaivers: false,
@@ -82,6 +85,17 @@ test('analysis API supports both formats, persists scenarios, and never executes
     const ideas = await request('analysis/find', guest.cookie, 'POST', { goal: 'WR' });
     assert.equal(ideas.status, 200);
     assert.ok(Array.isArray(ideas.data.offers));
+    const otherIdeas = await request('analysis/find', guest.cookie, 'POST', {
+      goal: 'WR',
+      teamA: 'demo_b',
+    });
+    assert.equal(otherIdeas.status, 200);
+    assert.ok(otherIdeas.data.offers.every((o) => o.input.teamA === 'demo_b'));
+    assert.equal(
+      (await request('analysis/find', guest.cookie, 'POST', { goal: 'WR', teamA: 'foreign-team' }))
+        .status,
+      400,
+    );
     assert.equal(
       (await request('analysis/find', guest.cookie, 'POST', { goal: 'invalid' })).status,
       400,

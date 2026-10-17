@@ -69,14 +69,28 @@ globalThis.fetch = async (url, options) => {
         owner_id: '123456789',
         starters: ['101', '102'],
         players: ['101', '102', '103'],
-        settings: { wins: 1, losses: 1 },
+        settings: {
+          wins: 1,
+          losses: 1,
+          fpts: 250,
+          fpts_decimal: 45,
+          fpts_against: 200,
+          fpts_against_decimal: 7,
+        },
       },
       {
         roster_id: 2,
         owner_id: '987654321',
         starters: ['201'],
         players: ['201'],
-        settings: { wins: 1, losses: 1 },
+        settings: {
+          wins: 1,
+          losses: 1,
+          fpts: 270,
+          fpts_decimal: 12,
+          fpts_against: 250,
+          fpts_against_decimal: 45,
+        },
       },
     ];
   else if (path === 'players/nfl')

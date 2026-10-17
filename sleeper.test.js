@@ -139,3 +139,21 @@ test('client coalesces requests, caches players for 24 hours, and explains upstr
   const limited = createSleeperClient({ fetcher: async () => new Response('{}', { status: 429 }) });
   await assert.rejects(() => limited.lookup('one'), /too many requests/);
 });
+
+test('season standings preserve fractional totals and distinguish missing scores from zero', async () => {
+  const { rosterStandings } = await import('./sleeper.js');
+  assert.deepEqual(
+    rosterStandings({
+      wins: 4,
+      losses: 1,
+      ties: 0,
+      fpts: 623,
+      fpts_decimal: 45,
+      fpts_against: 500,
+      fpts_against_decimal: 7,
+    }),
+    { wins: 4, losses: 1, ties: 0, pointsFor: 623.45, pointsAgainst: 500.07 },
+  );
+  assert.equal(rosterStandings({}).pointsFor, null);
+  assert.equal(rosterStandings({ fpts: 0 }).pointsFor, 0);
+});

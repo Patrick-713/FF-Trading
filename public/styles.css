@@ -2896,3 +2896,69 @@ html[data-view='news'] #format-switch {
   color: var(--muted);
   margin-bottom: 20px;
 }
+
+.league-format-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.league-format-label strong {
+  color: #83e9dc;
+  font-size: 14px;
+}
+.league-format-label small {
+  color: var(--muted);
+  font-size: 12px;
+}
+.league-overview-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+.league-overview-actions span {
+  color: var(--muted);
+  font-size: 13px;
+}
+.standings-panel {
+  margin-bottom: 28px;
+}
+.standings-manager {
+  display: block;
+  color: var(--muted);
+  margin-top: 5px;
+}
+.standings-panel table {
+  min-width: 660px;
+}
+#trade-team {
+  max-width: 100%;
+}
+@media (max-width: 760px) {
+  .league-format-label {
+    gap: 5px;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .league-overview-actions {
+    align-items: flex-start;
+    gap: 8px;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 760px) {
+  .standings-panel table {
+    min-width: 0;
+  }
+  .standings-panel .table-scroll > table tr {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 18px 0;
+  }
+  .standings-panel .table-scroll > table td:nth-child(2),
+  .standings-panel .table-scroll > table td:last-child {
+    grid-column: 1/-1;
+  }
+}

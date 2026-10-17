@@ -168,7 +168,8 @@ test('prepared preseason dynasty snapshots support prospects and picks without m
       /no verified prospect metadata/,
     );
     assert.equal(findTrades(model, { goal: 'contend' }).offers.length, 0);
-    assert.equal((await f.model('redraft', { week: 0, mode: 'redraft' })).data.ready, false);
+    assert.equal((await f.model('redraft', { week: 0, mode: 'redraft' })).settings.mode, 'dynasty');
+    assert.equal((await f.model('redraft', { week: 0, mode: 'redraft' })).data.prospectOnly, true);
     assert.equal((await f.model('missing', { week: 0, prepared: false })).data.ready, false);
   } finally {
     f.db.close();

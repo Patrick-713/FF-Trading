@@ -31,18 +31,18 @@ export function tradeTools(model, selectedA, selectedB, assumptions, includeWaiv
   );
   return [
     `<section class="panel trade-tools"><div class="panel-heading"><h2>Start with a player or a goal</h2>`,
-    `<button class="trade-button" id="open-finder">Find trades for me →</button>`,
+    `<button class="trade-button" id="open-finder">Find trade ideas →</button>`,
     `</div>`,
     `<div class="link-content"><label for="trade-search">Search players across the league</label>`,
     `<input id="trade-search" type="search" placeholder="Player name, position or NFL team" value="${esc(query)}" autocomplete="off"><div id="trade-search-results" aria-live="polite">${tradeSearch(model, query)}</div>`,
     `</div>`,
     `</section>`,
-    `<details class="panel assumption-panel"><summary>Scenario assumptions ${assets.length ? '· ' + assets.length + ' selected assets' : ''}</summary><div class="link-content"><p class="muted">Workload scales past-scoring pace and current value. Development changes dynasty value only; it is a scenario assumption, not a growth forecast. Picks have no known draft position.</p>`,
+    `<details class="panel assumption-panel"><summary>Scenario assumptions ${assets.length ? '· ' + assets.length + ' selected assets' : ''}</summary><div class="link-content"><p class="muted">Workload scales past-scoring pace and current value. ${model.settings.mode === 'dynasty' ? 'Development changes dynasty value only; it is a scenario assumption, not a growth forecast. Picks have no known draft position.' : 'Adjust workload to explore a change in playing time.'}</p>`,
     `<label class="waiver-toggle"><input id="include-waivers" type="checkbox" ${includeWaivers ? 'checked' : ''}> Suggest waiver replacements for spots this trade opens</label>${
       assets
         .map((a) => {
           const v = assumptions[a.id] || {};
-          return `<div class="assumption-row"><strong>${esc(a.name)}</strong>${a.kind === 'pick' ? `<label>Pick position<select data-assumption="tier" data-asset="${esc(a.id)}">${['first', 'early', 'mid', 'late'].map((t) => `<option value="${t}" ${t === (v.tier || 'mid') ? 'selected' : ''}>${t === 'first' ? 'First in round' : t}</option>`).join('')}</select></label>` : `<label>Workload<select data-assumption="workload" data-asset="${esc(a.id)}">${[0.5, 0.7, 0.85, 1, 1.15, 1.3, 1.5].map((n) => `<option value="${n}" ${n === (v.workload ?? 1) ? 'selected' : ''}>${Math.round(n * 100)}%</option>`).join('')}</select></label><label>Dynasty development<select data-assumption="development" data-asset="${esc(a.id)}">${[0.5, 0.7, 0.85, 1, 1.15, 1.3, 1.5].map((n) => `<option value="${n}" ${n === (v.development ?? 1) ? 'selected' : ''}>${Math.round(n * 100)}%</option>`).join('')}</select></label>`}</div>`;
+          return `<div class="assumption-row"><strong>${esc(a.name)}</strong>${a.kind === 'pick' ? `<label>Pick position<select data-assumption="tier" data-asset="${esc(a.id)}">${['first', 'early', 'mid', 'late'].map((t) => `<option value="${t}" ${t === (v.tier || 'mid') ? 'selected' : ''}>${t === 'first' ? 'First in round' : t}</option>`).join('')}</select></label>` : `<label>Workload<select data-assumption="workload" data-asset="${esc(a.id)}">${[0.5, 0.7, 0.85, 1, 1.15, 1.3, 1.5].map((n) => `<option value="${n}" ${n === (v.workload ?? 1) ? 'selected' : ''}>${Math.round(n * 100)}%</option>`).join('')}</select></label>${model.settings.mode === 'dynasty' ? `<label>Dynasty development<select data-assumption="development" data-asset="${esc(a.id)}">${[0.5, 0.7, 0.85, 1, 1.15, 1.3, 1.5].map((n) => `<option value="${n}" ${n === (v.development ?? 1) ? 'selected' : ''}>${Math.round(n * 100)}%</option>`).join('')}</select></label>` : ''}`}</div>`;
         })
         .join('') || '<p>Select assets below to adjust individual assumptions.</p>'
     }<button class="trade-button" id="reset-assumptions">Reset assumptions</button>`,
@@ -62,11 +62,13 @@ export function tradeResult(r, model) {
     return [
       `<article class="panel result-card"><h3>${esc(model.teams.find((t) => t.id === report.team)?.name || 'Team')}</h3>`,
       `<div class="horizon-grid"><div><span>Help now · current value</span>${change(report.current.change)}<small>${report.paceAvailable === false ? 'No completed-game production' : fmt(report.current.before) + ' → ' + fmt(report.current.after)}</small></div>`,
-      `<div><span>Long term · dynasty value</span>${change(report.future.change)}<small>${fmt(report.future.before)} → ${fmt(report.future.after)}</small></div>`,
+      model.settings.mode === 'dynasty'
+        ? `<div><span>Long term · dynasty value</span>${change(report.future.change)}<small>${fmt(report.future.before)} → ${fmt(report.future.after)}</small></div>`
+        : '',
       `</div>`,
       `<div class="result-metric"><span>Starter pace change</span>${change(report.paceChange)}</div>`,
       `<p>${report.paceAvailable === false ? 'No completed-game production. Starter pace is unavailable.' : fmt(report.beforePace) + ' → ' + fmt(report.afterPace) + ' pts/week · past production'}</p>`,
-      `<p>${report.paceChange > 0 && report.future.change < 0 ? 'Contender trade-off: better starter pace, lower dynasty value.' : report.paceChange < 0 && report.future.change > 0 ? 'Rebuilding trade-off: more dynasty value, lower starter pace.' : 'Consider both your competitive window and roster depth.'}</p>`,
+      `<p>${model.settings.mode === 'dynasty' && report.paceChange > 0 && report.future.change < 0 ? 'Contender trade-off: better starter pace, lower dynasty value.' : model.settings.mode === 'dynasty' && report.paceChange < 0 && report.future.change > 0 ? 'Rebuilding trade-off: more dynasty value, lower starter pace.' : 'Consider both your competitive window and roster depth.'}</p>`,
       `<div class="position-depth">${Object.entries(report.positions)
         .map(([p, n]) => `<span>${p} ${n.before} → ${n.after}</span>`)
         .join('')}</div>`,
@@ -81,15 +83,15 @@ export function tradeResult(r, model) {
     ].join('');
   };
   return [
-    `<section class="result-summary"><span class="eyebrow">${esc(r.settings.mode.toUpperCase())} · MODEL ${esc(r.modelVersion || 'legacy')} · BOTH TIME HORIZONS</span><h2>${esc(r.summary)}</h2>`,
+    `<section class="result-summary"><span class="eyebrow">${esc(r.settings.mode.toUpperCase())} · MODEL ${esc(r.modelVersion || 'legacy')} · ${model.settings.mode === 'dynasty' ? 'BOTH TIME HORIZONS' : 'THIS SEASON'}</span><h2>${esc(r.summary)}</h2>`,
     `<p>Send ${fmt(r.give)} · Receive ${fmt(r.get)} · ${signed(r.difference)}% exchange difference</p>`,
     `</section>`,
     `<div class="trade-builder">${panel(r.teamA)}${panel(r.teamB)}</div>`,
     `<section class="panel result-card"><h3>How sensitive is this trade?</h3>`,
     `<p>Unadjusted model: ${signed(r.baseline.difference)}% exchange difference. Your assumptions: ${signed(r.difference)}%.</p>`,
     `<p><b>${r.verdictFlips ? 'The verdict changes under the tested assumptions.' : 'The verdict stays the same in these tested cases.'}</b> These are illustrative bounds, not probabilities.</p>`,
-    `<div class="sensitivity-grid">${r.sensitivity.map((c) => `<article><strong>${esc(c.label)}</strong><p>${esc(c.verdict)} · ${signed(c.difference)}%</p><small>Starter pace ${signed(c.paceChange)} · Dynasty ${signed(c.futureChange)}</small></article>`).join('')}</div>`,
-    `<p class="muted">Stress test: incoming workload ±15% and dynasty development ±10%, with opposite changes to outgoing players; incoming picks early / late with outgoing picks reversed. Multipliers stop at 50 to 150%.</p>`,
+    `<div class="sensitivity-grid">${r.sensitivity.map((c) => `<article><strong>${esc(c.label)}</strong><p>${esc(c.verdict)} · ${signed(c.difference)}%</p><small>Starter pace ${signed(c.paceChange)}${model.settings.mode === 'dynasty' ? ` · Dynasty ${signed(c.futureChange)}` : ''}</small></article>`).join('')}</div>`,
+    `<p class="muted">${model.settings.mode === 'dynasty' ? 'Stress test: incoming workload ±15% and dynasty development ±10%, with opposite changes to outgoing players; incoming picks early / late with outgoing picks reversed.' : 'Stress test: incoming workload changes by 15%, with opposite changes to outgoing players.'} Multipliers stop at 50 to 150%.</p>`,
     `</section>`,
     `<div class="scenario-save"><label for="scenario-title">Scenario name</label>`,
     `<input id="scenario-title" maxlength="80" placeholder="e.g. Improve my WR room"><button class="primary" id="save-scenario">Save this scenario</button>`,
@@ -117,6 +119,10 @@ export function finderView(model, finder, goal) {
     `</div>`,
     `<section class="panel result-card"><label for="trade-goal">Your goal</label>`,
     `<select id="trade-goal">${Object.entries(goals)
+      .filter(
+        ([id]) =>
+          model.settings.mode === 'dynasty' || !['younger', 'picks', 'rebuild'].includes(id),
+      )
       .map(
         ([id, name]) =>
           `<option value="${id}" ${id === goal ? 'selected' : ''} ${(id === 'picks' && model.settings.mode !== 'dynasty') || (id === 'contend' && model.data?.productionAvailable === false) ? 'disabled' : ''}>${name}</option>`,
@@ -137,7 +143,7 @@ export function finderView(model, finder, goal) {
                     `<p><b>Send:</b> ${o.result.sent.map((a) => esc(a.name)).join(' + ')}</p>`,
                     `<p><b>Receive:</b> ${o.result.received.map((a) => esc(a.name)).join(' + ')}</p>`,
                     `<p>${esc(o.partnerReason)}</p>`,
-                    `<p>You: ${signed(o.result.teamA.paceChange)} starter pts/wk · ${signed(o.result.teamA.future.change)} dynasty value</p>`,
+                    `<p>You: ${signed(o.result.teamA.paceChange)} starter pts/wk${model.settings.mode === 'dynasty' ? ` · ${signed(o.result.teamA.future.change)} dynasty value` : ''}</p>`,
                     `<p>Partner: ${signed(o.result.teamB.paceChange)} starter pts/wk · ${signed(o.result.teamB.future.change)} dynasty value</p>`,
                     `<p class="muted">Suggested cuts: you ${o.result.teamA.roster.requiredCuts}, partner ${o.result.teamB.roster.requiredCuts}. Assumed waiver additions: you ${o.result.teamA.roster.replacements.length}, partner ${o.result.teamB.roster.replacements.length}.</p>`,
                     `<button class="trade-button" data-offer="${i}">Explore and adjust →</button>`,

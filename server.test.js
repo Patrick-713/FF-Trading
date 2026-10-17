@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { once } from 'node:events';
 import { DatabaseSync } from 'node:sqlite';
 
-test('preseason API imports TE scoring, permits dynasty prospect trades and keeps redraft unavailable', async () => {
+test('preseason API applies linked dynasty format and permits prospect trades without current production', async () => {
   const folder = mkdtempSync(join(tmpdir(), 'ff-preseason-')),
     port = 47000 + Math.floor(Math.random() * 2000);
   let child;
@@ -50,6 +50,9 @@ test('preseason API imports TE scoring, permits dynasty prospect trades and keep
     );
     const model = (await request('analysis')).data;
     assert.equal(model.settings.tePremium, 0.5);
+    assert.equal(model.teams[0].pointsFor, 250.45);
+    assert.equal(model.teams[0].pointsAgainst, 200.07);
+    assert.equal(model.teams[0].wins, 1);
     assert.equal(model.data.prospectOnly, true);
     assert.equal(model.data.ready, true);
     const input = { teamA: 'sl_1', teamB: 'sl_2', sendA: ['101'], sendB: ['201'] };
@@ -61,8 +64,9 @@ test('preseason API imports TE scoring, permits dynasty prospect trades and keep
       (await request('analysis/save', 'POST', input)).data.saved[0].result.modelVersion,
       '2.4.0',
     );
-    await request('analysis/settings', 'PUT', { mode: 'redraft' });
-    assert.equal((await request('analysis/trade', 'POST', input)).status, 409);
+    const fixedFormat = await request('analysis/settings', 'PUT', { mode: 'redraft' });
+    assert.equal(fixedFormat.data.settings.mode, 'dynasty');
+    assert.equal((await request('analysis/trade', 'POST', input)).status, 200);
   } finally {
     if (child?.exitCode === null) {
       child.kill();

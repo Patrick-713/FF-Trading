@@ -17,7 +17,9 @@ let state,
   result = null,
   playerQuery = '',
   playerPosition = 'ALL',
-  rosterTeam = null;
+  rosterTeam = null,
+  tradeTeam = null,
+  showStandings = false;
 let assumptions = {},
   includeWaivers = true,
   tradeQuery = '',
@@ -73,6 +75,16 @@ function playerTable(players) {
     `</div>`,
   ].join('');
 }
+const tradeOwn = () => model.teams.find((t) => t.id === tradeTeam) || currentTeam();
+const tradeModel = () => ({ ...model, ownTeam: tradeOwn().id });
+function standingsView() {
+  const points = (value) =>
+    new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
+      value,
+    );
+  const teams = [...model.teams].sort((a, b) => (b.pointsFor ?? -1) - (a.pointsFor ?? -1));
+  return `<section class="panel standings-panel" id="league-standings"><div class="panel-heading"><div><span class="eyebrow">YOUR WHOLE LEAGUE</span><h2>Points standings</h2></div><button class="text-button" data-standings>Hide standings</button></div><div class="link-content"><p class="muted">Ranked by total season points, not playoff seeding. Records and points are from your last Sleeper sync.</p><div class="table-scroll"><table><thead><tr><th>POINTS RANK</th><th>TEAM</th><th>RECORD</th><th>POINTS FOR</th><th>POINTS AGAINST</th><th>ROSTER</th></tr></thead><tbody>${teams.map((t, i) => `<tr><td data-label="Points rank">${t.pointsFor === null ? 'Unavailable' : i + 1}</td><td data-label="Team"><strong>${esc(t.name)}</strong>${t.id === model.ownTeam ? ' (You)' : ''}<small class="standings-manager">${esc(t.manager)}</small></td><td data-label="Record">${t.wins ?? 0} W / ${t.losses ?? 0} L${t.ties ? ` / ${t.ties} T` : ''}</td><td data-label="Points for">${t.pointsFor === null ? 'Sync needed' : points(t.pointsFor)}</td><td data-label="Points against">${t.pointsAgainst === null ? 'Unavailable' : points(t.pointsAgainst)}</td><td><button class="trade-button" data-roster="${esc(t.id)}">View team</button></td></tr>`).join('')}</tbody></table></div></div></section>`;
+}
 function teamView() {
   const own = currentTeam(),
     team = model.teams.find((t) => t.id === rosterTeam) || own;
@@ -81,7 +93,7 @@ function teamView() {
       .sort((a, b) => b.value - a.value),
     picks = model.picks.filter((p) => p.owner === team.id);
   return [
-    `${intro('Know what your roster is worth.', `${model.settings.mode === 'dynasty' ? 'Long-term talent and draft capital' : 'Current production and opportunity'} · ${esc(team.name)}`)}<div class="stats"><article><span>Total roster value</span><h2>${fmt(team.playerValue + team.pickValue)} <small>VALUE</small></h2>`,
+    `${model.linked ? `<div class="league-overview-actions"><button class="primary" data-standings aria-expanded="${showStandings}" aria-controls="league-standings">${showStandings ? 'Hide' : 'View all teams and'} standings</button><span>Season points and records for every team</span></div>${showStandings ? standingsView() : ''}` : ''}${intro('Know what your roster is worth.', `${model.settings.mode === 'dynasty' ? 'Long-term talent and draft capital' : 'Current production and opportunity'} · ${esc(team.name)}`)}<div class="stats"><article><span>Total roster value</span><h2>${fmt(team.playerValue + team.pickValue)} <small>VALUE</small></h2>`,
     `<p>Players${model.settings.mode === 'dynasty' ? ' + future picks' : ''}</p>`,
     `</article>`,
     `<article><span>Player value</span><h2>${fmt(team.playerValue)}</h2>`,
@@ -100,7 +112,7 @@ function teamView() {
     `</div>${playerTable(players)}</section>`,
     `<section class="feature-card decision-card"><span class="eyebrow">BEFORE YOU MAKE A MOVE</span><h2>Explore the trade.<br>Keep the context.</h2>`,
     `<p>Compare players${model.settings.mode === 'dynasty' ? ' and draft picks' : ''}, roster value, position depth, and starter pace on both sides.</p>`,
-    `<p>Switch between dynasty and redraft to see how time horizon changes the same players.</p>`,
+    `<p>${model.linked ? 'Your league format is applied automatically. Choose either team in the trade builder.' : 'Try redraft trades with real NFL players on example rosters. Link Sleeper to use your own league.'}</p>`,
     `<button class="light-button" data-view="trade">Build a trade →</button>`,
     `</section>`,
     `</div>${model.settings.mode === 'dynasty' ? `<section class="panel picks-panel"><div class="panel-heading"><div><span class="eyebrow">DYNASTY DRAFT CAPITAL</span><h2>Future picks</h2></div><span class="muted">Unknown slots use mid-round estimates</span></div><div class="pick-grid">${picks.map((p) => `<article class="pick-card"><span>${p.year}</span><strong>Round ${p.round}</strong><small>Originally ${esc(p.originalTeam)}</small><b>${fmt(p.value)} VALUE</b><small>Late to early range ${p.low} to ${p.high}</small></article>`).join('') || '<p class="empty">Future picks are not available for this league. Dynasty leagues need draft-round settings and the traded-pick feed; sync Sleeper to refresh.</p>'}</div></section>` : ''}<section class="panel league-panel"><div class="panel-heading"><h2>League roster values</h2>`,
@@ -123,7 +135,7 @@ function playersView() {
         `${p.name} ${p.club}`.toLowerCase().includes(playerQuery.toLowerCase()),
     )
     .sort((a, b) => b.value - a.value);
-  return `${intro('Every player. Two perspectives.', 'Explore model values and the statistics behind them. Select a player to see the calculation.')}<section class="panel"><div class="panel-heading"><h2>Player values <span class="pill">${players.length}</span></h2><div class="player-filters"><input id="player-query" aria-label="Search players" placeholder="Search player or team" value="${esc(playerQuery)}"><select id="player-position" aria-label="Filter position">${['ALL', 'QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'LB', 'DL', 'DB'].map((p) => `<option ${p === playerPosition ? 'selected' : ''}>${p}</option>`).join('')}</select></div></div><div id="player-results">${playerTable(players)}</div></section>`;
+  return `${intro('Player values for your league.', 'Explore model values and the statistics behind them. Select a player to see the calculation.')}<section class="panel"><div class="panel-heading"><h2>Player values <span class="pill">${players.length}</span></h2><div class="player-filters"><input id="player-query" aria-label="Search players" placeholder="Search player or team" value="${esc(playerQuery)}"><select id="player-position" aria-label="Filter position">${['ALL', 'QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'LB', 'DL', 'DB'].map((p) => `<option ${p === playerPosition ? 'selected' : ''}>${p}</option>`).join('')}</select></div></div><div id="player-results">${playerTable(players)}</div></section>`;
 }
 function assetList(team, side) {
   const selected = side === 'A' ? selectedA : selectedB;
@@ -132,14 +144,14 @@ function assetList(team, side) {
   return `<div class="asset-list">${[...players, ...picks].map((a) => `<label class="asset-option"><input type="checkbox" data-side="${side}" value="${esc(a.id)}" ${selected.has(a.id) ? 'checked' : ''}><span class="position">${a.kind === 'pick' ? 'PICK' : esc(a.position)}</span><span class="asset-name"><strong>${esc(a.name)}</strong><small>${a.kind === 'pick' ? `${esc(a.originalTeam)} · unknown slot` : esc(a.club) + ' · ' + (a.games ? a.games + ' games' : 'low-confidence estimate')}</small></span><b>${fmt(a.value)}</b></label>`).join('')}</div>`;
 }
 function tradeView() {
-  if (!partner || !model.teams.some((t) => t.id === partner) || partner === model.ownTeam)
-    partner = model.teams.find((t) => t.id !== model.ownTeam)?.id;
-  const own = currentTeam();
+  if (!partner || !model.teams.some((t) => t.id === partner) || partner === tradeOwn().id)
+    partner = model.teams.find((t) => t.id !== tradeOwn().id)?.id;
+  const own = tradeOwn();
   return [
-    `${intro('Test the trade. See both sides.', `Choose players${model.settings.mode === 'dynasty' ? ' and dynasty picks' : ''} to exchange. This will not alter your real roster.`, false)}${tradeTools(model, selectedA, selectedB, assumptions, includeWaivers, tradeQuery)}<div class="trade-builder"><section class="panel"><div class="panel-heading"><div><span class="eyebrow">YOU SEND</span><h2>${esc(own.name)}</h2>`,
+    `${intro('Test the trade. See both sides.', `Choose players${model.settings.mode === 'dynasty' ? ' and dynasty picks' : ''} to exchange. ${model.linked ? 'Uses your Sleeper league format. Your real roster stays unchanged.' : 'Real NFL players on example rosters. Link Sleeper to use your own teams.'}`, false)}${tradeTools(tradeModel(), selectedA, selectedB, assumptions, includeWaivers, tradeQuery)}<div class="trade-builder"><section class="panel"><div class="panel-heading"><div><span class="eyebrow">TEAM A SENDS</span><label class="sr-only" for="trade-team">Team to trade from</label><select id="trade-team" aria-label="Team to trade from">${model.teams.map((t) => `<option value="${esc(t.id)}" ${own.id === t.id ? 'selected' : ''}>${esc(t.name)}${t.id === model.ownTeam && model.linked ? ' (Your team)' : ''}</option>`).join('')}</select>`,
     `</div>`,
     `<span id="sum-A" class="value-number">${assetSum(selectedA)}</span></div>${assetList(own.id, 'A')}</section>`,
-    `<section class="panel"><div class="panel-heading"><div><span class="eyebrow">YOU RECEIVE</span><select id="trade-partner" aria-label="Trade partner">${model.teams
+    `<section class="panel"><div class="panel-heading"><div><span class="eyebrow">TEAM B SENDS</span><select id="trade-partner" aria-label="Trade partner">${model.teams
       .filter((t) => t.id !== own.id)
       .map(
         (t) =>
@@ -291,9 +303,7 @@ function render() {
   $('#season-label').textContent = String(model.season);
   $('#week').textContent = model.settings.mode.toUpperCase();
   $('#format-switch').innerHTML = [
-    `<div class="segmented format-modes"><button data-mode="redraft" class="${model.settings.mode === 'redraft' ? 'selected' : ''}">Redraft</button>`,
-    `<button data-mode="dynasty" class="${model.settings.mode === 'dynasty' ? 'selected' : ''}">Dynasty</button>`,
-    `</div>`,
+    `<div class="league-format-label"><strong>${model.settings.mode === 'dynasty' ? 'Dynasty league' : 'Redraft'}</strong><small>${model.linked ? 'From your Sleeper league' : 'Link a Sleeper dynasty league to include picks'}</small></div>`,
     `<div id="scoring-controls" class="format-details ${scoringExpanded ? 'expanded' : ''}"><button id="scoring-toggle" class="format-toggle" aria-expanded="${scoringExpanded}" aria-controls="league-scoring"><span>League scoring</span><span>${esc(model.settings.scoring.toUpperCase())} · ${model.settings.superflex ? 'Superflex' : '1 QB'} <b aria-hidden="true">⌄</b></span></button><div class="format-options" id="league-scoring"><label>Scoring<select id="scoring" aria-label="Reception scoring"><option value="ppr" ${model.settings.scoring === 'ppr' ? 'selected' : ''}>PPR</option><option value="half" ${model.settings.scoring === 'half' ? 'selected' : ''}>Half PPR</option><option value="standard" ${model.settings.scoring === 'standard' ? 'selected' : ''}>Standard</option></select>`,
     `</label>`,
     `<label>QB format<select id="qb-format" aria-label="Quarterback format"><option value="single" ${!model.settings.superflex ? 'selected' : ''}>1 QB</option><option value="superflex" ${model.settings.superflex ? 'selected' : ''}>Superflex / 2QB</option></select>`,
@@ -310,7 +320,7 @@ function render() {
       n.classList.toggle('active', n.dataset.view === (view === 'finder' ? 'trade' : view)),
     );
   const notice = [
-    `<div class="data-banner"><span class="dot"></span>${model.linked ? esc(state.connection.league.name) : 'Fictional demo league'} · ${esc(model.data.source)} · Model ${esc(model.modelVersion || 'legacy')} · ${model.data.season}, through week ${model.data.throughWeek} · ${model.data.matched}/${model.data.total} players with matched stats${model.linked ? ` · Analysis refreshed: ${model.data.refreshedAt ? esc(new Date(model.data.refreshedAt).toLocaleString()) : 'Not prepared'}${model.data.stale ? ' · Refresh recommended' : ''} <button class="text-button" data-sync>Refresh league data ↻</button>` : ''} <button class="text-button" id="methodology">How values work ↗</button>`,
+    `<div class="data-banner"><span class="dot"></span>${model.linked ? esc(state.connection.league.name) : 'Example rosters with real NFL players'} · ${esc(model.data.source)} · Model ${esc(model.modelVersion || 'legacy')} · ${model.data.season}, through week ${model.data.throughWeek}${!model.linked ? ` · Reference captured ${esc(new Date(model.data.fetched).toLocaleDateString())}` : ''} · ${model.data.matched}/${model.data.total} players with matched stats${model.linked ? ` · Analysis refreshed: ${model.data.refreshedAt ? esc(new Date(model.data.refreshedAt).toLocaleString()) : 'Not prepared'}${model.data.stale ? ' · Refresh recommended' : ''} <button class="text-button" data-sync>Refresh league data ↻</button>` : ''} <button class="text-button" id="methodology">How values work ↗</button>`,
     `</div>${model.data.warning ? `<p class="data-warning" role="status">${esc(model.data.warning)}</p>` : ''}`,
   ].join('');
   $('#main').innerHTML =
@@ -322,7 +332,7 @@ function render() {
         : view === 'trade'
           ? tradeView()
           : view === 'finder'
-            ? finderView(model, finder, goal)
+            ? finderView(tradeModel(), finder, goal)
             : view === 'saved'
               ? savedView()
               : view === 'news'
@@ -334,13 +344,14 @@ function render() {
 /** Load the account context before reading that account's active analysis. */
 async function reload() {
   finder = null;
+  tradeTeam = null;
   assumptions = {};
   tradeQuery = '';
   state = await api('state');
   model = await api('analysis');
 }
 const tradeInput = () => ({
-  teamA: model.ownTeam,
+  teamA: tradeOwn().id,
   teamB: partner,
   sendA: [...selectedA],
   sendB: [...selectedB],
@@ -383,6 +394,11 @@ document.addEventListener('click', async (e) => {
     void loadNews();
     return;
   }
+  if (e.target.closest('[data-standings]')) {
+    showStandings = !showStandings;
+    render();
+    return;
+  }
   const nav = e.target.closest('button[data-view]');
   if (nav) {
     view = ['sleeper', 'more'].includes(nav.dataset.view) ? 'account' : nav.dataset.view;
@@ -400,7 +416,7 @@ document.addEventListener('click', async (e) => {
   const player = e.target.closest('[data-trade-player]');
   if (player) {
     const p = model.players.find((p) => p.id === player.dataset.tradePlayer);
-    if (p.owner === model.ownTeam) selectedA.add(p.id);
+    if (p.owner === tradeOwn().id) selectedA.add(p.id);
     else {
       if (partner !== p.owner) {
         partner = p.owner;
@@ -474,7 +490,7 @@ document.addEventListener('click', async (e) => {
       button.disabled = true;
       button.textContent = 'Searching…';
       try {
-        finder = await api('analysis/find', 'POST', { goal, includeWaivers });
+        finder = await api('analysis/find', 'POST', { goal, includeWaivers, teamA: tradeOwn().id });
         render();
       } finally {
         if (button.isConnected) {
@@ -487,6 +503,7 @@ document.addEventListener('click', async (e) => {
     const offer = e.target.closest('[data-offer]');
     if (offer) {
       const o = finder.offers[Number(offer.dataset.offer)];
+      tradeTeam = o.input.teamA;
       partner = o.input.teamB;
       selectedA = new Set(o.input.sendA);
       selectedB = new Set(o.input.sendB);
@@ -501,11 +518,6 @@ document.addEventListener('click', async (e) => {
       assumptions = {};
       result = null;
       render();
-      return;
-    }
-    const newMode = e.target.closest('[data-mode]');
-    if (newMode) {
-      await changeSettings({ mode: newMode.dataset.mode });
       return;
     }
     const link = e.target.closest('[data-link-league]');
@@ -530,6 +542,8 @@ document.addEventListener('click', async (e) => {
       result = null;
       partner = null;
       rosterTeam = null;
+      tradeTeam = null;
+      showStandings = false;
       view = 'team';
       render();
       toast('League data updated.');
@@ -575,6 +589,7 @@ document.addEventListener('click', async (e) => {
     if (load) {
       const s = model.saved.find((s) => s.id === load.dataset.load);
       await changeSettings(s.result.settings);
+      tradeTeam = s.input.teamA;
       partner = s.input.teamB;
       selectedA = new Set(s.input.sendA);
       selectedB = new Set(s.input.sendB);
@@ -650,6 +665,17 @@ document.addEventListener('change', async (e) => {
     document.querySelectorAll('.asset-list').forEach((n, i) => (n.scrollTop = scrolls[i] || 0));
     return;
   }
+  if (t.id === 'trade-team') {
+    tradeTeam = t.value;
+    partner = null;
+    selectedA.clear();
+    selectedB.clear();
+    assumptions = {};
+    result = null;
+    finder = null;
+    render();
+    return;
+  }
   if (t.id === 'trade-partner') {
     partner = t.value;
     selectedB.clear();
@@ -694,7 +720,7 @@ const filteredPlayers = () =>
 document.addEventListener('input', (e) => {
   if (e.target.id === 'trade-search') {
     tradeQuery = e.target.value;
-    $('#trade-search-results').innerHTML = tradeSearch(model, tradeQuery);
+    $('#trade-search-results').innerHTML = tradeSearch(tradeModel(), tradeQuery);
   }
   if (e.target.id === 'player-query') {
     playerQuery = e.target.value;

@@ -10,8 +10,8 @@ import { openDatabase } from './storage.js';
 import { consumeLimit, clientAddress } from './security.js';
 import { createAuth } from './auth.js';
 import { readPreferences, savePreferences } from './preferences.js';
-import { createSleeperClient, validLeague } from './sleeper.js';
-import { createFantasy } from './fantasy.js';
+import { createSleeperClient, validLeague, rosterStandings } from './sleeper.js';
+import { createFantasy, DEMO_LEAGUE } from './fantasy.js';
 import { loadRookieDrafts } from './prospects.js';
 import { analyzeTrade, findTrades } from './trade-engine.js';
 
@@ -101,7 +101,12 @@ export async function createApplication() {
     if (!linked) return null;
     const s = structuredClone(linked.data),
       raw = s.analysisRefreshedAt ? null : await cached(`league/${linked.league}`),
-      rosters = s.teams.every((t) => Array.isArray(t.playerIds) && Array.isArray(t.protectedIds))
+      rosters = s.teams.every(
+        (t) =>
+          Array.isArray(t.playerIds) &&
+          Array.isArray(t.protectedIds) &&
+          Object.hasOwn(t, 'pointsFor'),
+      )
         ? null
         : await cached(`league/${linked.league}/rosters`);
     // Enrich imports created before roster capacity and draft metadata were persisted.
@@ -120,6 +125,7 @@ export async function createApplication() {
       const r = rosters?.find((r) => r.roster_id === t.rosterId);
       return {
         ...t,
+        ...(r ? rosterStandings(r.settings) : {}),
         playerIds: t.playerIds || r?.players || [],
         protectedIds: t.protectedIds || [...(r?.reserve || []), ...(r?.taxi || [])],
       };
@@ -349,7 +355,13 @@ export async function createApplication() {
             );
           if (path === '/api/analysis/find') {
             await consumeLimit(db, 'finder:' + account, 15, 60000);
-            return json(res, 200, findTrades(model, input));
+            if (input.teamA && !model.teams.some((t) => t.id === input.teamA))
+              throw invalid('Choose a team in this league.');
+            return json(
+              res,
+              200,
+              findTrades(input.teamA ? { ...model, ownTeam: input.teamA } : model, input),
+            );
           }
           const result = analyzeTrade(model, input);
           if (path === '/api/analysis/trade') return json(res, 200, result);
@@ -376,7 +388,7 @@ export async function createApplication() {
                 includeWaivers: input.includeWaivers !== false,
               },
               result,
-              league: (await connection(account))?.league || 'demo',
+              league: (await connection(account))?.league || DEMO_LEAGUE,
             }),
             new Date().toISOString(),
           );

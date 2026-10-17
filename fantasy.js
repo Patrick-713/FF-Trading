@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+export const DEMO_LEAGUE = 'demo-real-2026-v1';
+const demoData = JSON.parse(readFileSync(new URL('./demo-data.json', import.meta.url), 'utf8'));
 /** Fantasy application service. Refresh prepares inputs; model reads them without fetching providers. */
 import { normalizePlayer } from './player-metadata.js';
 import { leagueDefaults } from './league-format.js';
@@ -222,7 +225,7 @@ export function createFantasy(db, { fetcher = globalThis.fetch } = {}) {
   }
   /** Assemble player values and roster summaries from saved inputs and league settings. */
   async function model(account, snapshot, catalog, input) {
-    const league = snapshot?.league.id || 'demo';
+    const league = snapshot?.league.id || DEMO_LEAGUE;
     const savedSnapshot = snapshot ? await frozenInputs(account, league) : null;
     const inputs = savedSnapshot?.inputs || null;
     const metadataTime = inputs?.asOf ? new Date(inputs.asOf).getTime() : Date.now(),
@@ -239,7 +242,8 @@ export function createFantasy(db, { fetcher = globalThis.fetch } = {}) {
       input,
       stored ? { ...imported.settings, ...JSON.parse(stored.data) } : imported.settings,
     );
-    const season = Number(snapshot?.league.season || new Date().getUTCFullYear());
+    settings.mode = imported.settings.mode;
+    const season = Number(snapshot?.league.season || demoData.season);
     let data,
       teams,
       allPlayers,
@@ -292,78 +296,24 @@ export function createFantasy(db, { fetcher = globalThis.fetch } = {}) {
       picks = pickInventory(snapshot);
     } else {
       teams = [
-        { id: 'demo_a', name: 'Your Demo Team', manager: 'You', playerIds: [] },
-        { id: 'demo_b', name: 'Demo Trade Partner', manager: 'Sample manager', playerIds: [] },
+        { id: 'demo_a', name: 'Example Team A', manager: 'You', playerIds: [] },
+        { id: 'demo_b', name: 'Example Team B', manager: 'Sample manager', playerIds: [] },
       ];
       slots = ['QB', 'RB', 'RB', 'WR', 'WR', 'TE', 'FLEX'];
-      const names = [
-        'Miles Carter',
-        'Jayden Brooks',
-        'Eli Rivers',
-        'Noah Chase',
-        'Amari Stone',
-        'Cole Bennett',
-        'Darius Lane',
-        'Leo Walker',
-        'Jordan West',
-        'Tyler Reed',
-        'Finn Hayes',
-        'Marcus Gray',
-        'Isaac Bell',
-        'Theo Grant',
-        'Owen Fields',
-        'Caleb Price',
-        'Ashton Ford',
-        'Ryan Lake',
-        'Alex Cole',
-        'Luke Moss',
-        'Ben North',
-      ];
-      allPlayers = names.map((name, i) => ({
-        id: `demo_${i}`,
-        kind: 'player',
-        owner: i < 7 ? 'demo_a' : i < 14 ? 'demo_b' : 'free_agent',
-        name,
-        position: slots[i % 7] === 'FLEX' ? 'WR' : slots[i % 7],
-        club: ['SEA', 'BUF', 'PHI', 'CIN'][i % 4],
-        age: 22 + (i % 11),
-        draftRound: 1 + (i % 5),
-        gsis: `demo_${i}`,
-      }));
-      const rows = allPlayers.flatMap((p, i) =>
-        Array.from({ length: 6 }, (_, w) => ({
-          player_id: p.id,
-          position: p.position,
-          week: w + 1,
-          season_type: 'REG',
-          passing_yards: p.position === 'QB' ? 200 + (i + w) * 12 : 0,
-          passing_tds: p.position === 'QB' ? 2 : 0,
-          attempts: p.position === 'QB' ? 32 : 0,
-          carries: p.position === 'RB' ? 15 + (w % 3) : 2,
-          rushing_yards: p.position === 'RB' ? 60 + i * 3 + w * 2 : 8,
-          rushing_tds: p.position === 'RB' && w % 2 === 0 ? 1 : 0,
-          receptions: ['WR', 'TE'].includes(p.position) ? 4 + (w % 3) : 2,
-          targets: 5 + (i % 6),
-          receiving_yards: p.position === 'WR' ? 65 + i * 2 + w * 3 : 30,
-          receiving_tds: w % 3 === 0 ? 1 : 0,
-          target_share: 0.12 + (i % 5) * 0.03,
-          wopr: 0.3 + (i % 5) * 0.05,
-          receiving_air_yards: 60 + i * 5,
-          receiving_epa: 2 + (i % 4),
-          rushing_epa: 1,
-          passing_epa: 3,
-        })),
-      );
-      data = { season, rows, source: 'Fictional demo statistics', fetched: Date.now() };
-      const demoSnapshot = {
-        league: { season, type: 2, draftRounds: 3 },
-        teams: teams.map((t, i) => ({ ...t, rosterId: i + 1 })),
-        tradedPicks: [],
-      };
-      picks = pickInventory(demoSnapshot).map((p) => ({
+      allPlayers = demoData.players.map((p) => ({
         ...p,
-        owner: p.owner === 'sl_1' ? 'demo_a' : p.owner === 'sl_2' ? 'demo_b' : p.owner,
+        age: p.birth
+          ? Math.floor((new Date(demoData.asOf) - new Date(p.birth)) / (365.2425 * 86400000))
+          : null,
       }));
+      data = {
+        season,
+        rows: demoData.rows,
+        source: demoData.source,
+        url: demoData.url,
+        fetched: new Date(demoData.asOf).getTime(),
+      };
+      picks = [];
     }
     if (
       settings.superflex &&
@@ -423,6 +373,11 @@ export function createFantasy(db, { fetcher = globalThis.fetch } = {}) {
         id: t.id,
         name: t.name,
         manager: t.manager,
+        wins: t.wins ?? null,
+        losses: t.losses ?? null,
+        ties: t.ties ?? null,
+        pointsFor: t.pointsFor ?? null,
+        pointsAgainst: t.pointsAgainst ?? null,
         rosterLimit: snapshot?.rosterLimit || (!snapshot ? 7 : null),
         protectedIds: t.protectedIds || [],
         playerValue: roster.reduce((s, p) => s + p.value, 0),
@@ -444,7 +399,7 @@ export function createFantasy(db, { fetcher = globalThis.fetch } = {}) {
             leagueExpression +
             '=? ORDER BY created DESC LIMIT 20',
         )
-        .all(account, snapshot?.league.id || 'demo')
+        .all(account, snapshot?.league.id || DEMO_LEAGUE)
     ).map((r) => ({ id: r.id, ...JSON.parse(r.data), created: r.created }));
     const productionAvailable = data.rows.length > 0;
     const hasProspect = players.some(
@@ -551,11 +506,12 @@ export function createFantasy(db, { fetcher = globalThis.fetch } = {}) {
     };
   }
   async function saveSettings(account, snapshot, input) {
-    const league = snapshot?.league.id || 'demo',
+    const league = snapshot?.league.id || DEMO_LEAGUE,
       stored = await db
         .prepare('SELECT data FROM league_settings WHERE account=? AND league=?')
         .get(account, league);
     const settings = settingsFor(input, stored ? JSON.parse(stored.data) : {});
+    settings.mode = snapshot?.league.type === 2 ? 'dynasty' : 'redraft';
     await db
       .prepare(
         'INSERT INTO league_settings VALUES (?,?,?) ON CONFLICT(account,league) DO UPDATE SET data=excluded.data',

@@ -35,7 +35,7 @@ Analysis exposes three separate flags: `ready` for a usable prepared model, `pro
 
 ## Settings and saved results
 
-`league_settings` has a composite primary key `(account, league)`, with `demo` as the fictional league. `PUT /api/analysis/settings` is the only HTTP operation that writes valuation settings. Switching leagues loads that league's settings/defaults. Saved scenarios remain scoped to their account and league, and retain selections, assumptions, waiver setting, complete result, model version, statistics timestamp and analysis-refresh timestamp. Old scenarios are labeled legacy/unversioned and remain loadable.
+`league_settings` has a composite primary key `(account, league)`, with `demo-real-2026-v1` for the real-player example rosters. Earlier fictional demo saves remain stored separately and are not reinterpreted as real-player selections. `PUT /api/analysis/settings` is the only HTTP operation that writes valuation settings. Switching leagues loads that league's settings/defaults. Saved scenarios remain scoped to their account and league, and retain selections, assumptions, waiver setting, complete result, model version, statistics timestamp and analysis-refresh timestamp. Older linked-league scenarios retain their recorded result and can load selections against the current league format.
 
 ## Data migrations
 
@@ -99,3 +99,5 @@ The service stores up to 20 headlines in `fantasy_cache`, with a ten-minute fres
 Requests have a ten-second timeout and a 256 KB body limit. XML declarations of external entities are rejected. Only valid publication dates and HTTPS links on ESPN's allowed hosts are accepted, and the browser escapes feed text. Headlines stay unchanged, credit ESPN and link to the publisher. News is independent of valuations and does not trigger league refreshes. This adds no API key, paid service, scheduled job or database migration.
 
 Each news card has a native Quick summary disclosure containing the publisher-provided preview. Preview text is preserved and escaped before rendering, never inserted as HTML. Missing or oversized previews show an unavailable message. Previews travel in the same cached feed response, with no extra article requests or AI calls.
+
+League format comes from the linked Sleeper league type and cannot be changed by settings overrides. Unlinked requests always use redraft. `demo-data.json` bundles 21 real players and completed-game public nflverse statistics with source and capture time. `sleeper.js` normalizes fractional season point totals separately from weekly matchup scores. Legacy imports can read those standings from the existing cached roster response without a provider call. Trade simulations accept any two league roster IDs; changing the comparison team never changes the user’s actual linked roster or account.

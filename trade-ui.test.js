@@ -64,6 +64,13 @@ test('builder supports player search, assumptions, analysis, finder and loading 
       ];
       data = model;
     } else throw new Error('Unexpected request ' + path);
+    if (data === model) {
+      model.linked = true;
+      model.teams[0].pointsFor = 623.45;
+      model.teams[0].pointsAgainst = 500.07;
+      model.teams[0].wins = 4;
+      model.teams[0].losses = 1;
+    }
     return { ok: true, json: async () => structuredClone(data) };
   };
   // Avoid toast timers keeping the test alive; production timers are unchanged.
@@ -113,11 +120,12 @@ test('builder supports player search, assumptions, analysis, finder and loading 
     assert.equal(element('#main').innerHTML.includes('id="auth-password"'), false);
     await click('button[data-view]', { view: 'trade' });
     assert.ok(element('#main').innerHTML.includes('trade-search'));
-    handlers.input({ target: { id: 'trade-search', value: 'Leo' } });
-    assert.ok(element('#trade-search-results').innerHTML.includes('Leo Walker'));
+    handlers.input({ target: { id: 'trade-search', value: 'Brock' } });
+    assert.ok(element('#trade-search-results').innerHTML.includes('Brock Purdy'));
     await click('[data-trade-player]', { tradePlayer: 'demo_7' });
     await click('[data-trade-player]', { tradePlayer: 'demo_3' });
-    assert.ok(element('#main').innerHTML.includes('Dynasty development'));
+    assert.equal(element('#main').innerHTML.includes('Dynasty development'), false);
+    assert.equal(element('#format-switch').innerHTML.includes('data-mode='), false);
     await change({
       id: '',
       dataset: { asset: 'demo_7', assumption: 'workload' },
@@ -144,7 +152,26 @@ test('builder supports player search, assumptions, analysis, finder and loading 
     assert.ok(element('#main').innerHTML.includes('candidate offers'));
     await click('[data-mode]', { mode: 'dynasty' });
     await click('button[data-view]', { view: 'trade' });
-    assert.ok(element('#main').innerHTML.includes('PICK'));
+    assert.equal(element('#main').innerHTML.includes('class="position">PICK'), false);
+    await change({ id: 'trade-team', value: 'demo_b' });
+    await click('[data-trade-player]', { tradePlayer: 'demo_7' });
+    await click('[data-trade-player]', { tradePlayer: 'demo_3' });
+    await click('#analyze-trade');
+    assert.equal(lastInput.teamA, 'demo_b');
+    assert.equal(lastInput.teamB, 'demo_a');
+    assert.deepEqual(lastInput.sendA, ['demo_7']);
+    assert.deepEqual(lastInput.sendB, ['demo_3']);
+    model.linked = true;
+    model.teams[0].pointsFor = 623.45;
+    model.teams[0].pointsAgainst = 500.07;
+    model.teams[0].wins = 4;
+    model.teams[0].losses = 1;
+    await click('button[data-view]', { view: 'team' });
+    assert.ok(element('#main').innerHTML.includes('View all teams and'));
+    await click('[data-standings]');
+    assert.ok(element('#main').innerHTML.includes('Points standings'));
+    assert.ok(element('#main').innerHTML.includes('623.45'));
+    assert.ok(element('#main').innerHTML.includes('4 W / 1 L'));
     await click('#methodology');
     assert.ok(element('#details-content').innerHTML.includes('How player values work'));
     assert.ok(

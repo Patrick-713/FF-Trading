@@ -26,6 +26,22 @@ export function completedWeeks(league, nfl) {
   // Avoid pricing a partial game week. Settlement happens after the NFL week advances.
   return Math.min(18, Math.max(0, Number(nfl.leg ?? nfl.week ?? 1) - 1));
 }
+/** Sleeper stores the whole and fractional season totals separately. Missing totals stay unknown. */
+export function rosterStandings(settings = {}) {
+  const total = (whole, decimal) =>
+    settings[whole] === undefined ||
+    settings[whole] === null ||
+    !Number.isFinite(Number(settings[whole]))
+      ? null
+      : Math.round((Number(settings[whole]) + Number(settings[decimal] || 0) / 100) * 100) / 100;
+  return {
+    wins: Number(settings.wins || 0),
+    losses: Number(settings.losses || 0),
+    ties: Number(settings.ties || 0),
+    pointsFor: total('fpts', 'fpts_decimal'),
+    pointsAgainst: total('fpts_against', 'fpts_against_decimal'),
+  };
+}
 export function buildSnapshot(user, league, rosters, members, catalog, weeks, nfl) {
   if (!Array.isArray(rosters) || !rosters.length || !Array.isArray(members))
     throw invalid('Sleeper has not created rosters for this league yet.');
@@ -60,9 +76,7 @@ export function buildSnapshot(user, league, rosters, members, catalog, weeks, nf
       rosterId: r.roster_id,
       playerIds: [...new Set([...(r.players || []), ...(r.reserve || []), ...(r.taxi || [])])],
       protectedIds: [...new Set([...(r.reserve || []), ...(r.taxi || [])])],
-      wins: Number(r.settings?.wins || 0),
-      losses: Number(r.settings?.losses || 0),
-      ties: Number(r.settings?.ties || 0),
+      ...rosterStandings(r.settings),
       points: 0,
     };
   });
