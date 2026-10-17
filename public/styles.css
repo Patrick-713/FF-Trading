@@ -1257,10 +1257,7 @@ select {
 .account-panel {
   max-width: 750px;
 }
-.recovery-code {
-  word-break: break-all;
-  user-select: all;
-}
+
 #account-button {
   white-space: nowrap;
 }

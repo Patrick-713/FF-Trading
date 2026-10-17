@@ -1,17 +1,25 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { once } from 'node:events';
-test('login preserves linked leagues and saved analyses, isolates accounts, rotates sessions, and recovers once', async () => {
+test('login preserves linked leagues and saved analyses, isolates accounts, rotates sessions, and resets by email once', async () => {
   const port = 54000 + Math.floor(Math.random() * 5000),
     folder = mkdtempSync(join(tmpdir(), 'ff-auth-test-'));
   let child;
   async function start() {
     child = spawn(process.execPath, ['--import', './fixtures/sleeper-fetch.mjs', 'server.js'], {
-      env: { ...process.env, PORT: String(port), DB_PATH: join(folder, 'test.sqlite') },
+      env: {
+        ...process.env,
+        PORT: String(port),
+        DB_PATH: join(folder, 'test.sqlite'),
+        RESEND_API_KEY: 'test-key',
+        EMAIL_FROM: 'Test <test@example.test>',
+        EMAIL_APP_ORIGIN: 'http://127.0.0.1:' + port,
+        TEST_EMAIL_LOG: join(folder, 'emails.jsonl'),
+      },
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     await Promise.race([
@@ -72,7 +80,18 @@ test('login preserves linked leagues and saved analyses, isolates accounts, rota
     assert.ok(signup.data.account.id);
     assert.equal(signup.data.connection.league.name, 'Integration League');
     assert.match(signup.cookie, /^ff_auth=/);
-    assert.match(signup.data.recoveryCode, /^[a-f0-9]{48}$/);
+    assert.equal(signup.data.emailSent, true);
+    const emails = () =>
+      readFileSync(join(folder, 'emails.jsonl'), 'utf8').trim().split('\n').map(JSON.parse);
+    const tokenFrom = (mail) =>
+      new URLSearchParams(new URL(mail.text.match(/Open this link: (\S+)/)[1]).hash.slice(1)).get(
+        'token',
+      );
+    const verification = tokenFrom(emails()[0]);
+    assert.equal(signup.data.user.emailVerified, 0);
+    assert.equal((await request('auth/verify', '', { token: verification })).status, 200);
+    assert.equal((await request('auth/verify', '', { token: verification })).status, 400);
+    assert.equal((await request('state', signup.cookie)).data.user.emailVerified, 1);
     assert.equal(
       (await request('state', guest.cookie)).data.user,
       null,
@@ -120,28 +139,27 @@ test('login preserves linked leagues and saved analyses, isolates accounts, rota
     await request('auth/logout', login.cookie, {});
     assert.equal((await request('state', login.cookie)).data.user, null);
     assert.equal((await request('state', signup.cookie)).data.user.email, 'manager@example.test');
-    const reset = await request('auth/recover', '', {
-      email: credentials.email,
+    const known = await request('auth/forgot', '', { email: credentials.email });
+    const unknown = await request('auth/forgot', '', { email: 'absent@example.test' });
+    assert.deepEqual(known.data, unknown.data);
+    const resetToken = tokenFrom(emails().at(-1));
+    assert.equal((await request('auth/verify', '', { token: resetToken })).status, 400);
+    const reset = await request('auth/reset', '', {
+      token: resetToken,
       password: 'new synthetic passphrase',
-      recoveryCode: signup.data.recoveryCode,
     });
     assert.equal(reset.status, 200);
-    assert.notEqual(reset.data.recoveryCode, signup.data.recoveryCode);
     assert.equal(
       (await request('state', signup.cookie)).data.user,
       null,
-      'recovery revokes all old sessions',
+      'reset revokes earlier sessions',
     );
     assert.equal(
-      (
-        await request('auth/recover', '', {
-          email: credentials.email,
-          password: 'new synthetic passphrase',
-          recoveryCode: signup.data.recoveryCode,
-        })
-      ).status,
-      401,
+      (await request('auth/reset', '', { token: resetToken, password: 'new synthetic passphrase' }))
+        .status,
+      400,
     );
+    assert.equal((await request('auth/recover', '', {})).status, 404);
     assert.equal((await request('auth/login', '', credentials)).status, 401);
     assert.equal(
       (await request('auth/login', '', { ...credentials, password: 'new synthetic passphrase' }))

@@ -11,7 +11,7 @@ FF Trading is a Node.js HTTP service, a PostgreSQL database in production, SQLit
 | `storage.js`, `postgres.js`             | Driver selection, asynchronous queries and transaction isolation               |
 | `migrate-cloud.js`, `import-sqlite.js`  | Cloud schema migration and backup-based local data import                      |
 | `database.js`                           | Versioned atomic migrations and transactions                                   |
-| `auth.js`                               | Password/recovery hashing, login sessions and throttling                       |
+| `auth.js`                               | Password hashing and single-use email links, login sessions and throttling     |
 | `sleeper.js`                            | Fixed-origin public league imports, caching and timeouts                       |
 | `fantasy.js`                            | Statistics refresh, frozen analysis inputs, league settings and model assembly |
 | `valuation.js`, `prospects.js`          | Production values, dynasty priors, scoring and lineup optimization             |
@@ -70,7 +70,7 @@ Completed requests produce JSON logs containing only request ID, method, fixed r
 
 ## Remaining limits
 
-Production uses asynchronous PostgreSQL queries, shared account-scoped state, shared request limits and expiring database refresh leases. Transactions pin one PostgreSQL connection per request. Vercel instances share durable state without sharing uncommitted transactions. Local SQLite remains synchronous, and CPU-bound trade search can still block a single instance. Snapshot storage duplicates some provider data per linked league; dataset deduplication and worker-based calculations are sensible future scale work. Authentication has recovery codes rather than verified email/reset delivery. Sleeper public imports do not authenticate ownership of a Sleeper account. The model remains heuristic, and custom league scoring is only partially represented. Vercel hosts production and follows the connected GitHub production branch. Centralized alerting and scheduled refresh remain future work. See DEPLOYMENT.md for environment separation, schema migration and persistence verification.
+Production uses asynchronous PostgreSQL queries, shared account-scoped state, shared request limits and expiring database refresh leases. Transactions pin one PostgreSQL connection per request. Vercel instances share durable state without sharing uncommitted transactions. Local SQLite remains synchronous, and CPU-bound trade search can still block a single instance. Snapshot storage duplicates some provider data per linked league; dataset deduplication and worker-based calculations are sensible future scale work. Account email uses Resend for verification and expiring password-reset links. Sleeper public imports do not authenticate ownership of a Sleeper account. The model remains heuristic, and custom league scoring is only partially represented. Vercel hosts production and follows the connected GitHub production branch. Centralized alerting and scheduled refresh remain future work. See DEPLOYMENT.md for environment separation, schema migration and persistence verification.
 
 ## Dynasty pick anchor, model 2.3.0
 
@@ -79,3 +79,5 @@ Verified first-year rookie selections use the same slot curve as next year’s p
 Unknown future picks remain estimates. In the trade builder, First in round simulates 1.01, 2.01 and so on; it does not claim a future draft order is known. All pick tiers now share the same curve as the rookie anchor, so dynasty pick and player comparisons remain consistent. Each additional future year retains the existing 15% discount. Previous saved scenarios retain their original model version and values.
 
 The versioned rookie-benchmarks.js file records explicit owner-supplied assumptions. Jeremiyah Love uses the requested 2026 1.01 benchmark when no verified league selection is available. The UI identifies this source rather than presenting it as Sleeper draft history or consensus ADP.
+
+Schema migration 4 adds verified email records and hashed, expiring email tokens. The former users column is retained only for migration compatibility; no endpoint accepts it. Existing credentials, sessions, and leagues are preserved.

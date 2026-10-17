@@ -41,7 +41,7 @@ export async function openDatabase({ migrateSchema = false } = {}) {
         if (new URL(connectionString).hostname.includes('-pooler.'))
           throw new Error('Schema migration requires a direct connection.');
         await migratePostgres(db);
-      } else if (!(await db.prepare('SELECT 1 FROM schema_migrations WHERE version=3').get()))
+      } else if (!(await db.prepare('SELECT 1 FROM schema_migrations WHERE version=4').get()))
         throw new Error('Database schema migration is required.');
       return db;
     } catch (error) {

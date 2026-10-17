@@ -45,3 +45,7 @@ Confirm the Vercel project ID and team before every infrastructure change. Run t
 ## Current scale limits
 
 The Vercel account already uses Pro; its subscription was not changed. Neon uses its free plan. Usage remains subject to provider quotas and the existing account billing settings. They are not unlimited hosting. Provider downloads and frozen snapshots consume storage and network transfer; fantasy search consumes CPU. Guest creation, authentication, league refresh, lookup, scenario saving and trade finding are bounded. Refresh leases prevent duplicate account refreshes across instances. Recovery codes replace email reset delivery; email addresses are not verified. Monitoring has request logs and a health endpoint, without an external alerting service. Revisit these limits and the providers' terms before commercial use or a large launch.
+
+## Account email
+
+Production requires a Resend sending-only key restricted to the verified `mail.fantasyfootballmarket.app` domain. Set `EMAIL_FROM` to `FF Trading <accounts@mail.fantasyfootballmarket.app>` and `EMAIL_APP_ORIGIN` to `https://fantasyfootballmarket.app`. Keep the key in Vercel secrets. Preview must use a separate test sender or leave email unavailable; do not send production mail from previews. Run schema migration 4 on preview first and production before deploying. Verification links use URL fragments so tokens do not enter HTTP access logs. Password resets revoke existing sessions and require a fresh login.

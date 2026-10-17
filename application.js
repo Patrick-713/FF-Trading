@@ -232,7 +232,10 @@ export async function createApplication() {
         '/api/auth/login',
         '/api/auth/logout',
         '/api/auth/register',
-        '/api/auth/recover',
+        '/api/auth/forgot',
+        '/api/auth/verification',
+        '/api/auth/reset',
+        '/api/auth/verify',
         '/api/analysis',
         '/api/analysis/settings',
         '/api/analysis/refresh',
@@ -275,10 +278,26 @@ export async function createApplication() {
         }
         if (req.method === 'POST' && path === '/api/auth/login')
           return json(res, 200, await state(await auth.login(req, res, await body(req))));
-        if (req.method === 'POST' && path === '/api/auth/recover') {
-          const r = await auth.recover(req, res, await body(req));
-          return json(res, 200, { ...(await state(r.account)), recoveryCode: r.recoveryCode });
-        }
+        if (req.method === 'POST' && ['/api/auth/forgot', '/api/auth/verification'].includes(path))
+          return json(
+            res,
+            200,
+            await auth.requestEmail(
+              req,
+              await body(req),
+              path.endsWith('/forgot') ? 'reset' : 'verify',
+            ),
+          );
+        if (req.method === 'POST' && ['/api/auth/reset', '/api/auth/verify'].includes(path))
+          return json(
+            res,
+            200,
+            await auth.consumeLink(
+              req,
+              await body(req),
+              path.endsWith('/reset') ? 'reset' : 'verify',
+            ),
+          );
         const account = await session(req, res);
         if (req.method === 'PUT' && path === '/api/preferences') {
           await consumeLimit(db, 'preferences:' + account, 60, 3600000);
@@ -293,7 +312,7 @@ export async function createApplication() {
               'Wait for the league refresh to finish.',
             );
           const r = await auth.register(req, res, await body(req), account);
-          return json(res, 200, { ...(await state(r.account)), recoveryCode: r.recoveryCode });
+          return json(res, 200, { ...(await state(r.account)), emailSent: r.emailSent });
         }
         if (req.method === 'GET' && path === '/api/state')
           return json(res, 200, await state(account));

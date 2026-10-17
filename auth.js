@@ -1,6 +1,7 @@
 /** Authentication uses the same durable database on every application instance. */
 import { invalid, AppError } from './errors.js';
 import { transaction } from './database.js';
+import { sendAccountEmail } from './account-email.js';
 import { clientAddress } from './security.js';
 import { randomBytes, randomUUID, createHash, scrypt, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
@@ -21,11 +22,14 @@ async function hashPassword(password, salt = randomBytes(16).toString('hex')) {
   const hash = await derive(passwordFor(password), salt, 64, options);
   return { salt, hash: hash.toString('hex') };
 }
-export function createAuth(db) {
+export function createAuth(db, sendEmail = sendAccountEmail) {
   if (!db.remote)
     db.exec(`CREATE TABLE IF NOT EXISTS users(id TEXT PRIMARY KEY,email TEXT UNIQUE NOT NULL,name TEXT NOT NULL,account TEXT UNIQUE NOT NULL REFERENCES accounts(id),salt TEXT NOT NULL,hash TEXT NOT NULL,recovery TEXT NOT NULL,created TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS login_sessions(token TEXT PRIMARY KEY,"user" TEXT NOT NULL REFERENCES users(id),expires INTEGER NOT NULL);
-    CREATE TABLE IF NOT EXISTS auth_limits(key TEXT PRIMARY KEY,attempts INTEGER NOT NULL,expires INTEGER NOT NULL);`);
+    CREATE TABLE IF NOT EXISTS auth_limits(key TEXT PRIMARY KEY,attempts INTEGER NOT NULL,expires INTEGER NOT NULL);
+    CREATE TABLE IF NOT EXISTS verified_emails("user" TEXT PRIMARY KEY REFERENCES users(id),verified TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS email_tokens(token TEXT PRIMARY KEY,"user" TEXT NOT NULL REFERENCES users(id),purpose TEXT NOT NULL,expires INTEGER NOT NULL);
+    CREATE INDEX IF NOT EXISTS email_tokens_user ON email_tokens("user",purpose);`);
   let hashing = 0;
   async function limitedHash(password, salt) {
     if (hashing >= 2)
@@ -79,7 +83,13 @@ export function createAuth(db) {
     }
   }
   async function profile(account) {
-    return (await db.prepare('SELECT email,name FROM users WHERE account=?').get(account)) || null;
+    return (
+      (await db
+        .prepare(
+          'SELECT email,name,EXISTS(SELECT 1 FROM verified_emails v WHERE v."user"=users.id) AS "emailVerified" FROM users WHERE account=?',
+        )
+        .get(account)) || null
+    );
   }
   async function register(req, res, input, account) {
     const email = emailFor(input.email),
@@ -92,7 +102,6 @@ export function createAuth(db) {
     if (await db.prepare('SELECT id FROM users WHERE email=?').get(email))
       throw invalid('This email is already registered. Try logging in.');
     const credentials = await limitedHash(password),
-      recoveryCode = randomBytes(24).toString('hex'),
       userId = randomUUID();
     try {
       await transaction(db, async () => {
@@ -110,7 +119,7 @@ export function createAuth(db) {
             account,
             credentials.salt,
             credentials.hash,
-            digest(recoveryCode),
+            digest(randomBytes(32)),
             new Date().toISOString(),
           );
         await issue(res, userId);
@@ -120,7 +129,12 @@ export function createAuth(db) {
         throw new AppError(409, 'ACCOUNT_EXISTS', 'Account already registered. Try logging in.');
       throw error;
     }
-    return { account, recoveryCode };
+    try {
+      await sendLink(userId, email, 'verify');
+    } catch {
+      return { account, emailSent: false };
+    }
+    return { account, emailSent: true };
   }
   async function login(req, res, input) {
     const email = emailFor(input.email),
@@ -137,29 +151,83 @@ export function createAuth(db) {
     await issue(res, user.id);
     return user.account;
   }
-  async function recover(req, res, input) {
-    const email = emailFor(input.email),
-      password = passwordFor(input.password);
-    await throttle(req, email, 'recover');
-    const code = typeof input.recoveryCode === 'string' ? input.recoveryCode.trim() : '';
-    const user = await db.prepare('SELECT * FROM users WHERE email=?').get(email);
-    if (
-      !user ||
-      !/^[a-f0-9]{48}$/.test(code) ||
-      !timingSafeEqual(Buffer.from(digest(code), 'hex'), Buffer.from(user.recovery, 'hex'))
-    )
-      throw new AppError(401, 'UNAUTHORIZED', 'Email or recovery code is incorrect.');
-    const credentials = await limitedHash(password),
-      recoveryCode = randomBytes(24).toString('hex');
+  // Each issued link is independently hashed and single-use. Resends invalidate older links.
+  async function sendLink(userId, email, purpose) {
+    const token = randomBytes(32).toString('hex');
     await transaction(db, async () => {
-      const updated = await db
-        .prepare('UPDATE users SET salt=?,hash=?,recovery=? WHERE id=? AND recovery=?')
-        .run(credentials.salt, credentials.hash, digest(recoveryCode), user.id, user.recovery);
-      if (updated.changes !== 1) throw invalid('Recovery code was already used.');
-      await db.prepare('DELETE FROM login_sessions WHERE "user"=?').run(user.id);
-      await issue(res, user.id);
+      await db
+        .prepare('DELETE FROM email_tokens WHERE "user"=? AND purpose=?')
+        .run(userId, purpose);
+      await db.prepare('DELETE FROM email_tokens WHERE expires<=?').run(Date.now());
+      await db
+        .prepare('INSERT INTO email_tokens VALUES (?,?,?,?)')
+        .run(
+          digest(token),
+          userId,
+          purpose,
+          Date.now() + (purpose === 'verify' ? 24 * 3600000 : 30 * 60000),
+        );
     });
-    return { account: user.account, recoveryCode };
+    try {
+      await sendEmail(email, purpose, token);
+    } catch (error) {
+      await db.prepare('DELETE FROM email_tokens WHERE token=?').run(digest(token));
+      throw error;
+    }
+  }
+  async function requestEmail(req, input, purpose) {
+    const email = emailFor(input.email);
+    await throttle(req, email, purpose);
+    const user = await db.prepare('SELECT id FROM users WHERE email=?').get(email);
+    if (user) {
+      const verified = await db
+        .prepare('SELECT 1 FROM verified_emails WHERE "user"=?')
+        .get(user.id);
+      if (purpose === 'reset' || !verified) {
+        try {
+          await sendLink(user.id, email, purpose);
+        } catch {
+          // Keep provider failures from revealing whether an address is registered.
+          console.error(JSON.stringify({ event: 'account_email_delivery_failed', purpose }));
+        }
+      }
+    }
+    return {
+      message:
+        'If this address has an eligible account, an email will arrive shortly. Check your spam folder too.',
+    };
+  }
+  async function consumeLink(req, input, purpose) {
+    const token = typeof input.token === 'string' ? input.token : '';
+    await throttle(req, digest(token), 'consume-' + purpose);
+    if (!/^[a-f0-9]{64}$/.test(token))
+      throw invalid('This email link is invalid or expired. Request a new one.');
+    // Compute outside the transaction, then atomically claim the still-valid token.
+    const credentials = purpose === 'reset' ? await limitedHash(passwordFor(input.password)) : null;
+    await transaction(db, async () => {
+      const row = await db
+        .prepare(
+          'DELETE FROM email_tokens WHERE token=? AND purpose=? AND expires>? RETURNING "user"',
+        )
+        .get(digest(token), purpose, Date.now());
+      if (!row) throw invalid('This email link is invalid or expired. Request a new one.');
+      await db
+        .prepare('INSERT INTO verified_emails VALUES (?,?) ON CONFLICT("user") DO NOTHING')
+        .run(row.user, new Date().toISOString());
+      if (credentials) {
+        await db
+          .prepare('UPDATE users SET salt=?,hash=? WHERE id=?')
+          .run(credentials.salt, credentials.hash, row.user);
+        await db.prepare('DELETE FROM login_sessions WHERE "user"=?').run(row.user);
+        await db.prepare('DELETE FROM email_tokens WHERE "user"=?').run(row.user);
+      }
+    });
+    return {
+      message:
+        purpose === 'reset'
+          ? 'Password updated. Log in with your new password.'
+          : 'Email verified. You can return to your account.',
+    };
   }
   async function logout(req, res) {
     const user = await identify(req);
@@ -169,5 +237,5 @@ export function createAuth(db) {
       'ff_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0',
     ]);
   }
-  return { identify, profile, register, login, recover, logout };
+  return { identify, profile, register, login, requestEmail, consumeLink, logout };
 }

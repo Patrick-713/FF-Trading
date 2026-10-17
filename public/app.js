@@ -7,6 +7,9 @@ let state,
   busy = false,
   lookupResult = null,
   authMode = 'register',
+  emailAction = null,
+  emailToken = '',
+  authNotice = '',
   scoringExpanded = false,
   partner = null,
   selectedA = new Set(),
@@ -358,6 +361,9 @@ document.addEventListener('click', async (e) => {
   const mode = e.target.closest('[data-auth-mode]');
   if (mode) {
     authMode = mode.dataset.authMode;
+    authNotice = '';
+    emailAction = null;
+    emailToken = '';
     render();
     return;
   }
@@ -659,13 +665,27 @@ document.addEventListener('submit', async (e) => {
       $('#league-results').innerHTML = leagueResults();
     }
     if (form.id === 'auth-form') {
-      const response = await api(
-          `auth/${authMode}`,
-          'POST',
-          Object.fromEntries(new FormData(form)),
-        ),
-        code = response.recoveryCode;
-      delete response.recoveryCode;
+      const input = Object.fromEntries(new FormData(form));
+      if (['forgot', 'verification', 'reset', 'verify'].includes(authMode)) {
+        if (emailToken) input.token = emailToken;
+        const response = await api(`auth/${authMode}`, 'POST', input);
+        authNotice = response.message;
+        if (authMode === 'reset' || authMode === 'verify') {
+          emailToken = '';
+          emailAction = null;
+          authMode = 'login';
+          await reload();
+        }
+        render();
+        return;
+      }
+      const response = await api(`auth/${authMode}`, 'POST', input);
+      authNotice =
+        authMode === 'register'
+          ? response.emailSent
+            ? 'Check your inbox to verify your email.'
+            : 'Account created. Verification email could not be sent. Use Send verification email to try again.'
+          : '';
       state = response;
       model = await api('analysis');
       lookupResult = null;
@@ -676,10 +696,6 @@ document.addEventListener('submit', async (e) => {
       tradeQuery = '';
       result = null;
       render();
-      if (code) {
-        $('#recovery-code').textContent = code;
-        $('#recovery-dialog').showModal();
-      }
       toast('Your account is ready.');
     }
   } catch (error) {
@@ -692,6 +708,14 @@ document.addEventListener('submit', async (e) => {
   }
 });
 try {
+  const link = new URLSearchParams(globalThis.location?.hash?.slice(1) || '');
+  if (['verify', 'reset'].includes(link.get('action')) && link.get('token')) {
+    emailAction = link.get('action');
+    emailToken = link.get('token');
+    authMode = emailAction;
+    view = 'account';
+    globalThis.history?.replaceState(null, '', globalThis.location.pathname);
+  }
   await reload();
   render();
 } catch (error) {
@@ -704,13 +728,15 @@ function accountView() {
 }
 
 function accountIdentity() {
-  if (state.user)
+  if (state.user && !emailAction && authMode !== 'verification')
     return [
       `${intro('Your league. Your account.', 'Your linked leagues and analyses are saved to your FF Trading account.', false)}<section class="panel account-panel"><div class="panel-heading"><h2>${esc(state.user.name)}</h2>`,
       `<span class="pill positive">SIGNED IN</span></div>`,
       `<div class="link-content"><p>${esc(state.user.email)}</p>${teamPicker()}`,
       `<p>Log in from another browser using the same FF Trading server to access this workspace. Your Sleeper import is separate from this login.</p>`,
-      `<p class="muted">Email is your sign-in identifier; email verification and emailed resets are not enabled. Keep your recovery code somewhere safe.</p>`,
+      `<p class="${state.user.emailVerified ? 'positive' : 'muted'}">${state.user.emailVerified ? 'Email verified' : 'Email not verified yet'}</p>`,
+      `${!state.user.emailVerified ? '<button class="trade-button" data-auth-mode="verification">Send verification email</button>' : ''}`,
+      `<p class="preference-status" role="status">${esc(authNotice)}</p>`,
       `<div class="link-actions">`,
       `<button class="trade-button" id="logout">Log out</button>`,
       `</div>`,
@@ -719,20 +745,24 @@ function accountIdentity() {
       `</section>`,
     ].join('');
   const signup = authMode === 'register',
-    recovery = authMode === 'recover';
+    emailOnly = ['forgot', 'verification'].includes(authMode),
+    reset = authMode === 'reset',
+    verify = authMode === 'verify';
   return [
-    `${intro('Keep your edge.', 'Create a free FF Trading account to save your leagues and analyses.', false)}<section class="panel account-panel"><div class="panel-heading"><h2>${signup ? 'Create account' : recovery ? 'Recover your account' : 'Welcome back'}</h2>`,
+    `${intro('Keep your edge.', 'Create a free FF Trading account to save your leagues and analyses.', false)}<section class="panel account-panel"><div class="panel-heading"><h2>${signup ? 'Create account' : emailOnly ? (authMode === 'forgot' ? 'Reset your password' : 'Verify your email') : reset ? 'Choose a new password' : verify ? 'Confirm your email' : 'Welcome back'}</h2>`,
     `<span class="pill">FREE</span></div>`,
     `<div class="link-content"><div class="segmented"><button data-auth-mode="register" class="${signup ? 'selected' : ''}">Sign up</button>`,
     `<button data-auth-mode="login" class="${authMode === 'login' ? 'selected' : ''}">Log in</button>`,
     `</div>`,
-    `<form id="auth-form">${signup ? '<label for="auth-name">Display name</label><input id="auth-name" name="name" autocomplete="nickname" minlength="2" maxlength="60" required>' : ''}<label for="auth-email">Email</label>`,
-    `<input id="auth-email" name="email" type="email" autocomplete="username" maxlength="254" required>${recovery ? '<label for="auth-recovery">Saved recovery code</label><input id="auth-recovery" name="recoveryCode" autocomplete="off" maxlength="48" required>' : ''}<label for="auth-password">${recovery ? 'New password' : 'Password'}</label>`,
-    `<input id="auth-password" name="password" type="password" autocomplete="${signup || recovery ? 'new-password' : 'current-password'}" minlength="12" maxlength="128" required><p class="fine-print">Use 12 to 128 characters. ${signup ? 'Your current guest workspace and league links will be saved to this account.' : 'Logging in opens the saved workspace for that account.'}</p>`,
-    `<button class="primary full" id="auth-submit">${signup ? 'Create free account' : recovery ? 'Reset password' : 'Log in'}</button>`,
+    `<form id="auth-form">${signup ? '<label for="auth-name">Display name</label><input id="auth-name" name="name" autocomplete="nickname" minlength="2" maxlength="60" required>' : ''}${!reset && !verify ? '<label for="auth-email">Email</label>' : ''}`,
+    `${!reset && !verify ? '<input id="auth-email" name="email" type="email" autocomplete="username" maxlength="254" required value="' + esc(state.user?.email || '') + '">' : ''}`,
+    `${!emailOnly && !verify ? '<label for="auth-password">' + (reset ? 'New password' : 'Password') + '</label><input id="auth-password" name="password" type="password" autocomplete="' + (signup || reset ? 'new-password' : 'current-password') + '" minlength="12" maxlength="128" required><p class="fine-print">Use 12 to 128 characters.</p>' : ''}`,
+    `<p class="preference-status" role="status">${esc(authNotice)}</p>`,
+    `<button class="primary full" id="auth-submit">${signup ? 'Create free account' : emailOnly ? (authMode === 'forgot' ? 'Email reset link' : 'Send verification email') : reset ? 'Update password' : verify ? 'Verify email' : 'Log in'}</button>`,
     `<p id="auth-error" class="error" role="alert"></p>`,
-    `</form>${teamPicker()}`,
-    `<button class="trade-button" data-auth-mode="recover">Forgot password? Use a recovery code</button>`,
+    `</form>${!emailAction ? teamPicker() : ''}`,
+    `<button class="trade-button" data-auth-mode="forgot">Forgot password?</button>`,
+    `<button class="trade-button" data-auth-mode="verification">Resend verification email</button>`,
     `</div>`,
     `</section>`,
   ].join('');
@@ -744,8 +774,8 @@ function accountExplanation() {
     `<section class="feature-card link-explainer"><span class="eyebrow">YOUR FF TRADING IDENTITY</span><h2>One login.<br>Your analyses.</h2>`,
     `<p>Sign up once. Keep your roster imports, player values and saved trade scenarios.</p>`,
     `<p>Your FF Trading password is separate from Sleeper. We never ask for your Sleeper password.</p>`,
-    `<h3>Save your recovery code.</h3>`,
-    `<p>You’ll receive a recovery code once at sign-up. It lets you reset a forgotten password without an email service. Email verification and email delivery aren’t enabled.</p>`,
+    `<h3>Keep your account secure.</h3>`,
+    `<p>Verify your email using the link in your inbox. If you forget your password, request a secure reset link from this page.</p>`,
     `<p>Your account works across phones and computers. Sign in to access your saved leagues and analyses.</p>`,
     `</section>`,
   ].join('');

@@ -25,7 +25,7 @@ For a guided reading order and file responsibilities, see [CODE-MAP.md](CODE-MAP
 - **Trade Finder:** inside the simulator, choose a positional upgrade, younger roster, draft capital, current starters, or long-term value. Review offers that show a measurable modeled benefit for each manager, then open any idea in the builder.
 - **Saved Scenarios:** store hypothetical comparisons under the current account and league. Loading selections uses the scenario's settings; analyze again against current values.
 - **Link Sleeper:** import rosters, team identities, completed-week results, and dynasty traded picks.
-- **Account:** email/password login with recovery codes; existing leagues remain saved.
+- **Account:** email/password login with verification and email password resets; existing leagues remain saved.
 
 The **Redraft / Dynasty** switch changes valuation, not the real league. Scoring options include PPR/half/standard, one QB/superflex, 4/6-point passing TDs, and 0/0.5/1 TE reception bonuses. Switching clears an unsaved trade selection to prevent mixing asset values from different modes.
 
@@ -83,7 +83,7 @@ Nothing is submitted to Sleeper or applied to the imported roster. Multiple mode
 
 ## Free accounts
 
-Sign-up claims the current guest workspace and Sleeper links. Email is a sign-in identifier, not verified email. Passwords use salted scrypt (`N=131072,r=8,p=1`); sessions use random 256-bit tokens stored as SHA-256 hashes, HttpOnly SameSite cookies, and 30-day expiry. Login attempts are throttled. Save the recovery code displayed once at sign-up; successful recovery rotates the code and revokes earlier sessions. No emailed password resets or paid authentication provider is needed.
+Sign-up claims the current guest workspace and Sleeper links and sends an email verification link. Passwords use salted scrypt (`N=131072,r=8,p=1`); sessions use random 256-bit tokens stored as SHA-256 hashes, HttpOnly SameSite cookies, and 30-day expiry. Verification links expire after 24 hours and password-reset links after 30 minutes. Tokens are hashed, purpose-bound, and consumed once atomically. Resetting a password revokes earlier sessions. Existing users can verify their email from Account without losing their saved workspace. Email delivery uses Resend; configure `RESEND_API_KEY`, `EMAIL_FROM`, and `EMAIL_APP_ORIGIN`. Login remains available while email verification is pending; verification confirms the address and is shown in Account.
 
 For online access, host the same server and persistent database behind HTTPS, set `APP_ORIGIN` to the exact HTTPS origin and `COOKIE_SECURE=true`, and back up the database. Independent local copies don't share accounts. Hosting costs are separate from the free login implementation.
 
@@ -103,7 +103,7 @@ For online access, host the same server and persistent database behind HTTPS, se
 | POST   | `/api/sleeper/activate`   | Select an already-linked `leagueId` owned by the current account, without fetching providers                                                                     |
 | POST   | `/api/sleeper/disconnect` | Return to the fictional demo                                                                                                                                     |
 
-Account endpoints are `/api/auth/register`, `/login`, `/logout`, and `/recover`. `/api/state` returns the current account identity, user profile and active league connection. Stock trading routes, tables and runtime calculations have been removed. See [BACKEND.md](BACKEND.md) for migrations, refresh behavior, model evaluation and errors. SQLite files and backups under `data/` are ignored by Git.
+Account endpoints are `/api/auth/register`, `/login`, `/logout`, `/forgot`, `/reset`, `/verification`, and `/verify`. `/api/state` returns the current account identity, user profile and active league connection. Stock trading routes, tables and runtime calculations have been removed. See [BACKEND.md](BACKEND.md) for migrations, refresh behavior, model evaluation and errors. SQLite files and backups under `data/` are ignored by Git.
 
 ## Sources and limits
 

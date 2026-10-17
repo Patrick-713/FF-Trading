@@ -3,6 +3,10 @@ import { appendFileSync } from 'node:fs';
 const nativeFetch = globalThis.fetch;
 globalThis.fetch = async (url, options) => {
   const text = String(url);
+  if (text === 'https://api.resend.com/emails' && process.env.TEST_EMAIL_LOG) {
+    appendFileSync(process.env.TEST_EMAIL_LOG, options.body + '\n');
+    return Response.json({ id: 'synthetic-email' });
+  }
   if (process.env.TEST_FETCH_LOG) appendFileSync(process.env.TEST_FETCH_LOG, text + '\n');
   if (text.startsWith('https://github.com/nflverse/')) {
     if (process.env.TEST_STATS_FAILURE === 'true') return new Response('', { status: 503 });

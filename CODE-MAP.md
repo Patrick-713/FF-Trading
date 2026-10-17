@@ -30,7 +30,7 @@ Start with one user action and follow it through the files. The existing folder 
 
 **Calculations:** `valuePlayer` in `valuation.js` combines production and prospect information. `lineup` assigns players to eligible slots. In `trade-engine.js`, `rosterReport` calculates one team's consequences, `analyzeTrade` handles a complete exchange and `findTrades` searches a bounded group of offers. These functions do not execute real trades.
 
-**Authentication:** `auth.js` stores password hashes, issues session cookies, throttles authentication attempts and handles recovery codes. An FF Trading login is separate from a public Sleeper username lookup.
+**Authentication:** `auth.js` stores password hashes, issues session cookies, throttles authentication attempts and handles email verification and password resets through `account-email.js`. An FF Trading login is separate from a public Sleeper username lookup.
 
 **Storage and errors:** `database.js` owns migrations and transactions. `errors.js` distinguishes expected request/provider problems from unexpected failures, and logs only approved request fields.
 
@@ -40,7 +40,7 @@ A prepared snapshot and completed-game production are different things. A dynast
 
 ## Reading the tests
 
-Read a test's description first, then its synthetic inputs, then the assertions. `fantasy-regression.test.js` covers ownership-independent player values, imported TE bonuses and preseason readiness. `trade-engine.test.js` covers roster consequences and assumptions. `server.test.js` verifies the HTTP flow. `auth.test.js` checks account isolation and recovery. `database.test.js` checks preservation and rollback during migration. `site-copy.test.js` checks the punctuation rule for site templates.
+Read a test's description first, then its synthetic inputs, then the assertions. `fantasy-regression.test.js` covers ownership-independent player values, imported TE bonuses and preseason readiness. `trade-engine.test.js` covers roster consequences and assumptions. `server.test.js` verifies the HTTP flow. `auth.test.js` checks account isolation and email password resets. `database.test.js` checks preservation and rollback during migration. `site-copy.test.js` checks the punctuation rule for site templates.
 
 `evaluate-model.js` produces a repeatable model behavior report. It is separate from a historical forecast-accuracy study. `model-version.js` identifies which model produced a saved result.
 
