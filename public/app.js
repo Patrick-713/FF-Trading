@@ -18,6 +18,7 @@ let state,
   result = null,
   playerQuery = '',
   playerPosition = 'ALL',
+  playerPage = 1,
   rosterTeam = null,
   tradeTeam = null,
   showStandings = false;
@@ -56,7 +57,7 @@ function intro(title, text, action = true) {
   return `<div class="page-intro"><div><h1>${title}</h1><p>${text}</p></div>${action ? (state.connection ? '' : '<button class="primary" data-account-section="sleeper">Link your league ↗</button>') : ''}</div>`;
 }
 const currentTeam = () => model.teams.find((t) => t.id === model.ownTeam) || model.teams[0];
-function playerTable(players) {
+function playerTable(players, ranked = false) {
   return [
     `<div class="table-scroll"><table><thead><tr><th>PLAYER</th><th>${model.settings.mode.toUpperCase()} VALUE</th><th>FP / GAME</th><th>TARGET SHARE</th><th>WOPR</th><th>AGE</th><th>SAMPLE</th></tr>`,
     `</thead>`,
@@ -64,7 +65,7 @@ function playerTable(players) {
       players
         .map((p) =>
           [
-            `<tr><td><button class="player-name" data-player="${esc(p.id)}"><span class="position">${esc(p.position)}</span><span><strong>${esc(p.name)}</strong><small>${esc(p.club)}${p.injury ? ' · ' + esc(p.injury) : ''}</small></span></button>`,
+            `<tr${ranked ? ` data-rank="${p.rank}"` : ''}><td><button class="player-name" data-player="${esc(p.id)}">${ranked ? `<span class="player-rank" aria-label="Overall rank ${p.rank}">#${p.rank}</span>` : ''}<span class="position">${esc(p.position)}</span><span><strong>${esc(p.name)}</strong><small>${esc(p.club)}${p.injury ? ' · ' + esc(p.injury) : ''}</small></span></button>`,
             `</td><td data-label="Value"><strong class="value-number">${fmt(p.value)}</strong></td><td data-label="FP / game">${p.games ? fmt(p.stats.ppg) : 'Not available'}</td><td data-label="Target share">${p.stats.targetShare === null ? 'Not available' : fmt(p.stats.targetShare) + '%'}</td><td data-label="WOPR">${p.stats.wopr === null ? 'Not available' : p.stats.wopr}</td><td data-label="Age">${p.age ?? 'Not available'}</td><td data-label="Sample"><span class="sample">${p.games ? p.games + ' games' : 'Estimate'}</span></td></tr>`,
           ].join(''),
         )
@@ -135,16 +136,30 @@ function teamView() {
     `</section>`,
   ].join('');
 }
-function playersView() {
-  const players = model.players
+const PLAYERS_PER_PAGE = 20;
+/** Rank the full pool before filtering so a player's overall number stays consistent. */
+const filteredPlayers = () =>
+  [...model.players]
+    .sort((a, b) => b.value - a.value || a.name.localeCompare(b.name) || a.id.localeCompare(b.id))
+    .map((player, index) => ({ ...player, rank: index + 1 }))
     .filter(
-      (p) =>
-        (playerPosition === 'ALL' || p.position === playerPosition) &&
-        `${p.name} ${p.club}`.toLowerCase().includes(playerQuery.toLowerCase()),
-    )
-    .sort((a, b) => b.value - a.value);
-  return `${intro('Player Values', 'Explore model values and the statistics behind them. Select a player to see the calculation.')}<section class="panel"><div class="panel-heading"><h2>Player values <span class="pill">${players.length}</span></h2><div class="player-filters"><input id="player-query" aria-label="Search players" placeholder="Search player or team" value="${esc(playerQuery)}"><select id="player-position" aria-label="Filter position">${['ALL', 'QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'LB', 'DL', 'DB'].map((p) => `<option ${p === playerPosition ? 'selected' : ''}>${p}</option>`).join('')}</select></div></div><div id="player-results">${playerTable(players)}</div></section>`;
+      (player) =>
+        (playerPosition === 'ALL' || player.position === playerPosition) &&
+        `${player.name} ${player.club}`.toLowerCase().includes(playerQuery.trim().toLowerCase()),
+    );
+function rankingsResults() {
+  const players = filteredPlayers(),
+    pages = Math.max(1, Math.ceil(players.length / PLAYERS_PER_PAGE));
+  playerPage = Math.max(1, Math.min(playerPage, pages));
+  const start = (playerPage - 1) * PLAYERS_PER_PAGE;
+  const controls = (position) =>
+    `<nav class="rankings-pagination" aria-label="Player ranking pages ${position}"><button class="trade-button" data-player-page="${playerPage - 1}" ${playerPage === 1 ? 'disabled' : ''}>Previous</button><span>Page ${playerPage} of ${pages}</span><button class="trade-button" data-player-page="${playerPage + 1}" ${playerPage === pages ? 'disabled' : ''}>Next</button></nav>`;
+  return `<div class="rankings-page-header"><p id="rankings-page-summary" role="status" tabindex="-1">${players.length ? `Showing ${start + 1} to ${Math.min(start + PLAYERS_PER_PAGE, players.length)} of ${players.length} players` : 'No players match these filters.'}</p><small>Overall ranks by ${esc(model.settings.mode)} value</small></div>${controls('top')}${playerTable(players.slice(start, start + PLAYERS_PER_PAGE), true)}${controls('bottom')}`;
 }
+function playersView() {
+  return `${intro('Player Rankings', 'Compare player rankings and the statistics behind them. Select a player for details.')}<section class="panel rankings-panel"><div class="panel-heading"><h2>Player rankings <span class="pill">${model.players.length}</span></h2><div class="player-filters"><input id="player-query" aria-label="Search players" placeholder="Search player or team" value="${esc(playerQuery)}"><select id="player-position" aria-label="Filter position">${['ALL', 'QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'LB', 'DL', 'DB'].map((p) => `<option ${p === playerPosition ? 'selected' : ''}>${p}</option>`).join('')}</select></div></div><div id="player-results">${rankingsResults()}</div></section>`;
+}
+
 function assetList(team, side) {
   const selected = side === 'A' ? selectedA : selectedB;
   const players = model.players.filter((p) => p.owner === team).sort((a, b) => b.value - a.value),
@@ -358,7 +373,7 @@ function render() {
   }
   const names = {
     team: 'Team Overview',
-    players: 'Player Values',
+    players: 'Player Rankings',
     trade: 'Trade Simulator',
     finder: 'Trade Finder',
     saved: 'Saved Notes',
@@ -471,6 +486,16 @@ document.addEventListener('click', async (e) => {
     return;
   }
   if (busy || !model) return;
+  const rankingPage = e.target.closest('[data-player-page]');
+  if (rankingPage && !rankingPage.disabled) {
+    const page = Number(rankingPage.dataset.playerPage);
+    if (!Number.isInteger(page)) return;
+    playerPage = page;
+    $('#player-results').innerHTML = rankingsResults();
+    $('#rankings-page-summary').focus?.({ preventScroll: true });
+    $('#player-results').scrollIntoView?.({ block: 'start', behavior: 'auto' });
+    return;
+  }
   const scoringToggle = e.target.closest('#scoring-toggle');
   if (scoringToggle) {
     scoringExpanded = !scoringExpanded;
@@ -799,7 +824,8 @@ document.addEventListener('change', async (e) => {
   }
   if (t.id === 'player-position') {
     playerPosition = t.value;
-    $('#player-results').innerHTML = playerTable(filteredPlayers());
+    playerPage = 1;
+    $('#player-results').innerHTML = rankingsResults();
     return;
   }
   if (['scoring', 'qb-format', 'pass-td', 'te-premium'].includes(t.id)) {
@@ -818,14 +844,6 @@ document.addEventListener('change', async (e) => {
     }
   }
 });
-const filteredPlayers = () =>
-  model.players
-    .filter(
-      (p) =>
-        (playerPosition === 'ALL' || p.position === playerPosition) &&
-        `${p.name} ${p.club}`.toLowerCase().includes(playerQuery.toLowerCase()),
-    )
-    .sort((a, b) => b.value - a.value);
 document.addEventListener('input', (e) => {
   if (e.target.id === 'trade-search') {
     tradeQuery = e.target.value;
@@ -833,7 +851,8 @@ document.addEventListener('input', (e) => {
   }
   if (e.target.id === 'player-query') {
     playerQuery = e.target.value;
-    $('#player-results').innerHTML = playerTable(filteredPlayers());
+    playerPage = 1;
+    $('#player-results').innerHTML = rankingsResults();
   }
 });
 // Handle account and Sleeper lookup forms without navigating away.

@@ -3402,3 +3402,83 @@ footer {
     flex: 0 0 44px;
   }
 }
+
+/* Equal news actions keep their alignment as the saved-story count changes. */
+.news-toolbar-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: 320px;
+  max-width: 100%;
+  gap: 10px;
+}
+.news-toolbar-actions button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 48px;
+  min-height: 48px;
+  margin: 0;
+  padding: 8px 12px;
+  font-size: 12px;
+  line-height: 1.25;
+  text-align: center;
+}
+.rankings-page-header {
+  padding: 16px 24px 0;
+}
+.rankings-page-header p {
+  margin: 0 0 6px;
+  font-size: 13px;
+}
+.rankings-page-header small {
+  color: var(--muted);
+  font-size: 11px;
+}
+.rankings-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0;
+  padding: 16px 24px;
+  overflow: visible;
+}
+.rankings-pagination span {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.rankings-pagination button {
+  min-height: 44px;
+  min-width: 85px;
+  padding: 10px 14px;
+}
+.rankings-pagination button:disabled {
+  cursor: default;
+}
+.player-rank {
+  min-width: 36px;
+  color: var(--lime);
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 760px) {
+  .news-toolbar-actions {
+    width: 100%;
+  }
+  .rankings-page-header {
+    padding: 16px 16px 0;
+  }
+  .rankings-pagination {
+    padding: 14px 16px;
+    gap: 8px;
+  }
+  .rankings-pagination button {
+    min-width: 76px;
+    padding: 10px;
+  }
+  .rankings-panel .player-rank {
+    min-width: 32px;
+  }
+}

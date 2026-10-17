@@ -104,6 +104,38 @@ test('builder supports player search, standard analysis, finder and loading save
   try {
     await import('./public/app.js');
     assert.ok(element('#main').innerHTML.includes('Team Overview'));
+    await click('button[data-view]', { view: 'players' });
+    assert.ok(element('#main').innerHTML.includes('Player Rankings'));
+    assert.equal((element('#main').innerHTML.match(/data-rank="/g) || []).length, 20);
+    assert.ok(element('#main').innerHTML.includes('data-rank="1"'));
+    await click('[data-player-page]', { playerPage: '2' });
+    assert.equal((element('#player-results').innerHTML.match(/data-rank="/g) || []).length, 20);
+    assert.ok(element('#player-results').innerHTML.includes('data-rank="21"'));
+    assert.ok(element('#player-results').innerHTML.includes('data-rank="40"'));
+    assert.equal(element('#player-results').innerHTML.includes('data-rank="1"'), false);
+    await click('[data-player-page]', { playerPage: '15' });
+    assert.ok(element('#player-results').innerHTML.includes('data-rank="300"'));
+    assert.ok(element('#player-results').innerHTML.includes('Page 15 of 15'));
+    const fullRanking = [...model.players].sort(
+      (a, b) => b.value - a.value || a.name.localeCompare(b.name) || a.id.localeCompare(b.id),
+    );
+    const lastPlayer = fullRanking[299];
+    handlers.input({ target: { id: 'player-query', value: lastPlayer.name } });
+    assert.ok(
+      element('#player-results').innerHTML.includes('data-rank="300"'),
+      'Search covers players beyond the visible page and retains overall rank',
+    );
+    assert.ok(element('#player-results').innerHTML.includes('Page 1 of 1'));
+    handlers.input({ target: { id: 'player-query', value: 'No match xyz' } });
+    assert.equal((element('#player-results').innerHTML.match(/data-rank="/g) || []).length, 0);
+    assert.ok(element('#player-results').innerHTML.includes('No players match'));
+    handlers.input({ target: { id: 'player-query', value: '' } });
+    await click('[data-player-page]', { playerPage: '8' });
+    await change({ id: 'player-position', value: 'QB' });
+    assert.ok(element('#player-results').innerHTML.includes('Page 1 of'));
+    assert.ok((element('#player-results').innerHTML.match(/data-rank="/g) || []).length <= 20);
+    await change({ id: 'player-position', value: 'ALL' });
+
     await click('button[data-view]', { view: 'account' });
     assert.ok(element('#main').innerHTML.includes('id="auth-form"'));
     assert.equal(element('#main').innerHTML.includes('id="sleeper-lookup"'), false);
