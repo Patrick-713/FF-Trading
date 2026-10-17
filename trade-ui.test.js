@@ -70,6 +70,12 @@ test('builder supports player search, assumptions, analysis, finder and loading 
       model.teams[0].pointsAgainst = 500.07;
       model.teams[0].wins = 4;
       model.teams[0].losses = 1;
+      model.teams[0].playerValue = 1000;
+      model.teams[0].pickValue = 250;
+      model.teams[1].wins = 3;
+      model.teams[1].losses = 2;
+      model.teams[1].pointsFor = 900;
+      model.teams[1].playerValue = 10000;
     }
     return { ok: true, json: async () => structuredClone(data) };
   };
@@ -174,9 +180,17 @@ test('builder supports player search, assumptions, analysis, finder and loading 
     await click('button[data-view]', { view: 'team' });
     assert.ok(element('#main').innerHTML.includes('View all teams and'));
     await click('[data-standings]');
-    assert.ok(element('#main').innerHTML.includes('Points standings'));
+    assert.ok(element('#main').innerHTML.includes('League standings'));
     assert.ok(element('#main').innerHTML.includes('623.45'));
     assert.ok(element('#main').innerHTML.includes('4 W / 1 L'));
+    const standings = element('#main')
+      .innerHTML.split('id="league-standings"')[1]
+      .split('</section>')[0];
+    assert.ok(standings.includes('data-label="FF Score"><strong>1,250</strong>'));
+    assert.ok(
+      standings.indexOf('Example Team A') < standings.indexOf('Example Team B'),
+      'Record outranks higher points and FF Score',
+    );
     await click('#methodology');
     assert.ok(element('#details-content').innerHTML.includes('How player values work'));
     assert.ok(

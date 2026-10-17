@@ -82,8 +82,17 @@ function standingsView() {
     new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
       value,
     );
-  const teams = [...model.teams].sort((a, b) => (b.pointsFor ?? -1) - (a.pointsFor ?? -1));
-  return `<section class="panel standings-panel" id="league-standings"><div class="panel-heading"><div><span class="eyebrow">YOUR WHOLE LEAGUE</span><h2>Points standings</h2></div><button class="text-button" data-standings>Hide standings</button></div><div class="link-content"><p class="muted">Ranked by total season points, not playoff seeding. Records and points are from your last Sleeper sync.</p><div class="table-scroll"><table><thead><tr><th>POINTS RANK</th><th>TEAM</th><th>RECORD</th><th>POINTS FOR</th><th>POINTS AGAINST</th><th>ROSTER</th></tr></thead><tbody>${teams.map((t, i) => `<tr><td data-label="Points rank">${t.pointsFor === null ? 'Unavailable' : i + 1}</td><td data-label="Team"><strong>${esc(t.name)}</strong>${t.id === model.ownTeam ? ' (You)' : ''}<small class="standings-manager">${esc(t.manager)}</small></td><td data-label="Record">${t.wins ?? 0} W / ${t.losses ?? 0} L${t.ties ? ` / ${t.ties} T` : ''}</td><td data-label="Points for">${t.pointsFor === null ? 'Sync needed' : points(t.pointsFor)}</td><td data-label="Points against">${t.pointsAgainst === null ? 'Unavailable' : points(t.pointsAgainst)}</td><td><button class="trade-button" data-roster="${esc(t.id)}">View team</button></td></tr>`).join('')}</tbody></table></div></div></section>`;
+  const record = (team) => {
+    const games = (team.wins || 0) + (team.losses || 0) + (team.ties || 0);
+    return games ? ((team.wins || 0) + (team.ties || 0) / 2) / games : 0;
+  };
+  const teams = [...model.teams].sort(
+    (a, b) =>
+      record(b) - record(a) ||
+      (b.wins || 0) - (a.wins || 0) ||
+      (b.pointsFor ?? -1) - (a.pointsFor ?? -1),
+  );
+  return `<section class="panel standings-panel" id="league-standings"><div class="panel-heading"><div><span class="eyebrow">YOUR WHOLE LEAGUE</span><h2>League standings</h2></div><button class="text-button" data-standings>Hide standings</button></div><div class="link-content"><p class="muted">Ordered by record, with total points breaking ties. Records and points are from your last Sleeper sync. FF Score is our combined player${model.settings.mode === 'dynasty' ? ' and draft pick' : ''} value.</p><div class="table-scroll"><table><thead><tr><th>RANK</th><th>TEAM</th><th>RECORD</th><th>POINTS FOR</th><th>POINTS AGAINST</th><th>FF SCORE</th><th>ROSTER</th></tr></thead><tbody>${teams.map((t, i) => `<tr><td data-label="Rank">${i + 1}</td><td data-label="Team"><strong>${esc(t.name)}</strong>${t.id === model.ownTeam ? ' (You)' : ''}<small class="standings-manager">${esc(t.manager)}</small></td><td data-label="Record">${t.wins ?? 0} W / ${t.losses ?? 0} L${t.ties ? ` / ${t.ties} T` : ''}</td><td data-label="Points for">${t.pointsFor === null ? 'Sync needed' : points(t.pointsFor)}</td><td data-label="Points against">${t.pointsAgainst === null ? 'Unavailable' : points(t.pointsAgainst)}</td><td data-label="FF Score"><strong>${fmt((t.playerValue || 0) + (t.pickValue || 0))}</strong></td><td><button class="trade-button" data-roster="${esc(t.id)}">View team</button></td></tr>`).join('')}</tbody></table></div></div></section>`;
 }
 function teamView() {
   const own = currentTeam(),
