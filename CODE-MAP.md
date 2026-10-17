@@ -65,3 +65,5 @@ Read `stat-inputs.js` for compact provider inputs, `redraft-signal.js` for the f
 `news.js` provides cached public NFL headlines. `news.test.js` covers feed validation, concurrent requests, shared caching, outage backoff and old-story expiry. The News view and visible-tab refresh live in `public/app.js`.
 
 `demo-data.json` is the dated real-player reference dataset for the unlinked redraft simulator. `sleeper.js` imports season standings and league format; `public/app.js` renders standings and team selectors. `application.js` validates a selected comparison team for the trade finder.
+
+Trade side selection lives in `addPlayerToSide` and `selectedPlayers` in `public/app.js`. `public/trade-tools.js` supplies explicit Team A / Team B search buttons and optional assumptions. `trade-side-ui.test.js` tests unrestricted public assignment, moving, deduplication and removal. `trade-engine.js` keeps custom public comparisons isolated from linked-league ownership checks.

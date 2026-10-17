@@ -2962,3 +2962,77 @@ html[data-view='news'] #format-switch {
     grid-column: 1/-1;
   }
 }
+
+/* Choose the comparison side directly and keep selected assets easy to edit. */
+.player-side-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.player-side-actions button {
+  min-height: 44px;
+  white-space: nowrap;
+}
+.selected-trade-assets {
+  padding: 8px 20px 20px;
+}
+.selected-trade-asset {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+.selected-trade-asset strong {
+  display: block;
+  font-size: 14px;
+}
+.selected-trade-asset small {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 6px;
+}
+.team-roster-picker {
+  border-top: 1px solid var(--line);
+}
+.team-roster-picker > summary {
+  padding: 18px 20px;
+  cursor: pointer;
+  color: #83e9dc;
+  font-size: 13px;
+}
+@media (max-width: 760px) {
+  .search-player .player-side-actions {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+  }
+  .search-player .player-side-actions button {
+    flex: 1;
+    width: auto;
+  }
+  .selected-trade-asset {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .selected-trade-asset .player-side-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+#analyze-trade:disabled {
+  cursor: not-allowed;
+}
+@media (max-width: 760px) {
+  .search-player {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+}

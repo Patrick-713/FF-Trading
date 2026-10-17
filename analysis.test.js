@@ -59,6 +59,24 @@ test('public simulator uses real players, enforces redraft, persists scenarios a
       sendB: [expanded.id],
     });
     assert.equal(expandedTrade.status, 200);
+    const custom = {
+      teamA: 'demo_a',
+      teamB: 'demo_b',
+      sendA: ['demo_7'],
+      sendB: ['demo_3'],
+      customTeams: true,
+    };
+    const customGuest = await request('state');
+    const customSaved = await request('analysis/save', customGuest.cookie, 'POST', {
+      ...custom,
+      title: 'Custom sides',
+    });
+    assert.equal(customSaved.status, 200);
+    assert.equal(customSaved.data.saved[0].input.customTeams, true);
+    assert.equal(customSaved.data.saved[0].result.customTeams, true);
+    const unchanged = await request('analysis', guest.cookie);
+    assert.equal(unchanged.data.players.find((p) => p.id === 'demo_7').owner, 'demo_b');
+
     const input = { teamA: 'demo_a', teamB: 'demo_b', sendA: ['demo_3'], sendB: ['demo_7'] };
     const analyzed = await request('analysis/trade', guest.cookie, 'POST', input);
     assert.equal(analyzed.status, 200);

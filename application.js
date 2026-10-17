@@ -382,6 +382,7 @@ export async function createApplication() {
               input: {
                 teamA: input.teamA,
                 teamB: input.teamB,
+                customTeams: input.customTeams === true,
                 sendA: input.sendA,
                 sendB: input.sendB,
                 assumptions: result.assumptions,

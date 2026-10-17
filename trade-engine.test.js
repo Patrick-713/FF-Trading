@@ -1,7 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { analyzeTrade, findTrades } from './trade-engine.js';
-import { tradeSearch, tradeTools, tradeResult, finderView } from './public/trade-tools.js';
+import {
+  tradeSearch,
+  tradeTools,
+  tradeAssumptions,
+  tradeResult,
+  finderView,
+} from './public/trade-tools.js';
 const player = (id, owner, position, pace, value, age = 25) => ({
   id,
   owner,
@@ -150,14 +156,45 @@ test('player search shows ownership, handles free agents and escapes imported na
   m.players[0].name = '<script>alert(1)</script>';
   const html = tradeSearch(m, 'script');
   assert.ok(html.includes('&lt;script&gt;'));
-  assert.ok(html.includes('data-trade-player="aq"'));
+  assert.ok(html.includes('data-add-side="A"'));
+  assert.ok(html.includes('data-add-side="B"'));
+  assert.ok(html.includes('data-asset="aq"'));
   assert.ok(!html.includes('<script>'));
   const fa = tradeSearch(m, 'fa');
   assert.ok(fa.includes('Free agent'));
   assert.ok(!fa.includes('data-trade-player="fa"'));
   assert.ok(
-    tradeTools(m, new Set(['aq']), new Set(['bw']), {}, true, '').includes('Dynasty development'),
+    tradeAssumptions(m, new Set(['aq']), new Set(['bw']), {}, true).includes('Dynasty development'),
   );
   assert.ok(tradeResult(analyzeTrade(m, input), m).includes('Optimized lineup before / after'));
   assert.ok(finderView(m, findTrades(m, { goal: 'WR' }), 'WR').includes('data-offer'));
+});
+
+test('custom public comparisons allow either side without changing ownership or bypassing linked rosters', () => {
+  const m = fixture();
+  m.linked = false;
+  m.settings.mode = 'redraft';
+  const before = JSON.stringify(m);
+  const reversed = {
+    teamA: 'a',
+    teamB: 'b',
+    sendA: ['bw'],
+    sendB: ['aq'],
+    customTeams: true,
+    includeWaivers: true,
+  };
+  const result = analyzeTrade(m, reversed);
+  assert.equal(result.customTeams, true);
+  assert.equal(result.sent[0].id, 'bw');
+  assert.equal(result.received[0].id, 'aq');
+  assert.equal(result.teamA.roster.replacements.length, 0);
+  assert.equal(JSON.stringify(m), before);
+  assert.throws(() => analyzeTrade(m, { ...reversed, sendB: ['bw'] }), /only once/);
+  assert.throws(() => analyzeTrade(m, { ...reversed, sendA: ['unknown'] }), /no longer/);
+  assert.throws(() => analyzeTrade({ ...m, linked: true }, reversed), /actual roster ownership/);
+  assert.throws(
+    () => analyzeTrade({ ...m, linked: true }, { ...reversed, customTeams: false }),
+    /no longer/,
+  );
+  assert.equal(tradeResult(result, m).includes('Roster consequences'), false);
 });

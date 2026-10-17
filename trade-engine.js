@@ -229,8 +229,31 @@ export function analyzeTrade(model, input, { sensitivity = true } = {}) {
     sendA.length + sendB.length > 40
   )
     throw invalid('Select at least one asset on each side (maximum 40).');
-  const ids = [...sendA, ...sendB],
-    assets = [...model.players, ...model.picks];
+  if (input.customTeams !== undefined && typeof input.customTeams !== 'boolean')
+    throw invalid('Invalid comparison setting.');
+  const ids = [...sendA, ...sendB];
+  if (input.customTeams) {
+    if (model.linked !== false)
+      throw invalid('Linked league trades must use actual roster ownership.');
+    // Build an ephemeral comparison from selected assets only. Never write to imported rosters.
+    model = {
+      ...model,
+      teams: model.teams
+        .filter((t) => [input.teamA, input.teamB].includes(t.id))
+        .map((t) => ({
+          ...t,
+          name: t.id === input.teamA ? 'Team A' : 'Team B',
+          rosterLimit: null,
+          protectedIds: [],
+        })),
+      players: model.players
+        .filter((p) => ids.includes(p.id))
+        .map((p) => ({ ...p, owner: sendA.includes(p.id) ? input.teamA : input.teamB })),
+      picks: [],
+    };
+    input = { ...input, includeWaivers: false };
+  }
+  const assets = [...model.players, ...model.picks];
   if (ids.some((id) => typeof id !== 'string') || new Set(ids).size !== ids.length)
     throw invalid('An asset can appear only once.');
   for (const [list, owner] of [
@@ -292,6 +315,7 @@ export function analyzeTrade(model, input, { sensitivity = true } = {}) {
       throughWeek: model.data?.throughWeek ?? null,
     },
     settings: model.settings,
+    customTeams: input.customTeams === true,
     assumptions,
     baseline: {
       difference: base.difference,
@@ -305,24 +329,34 @@ export function analyzeTrade(model, input, { sensitivity = true } = {}) {
       Math.abs(r.difference) <= 10
         ? 'Values are within 10%'
         : r.difference > 0
-          ? 'You receive more model value'
-          : 'Your partner receives more model value',
-    notes: [
-      ...(model.data?.prospectOnly
-        ? [
-            'Prospect-only dynasty comparison. Starter pace and current-production comparisons are unavailable.',
-          ]
-        : []),
-      'A hypothetical comparison only. Nothing is submitted to Sleeper.',
-      'Starter pace uses past weekly production, not a rest-of-season forecast.',
-      'Cuts minimize starter-pace loss, then model value. Waiver suggestions assume availability and are not claims. Incoming players use active spots; IR/taxi eligibility needs review.',
-      ...(!r.teamA.roster.capacity || !r.teamB.roster.capacity
-        ? [
-            'Active roster capacity is unavailable for at least one team; required cuts cannot be verified.',
-          ]
-        : []),
-      'Sensitivity cases are assumption bounds, not probabilities. Workload scales pace/current value; development scales dynasty value only.',
-    ],
+          ? input.customTeams
+            ? 'Team B sends more model value'
+            : 'You receive more model value'
+          : input.customTeams
+            ? 'Team A sends more model value'
+            : 'Your partner receives more model value',
+    notes: input.customTeams
+      ? [
+          'Custom player comparison only. Actual rosters, starter lineups, cuts and waiver additions are not modeled.',
+          'Player values are model estimates, not forecasts. Nothing is submitted to Sleeper.',
+          'Sensitivity cases test workload assumptions, not probabilities.',
+        ]
+      : [
+          ...(model.data?.prospectOnly
+            ? [
+                'Prospect-only dynasty comparison. Starter pace and current-production comparisons are unavailable.',
+              ]
+            : []),
+          'A hypothetical comparison only. Nothing is submitted to Sleeper.',
+          'Starter pace uses past weekly production, not a rest-of-season forecast.',
+          'Cuts minimize starter-pace loss, then model value. Waiver suggestions assume availability and are not claims. Incoming players use active spots; IR/taxi eligibility needs review.',
+          ...(!r.teamA.roster.capacity || !r.teamB.roster.capacity
+            ? [
+                'Active roster capacity is unavailable for at least one team; required cuts cannot be verified.',
+              ]
+            : []),
+          'Sensitivity cases are assumption bounds, not probabilities. Workload scales pace/current value; development scales dynasty value only.',
+        ],
   };
 }
 

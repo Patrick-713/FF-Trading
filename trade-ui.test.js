@@ -172,6 +172,12 @@ test('builder supports player search, assumptions, analysis, finder and loading 
     assert.equal(lastInput.teamB, 'demo_a');
     assert.deepEqual(lastInput.sendA, ['demo_7']);
     assert.deepEqual(lastInput.sendB, ['demo_3']);
+    await click('[data-add-side]', { asset: 'demo_7', addSide: 'B' });
+    await click('#analyze-trade');
+    assert.equal(lastInput.teamA, 'demo_a');
+    assert.equal(lastInput.teamB, 'demo_b');
+    assert.deepEqual(lastInput.sendA, ['demo_3']);
+    assert.deepEqual(lastInput.sendB, ['demo_7']);
     model.linked = true;
     model.teams[0].pointsFor = 623.45;
     model.teams[0].pointsAgainst = 500.07;

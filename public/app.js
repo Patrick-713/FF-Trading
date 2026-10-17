@@ -1,6 +1,12 @@
 /** Browser application. Views render the current state; event handlers call the backend API. */
 import { NFL_TEAMS, favoriteTeam } from './nfl-teams.js';
-import { tradeTools, tradeSearch, tradeResult, finderView } from './trade-tools.js';
+import {
+  tradeTools,
+  tradeAssumptions,
+  tradeSearch,
+  tradeResult,
+  finderView,
+} from './trade-tools.js';
 let state,
   model,
   view = 'team',
@@ -152,28 +158,77 @@ function assetList(team, side) {
     picks = model.picks.filter((p) => p.owner === team);
   return `<div class="asset-list">${[...players, ...picks].map((a) => `<label class="asset-option"><input type="checkbox" data-side="${side}" value="${esc(a.id)}" ${selected.has(a.id) ? 'checked' : ''}><span class="position">${a.kind === 'pick' ? 'PICK' : esc(a.position)}</span><span class="asset-name"><strong>${esc(a.name)}</strong><small>${a.kind === 'pick' ? `${esc(a.originalTeam)} · unknown slot` : esc(a.club) + ' · ' + (a.games ? a.games + ' games' : 'low-confidence estimate')}</small></span><b>${fmt(a.value)}</b></label>`).join('')}</div>`;
 }
+function selectedPlayers(side) {
+  const ids = side === 'A' ? selectedA : selectedB;
+  const assets = [...model.players, ...model.picks].filter((p) => ids.has(p.id));
+  return `<div class="selected-trade-assets">${assets.map((p) => `<article class="selected-trade-asset"><div><strong>${esc(p.name)}</strong><small>${esc(p.position || 'PICK')} · ${fmt(p.value)} value</small></div><div class="player-side-actions"><button class="text-button" data-add-side="${side === 'A' ? 'B' : 'A'}" data-asset="${esc(p.id)}" aria-label="Move ${esc(p.name)} to Team ${side === 'A' ? 'B' : 'A'}">Move to ${side === 'A' ? 'B' : 'A'}</button><button class="text-button" data-remove-asset="${esc(p.id)}" aria-label="Remove ${esc(p.name)}">Remove</button></div></article>`).join('') || `<p class="empty">No players selected. Use + Team ${side} above.</p>`}</div>`;
+}
+/** Assign a side without duplicates. Linked comparisons swap teams instead of inventing ownership. */
+function addPlayerToSide(id, side) {
+  const asset = [...model.players, ...model.picks].find((p) => p.id === id);
+  if (!asset || !['A', 'B'].includes(side)) return;
+  if (model.linked) {
+    const owner = model.teams.find((t) => t.id === asset.owner);
+    if (!owner) {
+      toast('Free agents cannot be traded in a linked league.');
+      return;
+    }
+    const a = tradeOwn().id,
+      b = partner || model.teams.find((t) => t.id !== a)?.id;
+    partner = b;
+    if (owner.id === (side === 'A' ? b : a)) {
+      tradeTeam = b;
+      partner = a;
+      [selectedA, selectedB] = [selectedB, selectedA];
+    } else if (owner.id !== (side === 'A' ? a : b)) {
+      if (side === 'A') {
+        tradeTeam = owner.id;
+        selectedA.clear();
+      } else {
+        partner = owner.id;
+        selectedB.clear();
+      }
+      toast(`Team ${side} changed to ${owner.name}.`);
+    }
+  }
+  const target = side === 'A' ? selectedA : selectedB,
+    other = side === 'A' ? selectedB : selectedA;
+  other.delete(id);
+  target.add(id);
+  result = null;
+  finder = null;
+  view = 'trade';
+  $('#details-dialog').close();
+  render();
+  toast(`${asset.name} added to Team ${side}.`);
+}
 function tradeView() {
   if (!partner || !model.teams.some((t) => t.id === partner) || partner === tradeOwn().id)
     partner = model.teams.find((t) => t.id !== tradeOwn().id)?.id;
   const own = tradeOwn();
   return [
-    `${intro('Test the trade. See both sides.', `Choose players${model.settings.mode === 'dynasty' ? ' and dynasty picks' : ''} to exchange. ${model.linked ? 'Uses your Sleeper league format. Your real roster stays unchanged.' : `Compare ${model.players.length} real NFL players across example rosters. Link Sleeper to use your own teams.`}`, false)}${tradeTools(tradeModel(), selectedA, selectedB, assumptions, includeWaivers, tradeQuery)}<div class="trade-builder"><section class="panel"><div class="panel-heading"><div><span class="eyebrow">TEAM A SENDS</span><label class="sr-only" for="trade-team">Team to trade from</label><select id="trade-team" aria-label="Team to trade from">${model.teams.map((t) => `<option value="${esc(t.id)}" ${own.id === t.id ? 'selected' : ''}>${esc(t.name)}${t.id === model.ownTeam && model.linked ? ' (Your team)' : ''}</option>`).join('')}</select>`,
+    `${intro('Test the trade. See both sides.', `Choose players${model.settings.mode === 'dynasty' ? ' and dynasty picks' : ''} to exchange. ${model.linked ? 'Uses your Sleeper league format. Your real roster stays unchanged.' : `Search ${model.players.length} real NFL players. Add them to Team A or Team B, then compare the trade. No roster setup needed.`}`, false)}${tradeTools(tradeModel(), selectedA, selectedB, assumptions, includeWaivers, tradeQuery)}<div class="trade-builder"><section class="panel"><div class="panel-heading"><div><span class="eyebrow">TEAM A SENDS</span><label class="sr-only" for="trade-team">Team to trade from</label>${model.linked ? `<select id="trade-team" aria-label="Team to trade from">${model.teams.map((t) => `<option value="${esc(t.id)}" ${own.id === t.id ? 'selected' : ''}>${esc(t.name)}${t.id === model.ownTeam && model.linked ? ' (Your team)' : ''}</option>`).join('')}</select>` : '<h2>Team A</h2>'}`,
     `</div>`,
-    `<span id="sum-A" class="value-number">${assetSum(selectedA)}</span></div>${assetList(own.id, 'A')}</section>`,
-    `<section class="panel"><div class="panel-heading"><div><span class="eyebrow">TEAM B SENDS</span><select id="trade-partner" aria-label="Trade partner">${model.teams
-      .filter((t) => t.id !== own.id)
-      .map(
-        (t) =>
-          `<option value="${t.id}" ${partner === t.id ? 'selected' : ''}>${esc(t.name)}</option>`,
-      )
-      .join('')}</select>`,
+    `<span id="sum-A" class="value-number">${assetSum(selectedA)}</span></div>${selectedPlayers('A')}${model.linked ? `<details class="team-roster-picker"><summary>Choose from this roster</summary>${assetList(own.id, 'A')}</details>` : ''}</section>`,
+    `<section class="panel"><div class="panel-heading"><div><span class="eyebrow">TEAM B SENDS</span>${
+      model.linked
+        ? `<select id="trade-partner" aria-label="Trade partner">${model.teams
+            .filter((t) => t.id !== own.id)
+            .map(
+              (t) =>
+                `<option value="${t.id}" ${partner === t.id ? 'selected' : ''}>${esc(t.name)}</option>`,
+            )
+            .join('')}</select>`
+        : '<h2>Team B</h2>'
+    }`,
     `</div>`,
-    `<span id="sum-B" class="value-number">${assetSum(selectedB)}</span></div>${assetList(partner, 'B')}</section>`,
+    `<span id="sum-B" class="value-number">${assetSum(selectedB)}</span></div>${selectedPlayers('B')}${model.linked ? `<details class="team-roster-picker"><summary>Choose from this roster</summary>${assetList(partner, 'B')}</details>` : ''}</section>`,
     `</div>`,
-    `<div class="trade-actions"><p id="trade-error" class="error" role="alert"></p>`,
+    `<div class="trade-actions"><p id="trade-error" class="error" role="alert">${!selectedA.size || !selectedB.size ? 'Add at least one player to each side.' : ''}</p>`,
     `<button class="trade-button" id="clear-trade">Clear selections</button>`,
-    `<button class="primary" id="analyze-trade">Analyze trade ↗</button>`,
+    `<button class="primary" id="analyze-trade" ${!selectedA.size || !selectedB.size ? 'disabled' : ''}>Analyze trade ↗</button>`,
     `</div>`,
+    tradeAssumptions(model, selectedA, selectedB, assumptions, includeWaivers),
     `<div id="trade-result">${result ? resultView(result) : ''}</div>`,
   ].join('');
 }
@@ -188,7 +243,7 @@ function resultView(r) {
   return tradeResult(r, model);
 }
 function savedView() {
-  return `${intro('Your trade notebook.', 'Saved comparisons stay with your account. Each shows the model and data at the time you saved it.', false)}<div class="saved-grid">${model.saved.map((s) => `<section class="panel result-card"><span class="eyebrow">${esc(s.result.settings.mode)} · Model ${esc(s.result.modelVersion || 'legacy / unversioned')} · ${esc(new Date(s.created).toLocaleString())}</span><h2>${esc(s.title)}</h2><p>${esc(s.result.summary)}</p><div class="result-metric"><span>Roster value change</span><strong>${signed(s.result.teamA.valueChange)}</strong></div><div class="result-metric"><span>Starter pace change</span><strong>${signed(s.result.teamA.paceChange)}${s.result.teamA.paceChange === null ? '' : ' PTS/WK'}</strong></div><button class="trade-button" data-load="${s.id}">Load selections →</button></section>`).join('') || '<section class="panel empty">Build and analyze a trade, then save the scenario here.</section>'}</div>`;
+  return `${intro('Your trade notebook.', 'Saved comparisons stay with your account. Each shows the model and data at the time you saved it.', false)}<div class="saved-grid">${model.saved.map((s) => `<section class="panel result-card"><span class="eyebrow">${esc(s.result.settings.mode)} · Model ${esc(s.result.modelVersion || 'legacy / unversioned')} · ${esc(new Date(s.created).toLocaleString())}</span><h2>${esc(s.title)}</h2><p>${esc(s.result.summary)}</p><div class="result-metric"><span>Roster value change</span><strong>${signed(s.result.teamA.valueChange)}</strong></div>${s.result.customTeams ? '' : `<div class="result-metric"><span>Starter pace change</span><strong>${signed(s.result.teamA.paceChange)}${s.result.teamA.paceChange === null ? '' : ' PTS/WK'}</strong></div>`}<button class="trade-button" data-load="${s.id}">Load selections →</button></section>`).join('') || '<section class="panel empty">Build and analyze a trade, then save the scenario here.</section>'}</div>`;
 }
 function sleeperView() {
   const c = state.connection;
@@ -367,7 +422,8 @@ const tradeInput = () => ({
   assumptions: Object.fromEntries(
     Object.entries(assumptions).filter(([id]) => selectedA.has(id) || selectedB.has(id)),
   ),
-  includeWaivers,
+  customTeams: !model.linked,
+  includeWaivers: model.linked ? includeWaivers : false,
 });
 async function changeSettings(settings) {
   model = await api('analysis/settings', 'PUT', { ...model.settings, ...settings });
@@ -422,22 +478,24 @@ document.addEventListener('click', async (e) => {
     render();
     return;
   }
+  const add = e.target.closest('[data-add-side]');
+  if (add) {
+    addPlayerToSide(add.dataset.asset, add.dataset.addSide);
+    return;
+  }
+  const remove = e.target.closest('[data-remove-asset]');
+  if (remove) {
+    selectedA.delete(remove.dataset.removeAsset);
+    selectedB.delete(remove.dataset.removeAsset);
+    delete assumptions[remove.dataset.removeAsset];
+    result = null;
+    render();
+    return;
+  }
   const player = e.target.closest('[data-trade-player]');
   if (player) {
     const p = model.players.find((p) => p.id === player.dataset.tradePlayer);
-    if (p.owner === tradeOwn().id) selectedA.add(p.id);
-    else {
-      if (partner !== p.owner) {
-        partner = p.owner;
-        selectedB.clear();
-        toast('Trade partner selected from player ownership.');
-      }
-      selectedB.add(p.id);
-    }
-    result = null;
-    view = 'trade';
-    $('#details-dialog').close();
-    render();
+    if (p) addPlayerToSide(p.id, p.owner === tradeOwn().id ? 'A' : 'B');
     return;
   }
   const mode = e.target.closest('[data-auth-mode]');

@@ -10,37 +10,43 @@ const change = (n) =>
   `<strong class="${n === null || n === undefined ? 'muted' : n >= 0 ? 'positive' : 'negative'}">${signed(n)}</strong>`;
 /** Search the imported player pool and keep ownership visible in each result. */
 export function tradeSearch(model, query = '') {
-  if (!query.trim())
-    return model.linked === false
-      ? `<p class="muted">Search all ${model.players.length} real NFL players across ${model.teams.length} example rosters. Selecting a player switches to their example team. These rosters are for comparison only.</p>`
-      : '<p class="muted">Search by player name across your league. Selecting an opponent’s player switches to their team. Free agents appear for reference and waiver planning.</p>';
+  const publicPool = model.linked === false;
   const players = model.players
-    .filter((p) => `${p.name} ${p.club} ${p.position}`.toLowerCase().includes(query.toLowerCase()))
+    .filter(
+      (p) =>
+        !query.trim() ||
+        `${p.name} ${p.club} ${p.position}`.toLowerCase().includes(query.toLowerCase()),
+    )
     .sort((a, b) => b.value - a.value)
-    .slice(0, 20);
-  return (
+    .slice(0, query.trim() ? 20 : 6);
+  return `${query.trim() ? '' : `<p class="muted">${publicPool ? 'Search all 300 players, or start with a player below. Add anyone to either side.' : 'Choose a side for each player. Team selectors follow actual Sleeper ownership; moving a player to the opposite side swaps the comparison teams.'}</p>`}${
     players
       .map((p) => {
         const team = model.teams.find((t) => t.id === p.owner);
-        return `<div class="search-player"><div><strong>${esc(p.name)}</strong><small>${esc(p.position)} · ${esc(p.club)} · ${esc(team?.name || 'Free agent')} · ${fmt(p.value)} value</small></div>${team ? `<button class="trade-button" data-trade-player="${esc(p.id)}">${p.owner === model.ownTeam ? 'Add to send' : 'Add to receive'}</button>` : `<button class="text-button" data-player="${esc(p.id)}">View stats</button>`}</div>`;
+        return `<div class="search-player"><div><strong>${esc(p.name)}</strong><small>${esc(p.position)} · ${esc(p.club)}${!publicPool ? ` · ${esc(team?.name || 'Free agent')}` : ''} · ${fmt(p.value)} value</small></div>${publicPool || team ? `<div class="player-side-actions"><button class="trade-button" data-add-side="A" data-asset="${esc(p.id)}" aria-label="Add ${esc(p.name)} to Team A">+ Team A</button><button class="trade-button" data-add-side="B" data-asset="${esc(p.id)}" aria-label="Add ${esc(p.name)} to Team B">+ Team B</button></div>` : `<button class="text-button" data-player="${esc(p.id)}">View stats</button>`}</div>`;
       })
-      .join('') || '<p class="empty">No matching players in the imported player pool.</p>'
-  );
+      .join('') || '<p class="empty">No matching players.</p>'
+  }`;
 }
+
 export function tradeTools(model, selectedA, selectedB, assumptions, includeWaivers, query) {
-  const assets = [...model.players, ...model.picks].filter(
-    (a) => selectedA.has(a.id) || selectedB.has(a.id),
-  );
   return [
-    `<section class="panel trade-tools"><div class="panel-heading"><h2>Start with a player or a goal</h2>`,
-    `<button class="trade-button" id="open-finder">Find trade ideas →</button>`,
+    `<section class="panel trade-tools"><div class="panel-heading"><h2>Add players to either side</h2>`,
+    model.linked ? `<button class="trade-button" id="open-finder">Find trade ideas →</button>` : '',
     `</div>`,
     `<div class="link-content"><label for="trade-search">Search all ${model.players.length} players</label>${!model.linked ? `<button class="text-button" data-view="players">Browse all ${model.players.length} players →</button>` : ''}`,
     `<input id="trade-search" type="search" placeholder="Player name, position or NFL team" value="${esc(query)}" autocomplete="off"><div id="trade-search-results" aria-live="polite">${tradeSearch(model, query)}</div>`,
     `</div>`,
     `</section>`,
+  ].join('');
+}
+export function tradeAssumptions(model, selectedA, selectedB, assumptions, includeWaivers) {
+  const assets = [...model.players, ...model.picks].filter(
+    (a) => selectedA.has(a.id) || selectedB.has(a.id),
+  );
+  return [
     `<details class="panel assumption-panel"><summary>Scenario assumptions ${assets.length ? '· ' + assets.length + ' selected assets' : ''}</summary><div class="link-content"><p class="muted">Workload scales past-scoring pace and current value. ${model.settings.mode === 'dynasty' ? 'Development changes dynasty value only; it is a scenario assumption, not a growth forecast. Picks have no known draft position.' : 'Adjust workload to explore a change in playing time.'}</p>`,
-    `<label class="waiver-toggle"><input id="include-waivers" type="checkbox" ${includeWaivers ? 'checked' : ''}> Suggest waiver replacements for spots this trade opens</label>${
+    `${model.linked ? `<label class="waiver-toggle"><input id="include-waivers" type="checkbox" ${includeWaivers ? 'checked' : ''}> Suggest waiver replacements for spots this trade opens</label>` : ''}${
       assets
         .map((a) => {
           const v = assumptions[a.id] || {};
@@ -60,6 +66,8 @@ function lineupTable(before, after, available = true) {
 /** Explain both teams' outcomes, uncertainty and scenario-saving controls. */
 export function tradeResult(r, model) {
   const panel = (report) => {
+    if (r.customTeams)
+      return `<article class="panel result-card"><h3>${report.team === r.teamA.team ? 'Team A' : 'Team B'}</h3><div class="result-metric"><span>Player value sent</span><strong>${fmt(report.current.before)}</strong></div><div class="result-metric"><span>Player value received</span><strong>${fmt(report.current.after)}</strong></div><div class="result-metric"><span>Value change</span>${change(report.current.change)}</div><p class="muted">Selected players only. Link Sleeper to include your actual roster, starter lineup and draft picks.</p></article>`;
     const roster = report.roster;
     return [
       `<article class="panel result-card"><h3>${esc(model.teams.find((t) => t.id === report.team)?.name || 'Team')}</h3>`,
@@ -86,13 +94,13 @@ export function tradeResult(r, model) {
   };
   return [
     `<section class="result-summary"><span class="eyebrow">${esc(r.settings.mode.toUpperCase())} · MODEL ${esc(r.modelVersion || 'legacy')} · ${model.settings.mode === 'dynasty' ? 'BOTH TIME HORIZONS' : 'THIS SEASON'}</span><h2>${esc(r.summary)}</h2>`,
-    `<p>Send ${fmt(r.give)} · Receive ${fmt(r.get)} · ${signed(r.difference)}% exchange difference</p>`,
+    `<p>${r.customTeams ? 'Team A sends' : 'Send'} ${fmt(r.give)} · ${r.customTeams ? 'Team B sends' : 'Receive'} ${fmt(r.get)} · ${signed(r.difference)}% exchange difference</p>`,
     `</section>`,
     `<div class="trade-builder">${panel(r.teamA)}${panel(r.teamB)}</div>`,
     `<section class="panel result-card"><h3>How sensitive is this trade?</h3>`,
     `<p>Unadjusted model: ${signed(r.baseline.difference)}% exchange difference. Your assumptions: ${signed(r.difference)}%.</p>`,
     `<p><b>${r.verdictFlips ? 'The verdict changes under the tested assumptions.' : 'The verdict stays the same in these tested cases.'}</b> These are illustrative bounds, not probabilities.</p>`,
-    `<div class="sensitivity-grid">${r.sensitivity.map((c) => `<article><strong>${esc(c.label)}</strong><p>${esc(c.verdict)} · ${signed(c.difference)}%</p><small>Starter pace ${signed(c.paceChange)}${model.settings.mode === 'dynasty' ? ` · Dynasty ${signed(c.futureChange)}` : ''}</small></article>`).join('')}</div>`,
+    `<div class="sensitivity-grid">${r.sensitivity.map((c) => `<article><strong>${esc(c.label)}</strong><p>${esc(c.verdict)} · ${signed(c.difference)}%</p><small>${r.customTeams ? 'Workload scenario' : `Starter pace ${signed(c.paceChange)}`}${model.settings.mode === 'dynasty' ? ` · Dynasty ${signed(c.futureChange)}` : ''}</small></article>`).join('')}</div>`,
     `<p class="muted">${model.settings.mode === 'dynasty' ? 'Stress test: incoming workload ±15% and dynasty development ±10%, with opposite changes to outgoing players; incoming picks early / late with outgoing picks reversed.' : 'Stress test: incoming workload changes by 15%, with opposite changes to outgoing players.'} Multipliers stop at 50 to 150%.</p>`,
     `</section>`,
     `<div class="scenario-save"><label for="scenario-title">Scenario name</label>`,
