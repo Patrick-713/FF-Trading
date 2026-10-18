@@ -63,8 +63,6 @@ An FF Trading login is separate from a Sleeper username lookup. Account identity
 
 Queries use parameters. Postgres transactions pin a separate client so concurrent operations cannot share another request's transaction. Production requires durable database configuration and cannot silently fall back to an instance-local SQLite file. Runtime secrets are configured outside GitHub.
 
-## Demonstrating the backend
-
-Show a player profile first, then trace `/api/analysis` in the browser Network panel and the corresponding source files. In Neon, show a small selection of league refresh dates or player statistics from your own snapshot. Keep authentication records and connection strings off screen.
+## Further reading
 
 Read [Code map](CODE-MAP.md) for file navigation and [Deployment](DEPLOYMENT.md) for maintenance and release procedures.

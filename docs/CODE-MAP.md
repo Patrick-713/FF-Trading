@@ -1,6 +1,6 @@
 # Code map
 
-Use this guide to find a feature before opening individual files. All paths below are relative to the repository root.
+Paths below are relative to the repository root.
 
 ## Recommended reading order
 
@@ -39,7 +39,7 @@ The browser sends selected asset IDs to the API. `application.js` identifies the
 
 ## Tests, fixtures, and reports
 
-`test/` mirrors feature names. Start with the test description, inspect the synthetic inputs, then read the assertions. HTTP tests start temporary servers and stop them when finished. `fixtures/` contains provider replacements explicitly preloaded by those tests.
+Tests in `test/` are named for the feature they cover. HTTP tests start temporary servers and stop them when finished. `fixtures/` contains provider replacements explicitly preloaded by those tests.
 
 `scripts/evaluate-model.js` checks synthetic model behavior. `reports/evaluation-report.json` records that result. `scripts/backtest-redraft.js` is a separate manual historical scoring evaluation; its output is `reports/redraft-validation.json`. `reports/dynasty-pick-calibration.json` is a dated calibration record, not a live market feed.
 

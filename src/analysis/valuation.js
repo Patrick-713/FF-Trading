@@ -4,7 +4,7 @@ import { invalid } from '../http/errors.js';
 import { prospectProfile } from './prospects.js';
 import { scoringSignal } from './redraft-signal.js';
 import { draftPickValue } from './draft-values.js';
-// FF Trading model v1: transparent heuristic values, not market prices or calibrated forecasts.
+// Values are model estimates. The current version is defined in model-version.js.
 export function parseCSV(text) {
   const rows = [];
   let row = [],

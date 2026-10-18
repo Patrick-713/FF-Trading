@@ -1,6 +1,8 @@
 # FF Trading
 
-A full-stack fantasy football app for exploring player rankings, linking Sleeper leagues, and comparing hypothetical trades. Built with browser JavaScript, a Node.js API, and Neon Postgres. GitHub pushes deploy to Vercel.
+Fantasy football rankings and trade analysis for redraft and dynasty leagues. Connect a Sleeper league to compare rosters, players, and draft picks using its scoring settings.
+
+The app uses HTML, CSS, and JavaScript in the browser, a Node.js API, and Neon Postgres. GitHub pushes deploy to Vercel.
 
 [Open the live app](https://fantasyfootballmarket.app/)
 
@@ -67,9 +69,3 @@ Sleeper supplies league and roster context. nflverse supplies weekly statistics 
 The public demo is a dated top-300 statistical sample bundled in `resources/demo-data.json`, not a live expert ranking feed. Linked leagues use their prepared snapshots.
 
 Trade values are relative model units. Current model 2.7 includes scoring and usage, fading last-season context, dynasty age and prospect adjustments, calibrated picks, and separate low kicker values. Actual fantasy points are distinct from trade values. Supported league scoring is documented in the backend guide; unsupported settings are not silently treated as fully modeled.
-
-## Interview walkthrough
-
-Show a player profile, build a trade, and explain one request through `public/app.js`, `src/http/application.js`, `src/analysis/fantasy.js`, and `src/analysis/valuation.js`. Then show `test/kicker-values.test.js` as an example of a reported issue covered by regression tests.
-
-Neon shows stored inputs and saved records. GitHub shows the equations and implementation. Keep authentication tables, secrets, and other users' records off screen.
