@@ -32,3 +32,7 @@ Run `npm run evaluate:historical` to reproduce `redraft-validation.json`. Raw do
 - Existing saved trades retain their original model versions and values.
 
 These changes reduce usage per request; they cannot guarantee that unlimited future traffic stays inside account quotas. Review actual provider usage as the audience grows.
+
+### Kicker trade values
+
+Model 2.7 values kickers separately from offensive players. A six-point scoring baseline and a small scoring premium produce low trade values. The ceiling is the model's next-year mid third-round pick in a 12-team, one-QB league (currently 115). Dynasty applies a further 10% discount. Availability and limited samples reduce the estimate; age, NFL draft capital and Superflex do not increase it. This is a product calibration, not a consensus market price. Actual fantasy scoring, game logs and lineup pace are unchanged.

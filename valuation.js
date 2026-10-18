@@ -255,12 +255,26 @@ export function valuePlayer(
       source: draft.source || 'Verified league rookie selection',
     };
   }
-  const dynasty = Math.round(
+  let dynasty = Math.round(
     Math.max(
       10,
       pickAnchor ? Math.max(productionDynasty, pickAnchor.value) : longTerm * ageFactor * qbPremium,
     ),
   );
+  // Kicker scoring is useful in a lineup, but plentiful replacements limit trade value.
+  // Use a fixed 12-team, one-QB third-round benchmark so Superflex adds no kicker premium.
+  const kickerCeiling = draftPickValue(
+    { round: 3, teams: 12, year: season + 1 },
+    { ...s, mode: 'dynasty', superflex: false },
+    season,
+  );
+  if (player.position === 'K') {
+    const healthyValue = clamp(15 + Math.max(0, signal.estimate - 6) * 12, 10, kickerCeiling);
+    redraft = Math.round(
+      Math.max(10, healthyValue * availability * sampleWeight + 10 * (1 - sampleWeight)),
+    );
+    dynasty = Math.round(Math.max(10, redraft * 0.9));
+  }
   const confidence =
     games >= 8
       ? 'Higher sample'
@@ -314,15 +328,29 @@ export function valuePlayer(
           ? round((sum('rushing_yards') + sum('receiving_yards')) / (carries + sum('receptions')))
           : null,
     },
-    breakdown: {
-      production: Math.round(production),
-      opportunity: Math.round(usage),
-      efficiency: Math.round(efficiency),
-      consistency: Math.round(consistency),
-      ageFactor: round(ageFactor, 2),
-      draftPrior: prior,
-    },
+    breakdown:
+      player.position === 'K'
+        ? {
+            scoringEstimate: round(signal.estimate),
+            replacementPPG: 6,
+            sampleWeight: round(sampleWeight, 2),
+            availabilityFactor: availability,
+            tradeValueCeiling: kickerCeiling,
+          }
+        : {
+            production: Math.round(production),
+            opportunity: Math.round(usage),
+            efficiency: Math.round(efficiency),
+            consistency: Math.round(consistency),
+            ageFactor: round(ageFactor, 2),
+            draftPrior: prior,
+          },
     notes: [
+      ...(player.position === 'K'
+        ? [
+            'Kickers have low trade value because replacements are widely available. Even the highest estimate is capped at a mid third-round rookie pick in a 12-team league, with a further 10% dynasty discount. Fantasy points are unchanged.',
+          ]
+        : []),
       ...(sample.excluded.length
         ? [
             `Excluded ${sample.excluded.length} confirmed injury or non-playing game rows from production averages, recent form, and usage.`,
@@ -345,8 +373,12 @@ export function valuePlayer(
               : 'No matched weekly stats: value is a low-confidence metadata estimate.',
           ]
         : []),
-      ...(age == null ? ['Age unavailable; neutral dynasty age adjustment.'] : []),
-      ...(player.draftRound == null ? ['NFL draft round unavailable; neutral draft prior.'] : []),
+      ...(player.position !== 'K' && age == null
+        ? ['Age unavailable; neutral dynasty age adjustment.']
+        : []),
+      ...(player.position !== 'K' && player.draftRound == null
+        ? ['NFL draft round unavailable; neutral draft prior.']
+        : []),
       ...(injury ? [`Availability adjustment for listed status: ${player.injury}.`] : []),
     ],
   };
