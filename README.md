@@ -1,138 +1,75 @@
 # FF Trading
 
-Live app: [ff-trading-one.vercel.app](https://ff-trading-one.vercel.app). Pushes to the connected GitHub repository's main branch deploy production updates.
+A full-stack fantasy football app for exploring player rankings, linking Sleeper leagues, and comparing hypothetical trades. Built with browser JavaScript, a Node.js API, and Neon Postgres. GitHub pushes deploy to Vercel.
 
-Fantasy roster valuation and hypothetical trade analysis for **redraft and dynasty**. There are no tokens to buy, no share market, and no real-money transactions in the product.
+[Open the live app](https://fantasyfootballmarket.app/)
 
-## Run
+## Start here
 
-Requires Node.js 24. Install the pinned dependencies first.
+- [Code map](docs/CODE-MAP.md): where each feature lives and which files to read first.
+- [Backend and data](docs/BACKEND.md): request flow, database tables, and how statistics become values.
+- [Data quality](docs/DATA-QUALITY.md): sources, evaluation evidence, and model limitations.
+- [Deployment](docs/DEPLOYMENT.md): environment setup, migrations, and releases.
+
+## Project layout
+
+```text
+FF-Trading/
+  public/             Browser pages, styles, icons, and UI modules
+  src/                Backend code
+    http/             Routes, request security, and error handling
+    auth/             Accounts, email, preferences, and saved stories
+    integrations/     Sleeper and news provider clients
+    storage/          Database adapters, migrations, and stat preparation
+    analysis/         Player values, draft picks, rosters, and trades
+  api/                Vercel serverless entry point
+  test/               Automated tests
+  fixtures/           Synthetic provider responses used by tests
+  scripts/            Manual evaluation and database maintenance tools
+  resources/          Bundled public demo player data
+  reports/            Checked-in model evaluation results
+  docs/               Developer documentation
+  server.js           Local server entry point
+```
+
+Local `data/`, dependencies, environment files, and Vercel credentials are ignored by Git. Production account data lives in Neon.
+
+## Run locally
+
+Use Node.js 24. From the project root:
 
 ```sh
 npm ci
-node server.js
+npm start
 ```
 
-Open http://127.0.0.1:3000. Run `node --test` for validation. `PORT`, `HOST`, and `DB_PATH` configure the server; `.env.example` documents these variables and is not automatically loaded. Production runs on Vercel with durable Neon PostgreSQL. Local development uses SQLite unless `DATABASE_URL` is set. Deployment setup and migration steps are in [DEPLOYMENT.md](DEPLOYMENT.md).
+Open http://127.0.0.1:3000. Local development uses SQLite by default. Production requires a server-only `DATABASE_URL`. See `.env.example` and the deployment guide before connecting a cloud database.
 
-For a guided reading order and file responsibilities, see [CODE-MAP.md](CODE-MAP.md).
+```sh
+npm test
+npm run evaluate
+```
 
-## Workspace
+Tests use temporary databases and synthetic data. The cloud integration test is opt-in and must use the isolated preview database. Model evaluation checks intended behavior; it is not proof of prediction accuracy.
 
-- **My Team:** player value, dynasty draft capital, optimized starter scoring pace, roster breakdown, and league roster comparisons.
-- **Player Values:** rostered league players plus active offensive free agents with stats or rookie status. Search by name/team, filter positions, and inspect statistics, confidence, and model components.
-- **Trade Simulator:** search for a player across the league or choose a team, then select players and dynasty picks. Compare both time horizons, lineup assignments, cuts, waiver replacements, and bench depth. Adjust assumptions and save the whole scenario.
-- **Trade Finder:** inside the simulator, choose a positional upgrade, younger roster, draft capital, current starters, or long-term value. Review offers that show a measurable modeled benefit for each manager, then open any idea in the builder.
-- **Saved Scenarios:** store hypothetical comparisons under the current account and league. Loading selections uses the scenario's settings; analyze again against current values.
-- **Link Sleeper:** import rosters, team identities, completed-week results, and dynasty traded picks.
-- **Account:** email/password login with verification and email password resets; existing leagues remain saved.
+## What the app does
 
-The **Redraft / Dynasty** switch changes valuation, not the real league. Scoring options include PPR/half/standard, one QB/superflex, 4/6-point passing TDs, and 0/0.5/1 TE reception bonuses. Switching clears an unsaved trade selection to prevent mixing asset values from different modes.
+- Player Rankings supports search, pagination, player profiles, stat explanations, and game logs.
+- My Team imports Sleeper rosters, supported scoring settings, standings, and dynasty pick ownership. FF Score sums modeled player and pick values.
+- Trade Simulator compares either side of a hypothetical exchange. The public demo uses redraft; linked leagues use their league format. It never executes a real trade.
+- Account handles sign-up, email verification, password resets, Sleeper linking, and saved notes.
+- NFL News displays current provider stories and lets users bookmark them.
 
-## Data and valuation model v1
+## Where the numbers come from
 
-Sleeper supplies league rosters, player IDs, positions, age/status metadata, scoring context, and traded-pick ownership. nflverse supplies weekly player statistics and NFL player metadata, matched primarily by GSIS ID. An exact normalized name/position match is used only when unambiguous. Refresh requests use a six-hour statistics cache and a 24-hour NFL metadata/player-catalog cache. League imports save frozen analysis inputs; reads and trade calculations never fetch providers. Historical seasons can use metadata from the refresh date; this is not a historical age-at-season replay. Metadata age/experience calculations use the snapshot date until refreshed.
+Sleeper supplies league and roster context. nflverse supplies weekly statistics and player metadata. The backend prepares compact snapshots and calculates values from those saved inputs, avoiding provider requests during ordinary analysis reads.
 
-Stats include fantasy points/game, recent points/game, targets and carries/game, target share, WOPR, average depth of target, yards/touch, EPA per opportunity, and a consistency estimate. Only completed imported weeks are used for the selected season. Last-season statistics are summarized separately and never counted as current-season games. Prior-year context is matched by GSIS ID and position, and is not applied to first-year rookies. The public redraft simulator uses real NFL players and bundled completed-game nflverse statistics through 2026 week 5, captured October 17, 2026. The pool contains the top 300 QB, RB, WR and TE players by total PPR points in those completed games, organized into 20 illustrative rosters of 15. This is a dated statistical selection, not expert rest-of-season rankings or real league membership. No network requests are required to load it.
+The public demo is a dated top-300 statistical sample bundled in `resources/demo-data.json`, not a live expert ranking feed. Linked leagues use their prepared snapshots.
 
-Values are **relative model units, not currency, token prices, consensus rankings, or calibrated forecasts**. Model 2.4.0 is a transparent heuristic:
+Trade values are relative model units. Current model 2.7 includes scoring and usage, fading last-season context, dynasty age and prospect adjustments, calibrated picks, and separate low kicker values. Actual fantasy points are distinct from trade values. Supported league scoring is documented in the backend guide; unsupported settings are not silently treated as fully modeled.
 
-- Redraft starts with 60% recent four-game scoring and 40% season scoring, adds a fading last-season baseline, then considers positional replacement baselines, opportunity/usage, target share, WOPR, efficiency, and consistency.
-- Dynasty adds position-specific age curves, NFL draft capital, fading prospect priors, and superflex QB scarcity. Missing metadata is labeled; players without matched weekly statistics have low-confidence estimates.
-- Listed injury statuses apply a simple availability discount; this does not predict injury duration.
-- Starter scoring pace uses a maximum-weight slot assignment, never counting a player twice. It reflects past weekly production under the selected scoring settings, **not a rest-of-season projection**.
-- League-specific yardage/first-down/long-play bonuses, exact team D/ST scoring, schedules, route participation, snap counts, and opponent adjustments are not modeled. D/ST and other unmatched assets are explicitly estimates; don't treat their estimated values or pace as stats-backed rankings.
+## Interview walkthrough
 
-## Dynasty draft picks
+Show a player profile, build a trade, and explain one request through `public/app.js`, `src/http/application.js`, `src/analysis/fantasy.js`, and `src/analysis/valuation.js`. Then show `test/kicker-values.test.js` as an example of a reported issue covered by regression tests.
 
-### Young-player valuation
-
-Players in their first three NFL seasons are identified by NFL draft year or season-adjusted experience, never age alone. Prospect starting values use overall NFL selection when available (top 10: 2,400; other first round: 2,100), otherwise round (2: 1,650; 3: 1,200; 4: 750; 5: 500; 6: 325; 7: 225), or a clearly labeled limited-metadata prior of 350. These are model units, not consensus rankings.
-
-Completed rookie-only Sleeper drafts add league context when **every pick** can be verified as a rookie and no keeper picks are present. Startup/mixed/unknown drafts are excluded. Up to four drafts from the selected league season are checked. Rookie draft position is normalized to 12 teams: 1st 2,600; 2 to 3 2,300; 4 to 6 1,950; 7 to 12 1,550; 13 to 24 850; 25 to 36 450; later 250. When NFL capital is known, league context contributes only 25% of the prospect prior. When it is missing, the verified league selection contributes 80% and the limited-metadata prior 20%. This is not a global rookie ADP feed. Unavailable draft history never blocks league analysis or invents a 1.01 ranking.
-
-The prospect weight is `tenure × (0.90 − 0.55 × exposure)`, with tenure multipliers 1.0, 0.55 and 0.20 in NFL seasons one, two and three. Exposure is the larger of games/17 or opportunities/threshold, capped at one. Thresholds are 450 QB attempts, 200 RB carries+targets, and 150 WR/TE carries+targets. The dynasty base is the larger of the established-production estimate and its weighted blend with the prospect prior, then receives the existing age/QB-format adjustment. A breakout can exceed the prior; a slow start does not erase draft capital. Protection fades with sustained NFL evidence and tenure, disappearing in year four. Redraft values and starter pace remain production-based.
-
-Player details show the prior's source, starting value, retained weight, opportunities and verified league selection when present. Current league draft history is read through Sleeper's documented [draft and pick endpoints](https://docs.sleeper.com/#drafts). NFL metadata now includes overall selection and draft year where supplied by nflverse, with the previous metadata cache available as a fallback. Historical experience is adjusted to the selected season; age remains current as documented above.
-
-For Sleeper dynasty leagues (`settings.type=2`), pick inventory starts with original picks using the league's configured draft-round count for the next three seasons. Known traded-pick entries override the owner and can extend the horizon to five years. Unknown pick slots use mid-round estimates with early/late ranges; no exact future pick number is claimed. If draft rounds are unavailable, no pick inventory is fabricated.
-
-Picks now share the model 2.3.0 rookie slot curve: a 12-team 1.01 is 2,600, middle first 1,950, and late first 1,600. Additional future years discount 15%; superflex adds 15%. These assumptions are visible in **How values work**. Picks disappear from the redraft trade builder and are excluded from redraft totals.
-
-## Supported league defaults and preseason analysis
-
-League defaults include PPR, half PPR or standard reception scoring, QB format, passing TD points, and supported TE reception bonuses of 0, 0.5 or 1. Explicit per-league overrides remain in place. Unsupported TE bonuses are labeled in the data warning instead of being silently rounded to a supported value.
-
-Rostered players and free agents share the same metadata normalization. Experience, NFL selection and verified rookie-draft context affect a player identically across ownership states.
-
-A prepared dynasty snapshot can support prospect and pick trades without completed games. Current-production comparisons and starter pace are then unavailable, and players lacking both verified prospect metadata and game history cannot be selected. Missing snapshots and empty-history redraft analysis still require usable data. Model version 2.2.0 records these changes in new saved results.
-
-## Trade analysis
-
-The server validates team ownership and rejects duplicate assets, empty sides, and redraft pick trades. Searching an opponent's player selects their actual team; switching partners clears the previous receive selection. Free agents are labeled and can be inspected; they cannot be represented as another manager's trade assets.
-
-Both managers receive separate current-production and dynasty-value comparisons, plus an optimized lineup before/after and bench depth/value. These are alternative heuristic perspectives, not comparable currencies or calibrated projections. A contender/rebuilder explanation highlights when starter pace and dynasty value move in opposite directions.
-
-Active capacity comes from Sleeper's starter/bench slot configuration. IR/taxi players are excluded from active starters and automatic cuts. Incoming players default to active spots; real IR/taxi eligibility needs review. For an over-capacity roster the engine suggests cuts that minimize starter-pace loss, breaking ties by lowest model value. Trade-created openings can receive suggested replacements from the imported free-agent pool; unrelated pre-existing openings are not auto-filled. Replacements are conditional on availability and waiver rules. Disable them to see the trade without assumed additions. If capacity is missing or no replacement exists, the report says so. Net roster changes include these cuts/additions; exchange value is shown separately. Cuts and waiver suggestions are automatic planning assumptions and are not submitted anywhere.
-
-Trades use standard model values. Manual workload, development and pick-slot adjustments and stress-test variants are no longer supported. Loading a saved trade restores players only, then compares current values. Future picks use the standard unknown-slot midpoint.
-
-Trade Finder searches singles and two-for-one exchanges, using up to 28 assets per team, the top 14 for paired packages, and up to 12 targets. It filters to exchanges within 20% value, prefilters for the selected goal, and evaluates up to 100 candidates with per-team quotas. Results require goal progress and a benefit to the partner in starter pace, current value, or dynasty value, with no modeled roster-value loss greater than 25% of the exchange (minimum allowance 100 units). It shows up to eight ideas, at most two per partner. This is a bounded search, not an exhaustive optimizer or a prediction of manager acceptance; an empty result does not mean no good trade exists.
-
-Nothing is submitted to Sleeper or applied to the imported roster. Multiple modest players can still add up to a star's model value; roster-aware consequences add context without guaranteeing fairness.
-
-## Free accounts
-
-Sign-up claims the current guest workspace and Sleeper links and sends an email verification link. Passwords use salted scrypt (`N=131072,r=8,p=1`); sessions use random 256-bit tokens stored as SHA-256 hashes, HttpOnly SameSite cookies, and 30-day expiry. Verification links expire after 24 hours and password-reset links after 30 minutes. Tokens are hashed, purpose-bound, and consumed once atomically. Resetting a password revokes earlier sessions. Existing users can verify their email from Account without losing their saved workspace. Email delivery uses Resend; configure `RESEND_API_KEY`, `EMAIL_FROM`, and `EMAIL_APP_ORIGIN`. Login remains available while email verification is pending; verification confirms the address and is shown in Account.
-
-For online access, host the same server and persistent database behind HTTPS, set `APP_ORIGIN` to the exact HTTPS origin and `COOKIE_SECURE=true`, and back up the database. Independent local copies don't share accounts. Hosting costs are separate from the free login implementation.
-
-## Analysis API
-
-| Method | Endpoint                  | Purpose                                                                                                                  |
-| ------ | ------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| GET    | `/api/analysis`           | Player values, teams, picks, settings, data coverage, saved scenarios                                                    |
-| PUT    | `/api/analysis/settings`  | `mode`, `scoring`, `superflex`, `tePremium`, `passTD`                                                                    |
-| POST   | `/api/analysis/trade`     | `teamA`, `teamB`, `sendA`, `sendB` asset IDs; optional `customTeams` for public comparisons and `includeWaivers` boolean |
-| POST   | `/api/analysis/find`      | `goal`: `WR`, `RB`, `QB`, `TE`, `younger`, `picks`, `contend`, or `rebuild`; optional `includeWaivers`                   |
-| POST   | `/api/analysis/refresh`   | Explicitly refresh the active league and freeze its analysis inputs                                                      |
-| POST   | `/api/analysis/save`      | Same selections plus optional `title`                                                                                    |
-| POST   | `/api/sleeper/lookup`     | `username`, optional `season`                                                                                            |
-| POST   | `/api/sleeper/link`       | `username`, `leagueId`                                                                                                   |
-| POST   | `/api/sleeper/sync`       | Refresh active league                                                                                                    |
-| POST   | `/api/sleeper/activate`   | Select an already-linked `leagueId` owned by the current account, without fetching providers                             |
-| POST   | `/api/sleeper/disconnect` | Return to the real-player example simulator                                                                              |
-
-Account endpoints are `/api/auth/register`, `/login`, `/logout`, `/forgot`, `/reset`, `/verification`, and `/verify`. `/api/state` returns the current account identity, user profile and active league connection. Stock trading routes, tables and runtime calculations have been removed. See [BACKEND.md](BACKEND.md) for migrations, refresh behavior, model evaluation and errors. SQLite files and backups under `data/` are ignored by Git.
-
-## Sources and limits
-
-- Sleeper API: https://docs.sleeper.com/ , read-only; free non-commercial use, commercial licensing requires contacting Sleeper.
-- nflverse player stats: https://github.com/nflverse/nflverse-data/releases/tag/stats_player
-- nflverse player metadata: https://github.com/nflverse/nflverse-data/releases/tag/players
-
-This is a first model, with heuristic weights that need evaluation against real fantasy decisions before claiming predictive accuracy. ESPN is not connected. No verified Sleeper team ownership, shared trading exchange, or external trade execution is included. Node's built-in SQLite API is experimental in Node 24. Test fixtures are only explicitly preloaded by integration tests.
-
-## Dynasty pick anchor, model 2.3.0
-
-Verified first-year rookie selections use the same slot curve as next year’s picks. A 12-team 1.01 is 2,600 model units; a slow start with limited exposure retains 90%, or 2,340. No games means no performance discount. After half a season of games or opportunities, the discount grows toward 35% with sustained poor evidence. Established production may exceed the anchor. The anchor is already priced for league size and superflex and receives no second age or QB premium. It expires after the first NFL season. Unknown or unverified selections retain the existing NFL-capital fallback, without inventing rookie ADP. Redraft and scoring pace are unchanged.
-
-Unknown future picks remain estimates. In the trade builder, First in round simulates 1.01, 2.01 and so on; it does not claim a future draft order is known. All pick tiers now share the same curve as the rookie anchor, so dynasty pick and player comparisons remain consistent. Each additional future year retains the existing 15% discount. Previous saved scenarios retain their original model version and values.
-
-The versioned rookie-benchmarks.js file records explicit owner-supplied assumptions. Jeremiyah Love uses the requested 2026 1.01 benchmark when no verified league selection is available. The UI identifies this source rather than presenting it as Sleeper draft history or consensus ADP.
-
-## Last-season context and validation, model 2.4.0
-
-`redraft-signal.js` blends current scoring with last season using `4 / (games + 4) * max(0, 1 - games / 17) * min(previousGames / 8, 1)`. At least four prior games are required. The weight fades to zero after 17 current games. `stat-inputs.js` stores compact current rows and per-player historical averages. League scoring is reapplied to both seasons. Current games, observed points/game and starter pace remain current-season only. The same history weight stabilizes usage in value estimation; the historical evaluation below validates only the scoring component.
-
-Run `npm run evaluate:historical` manually to download 2023–2025 public nflverse seasons into ignored local files. Weights were selected on 2024 with 2023 history, then fixed before evaluating 2025 with 2024 history. The committed `redraft-validation.json` records results and limitations. PPR mean absolute error fell from 3.263 to 3.087 points per appearance in 5,527 player/cutoff observations. Half PPR and standard improved too. This does not validate trade prices, predict injury absence or establish superiority to commercial rankings. Overlapping windows are dependent, and source corrections may postdate the cutoff. CI uses deterministic fixtures and never downloads those seasons.
-
-League format is applied automatically: unlinked examples and linked redraft leagues use redraft; Sleeper dynasty leagues include dynasty values and picks. Both trade sides can select any team in the linked league. My Team includes league standings ordered by record, with total points breaking ties. It shows season points for, points against, records from the last Sleeper sync, and FF Score (the combined player and draft pick model value). This is not a claim of official playoff seeding.
-
-The public trade builder lets any player in the 300-player pool go on either side, with explicit Team A / Team B buttons and Move / Remove controls. These custom comparisons use only selected players; they do not infer a real lineup or waiver pool. Linked Sleeper trades retain actual roster ownership: selecting a player changes that side’s team, and moving a player across swaps the comparison teams. Trades use standard model values without manual adjustments.
-
-Account has three keyboard-accessible tabs: Log in (Info when signed in), Sleeper, and Saved Notes. Signed-in users get a separate Sign out action. Saved trade comparisons are reached from Account rather than the main navigation. Email verification and reset links always open the identity tab.
-
-Dynasty model 2.5.0 recalibrates picks in the app's own player-value units. A 12-team 1QB unknown next-year first is 550, a known 1.01 is 1,050, a mid second is 240, and a mid third is 115. More distant drafts retain a 15% annual discount after the next draft; superflex retains its 15% pick premium. Rookie draft anchors and metadata priors use the revised scale, preserving the slow-start 1.01 rule of next year's equivalent pick less 10% while allowing productive players to exceed it. Established-player and redraft formulas are unchanged.
-
-`pick-calibration.test.js` checks the dated Chase example against three mid firsts over the next three drafts, checks that one mid first is insufficient, and verifies slot/round/year ordering in 10-, 12- and 14-team formats. `dynasty-pick-calibration.json` records the before/after calibration. This is an explicit model calibration rather than a live market price or validation against completed trades. Research references: [KTC's value methodology](https://keeptradecut.com/about/player-values) and [its mid-first profile](https://keeptradecut.com/dynasty-rankings/players/2027-mid-1st-1703). No external valuation feed is imported or polled.
+Neon shows stored inputs and saved records. GitHub shows the equations and implementation. Keep authentication tables, secrets, and other users' records off screen.

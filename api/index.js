@@ -1,5 +1,5 @@
 /** One warm application serves all API routes; initialization failures stay private. */
-import { createApplication } from '../application.js';
+import { createApplication } from '../src/http/application.js';
 let application;
 export default async function handler(req, res) {
   try {

@@ -1,6 +1,6 @@
 /** Local HTTP bootstrap. Vercel calls the shared application handler directly. */
 import http from 'node:http';
-import { createApplication } from './application.js';
+import { createApplication } from './src/http/application.js';
 const app = await createApplication();
 const server = http.createServer(app.handler);
 server.listen(Number(process.env.PORT || 3000), process.env.HOST || '127.0.0.1', () =>
