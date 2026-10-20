@@ -70,10 +70,14 @@ test('public simulator uses real players, enforces redraft, persists scenarios a
     const customSaved = await request('analysis/save', customGuest.cookie, 'POST', {
       ...custom,
       title: 'Custom sides',
+      comparisonMode: 'dynasty',
     });
     assert.equal(customSaved.status, 200);
     assert.equal(customSaved.data.saved[0].input.customTeams, true);
     assert.equal(customSaved.data.saved[0].result.customTeams, true);
+    assert.equal(customSaved.data.saved[0].input.comparisonMode, 'dynasty');
+    assert.equal(customSaved.data.saved[0].result.settings.mode, 'dynasty');
+    assert.equal(customSaved.data.settings.mode, 'redraft');
     const unchanged = await request('analysis', guest.cookie);
     assert.equal(unchanged.data.players.find((p) => p.id === 'demo_7').owner, 'demo_b');
 

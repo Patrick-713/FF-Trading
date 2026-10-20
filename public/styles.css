@@ -3651,3 +3651,32 @@ footer {
   align-content: center;
   color: #c8d6e8;
 }
+
+/* Keep selected trade assets readable in both wide and narrow result cards. */
+.trade-result-assets {
+  margin: 16px 0;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.trade-result-assets h4 {
+  margin: 8px 0;
+}
+.trade-result-assets ul {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 12px;
+}
+.trade-result-assets li {
+  padding: 6px 0;
+  overflow-wrap: anywhere;
+}
+.trade-result-assets li strong,
+.trade-result-assets li span {
+  display: block;
+}
+.trade-result-assets li span {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 4px;
+}

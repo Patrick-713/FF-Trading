@@ -168,6 +168,11 @@ function compare(model, input) {
 }
 /** Validate both sides and compare the standard model values without manual adjustments. */
 export function analyzeTrade(model, input) {
+  if (input?.comparisonMode !== undefined) {
+    if (input.customTeams !== true || !['redraft', 'dynasty'].includes(input.comparisonMode))
+      throw invalid('Choose a valid format for a custom comparison.');
+    model = { ...model, settings: { ...model.settings, mode: input.comparisonMode } };
+  }
   if (
     !input ||
     input.teamA === input.teamB ||

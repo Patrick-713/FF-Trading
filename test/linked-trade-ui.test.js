@@ -106,6 +106,21 @@ test('linked search preserves mixed-roster selections and expanded roster lists'
     await click('#analyze-trade');
     assert.deepEqual(lastInput.sendA, ['demo_3', 'demo_0', 'demo_1']);
     assert.deepEqual(lastInput.sendB, ['demo_7']);
+    await change({ id: 'custom-trade-mode', value: 'redraft' });
+    await click('#analyze-trade');
+    assert.equal(lastInput.comparisonMode, 'redraft');
+    assert.equal(model.settings.mode, 'dynasty');
+    assert.ok(element('#trade-result').innerHTML.includes('using redraft values'));
+    assert.ok(
+      element('#trade-result').innerHTML.includes(
+        model.players.find((p) => p.id === 'demo_3').name,
+      ),
+    );
+    await change({ id: 'custom-trade-mode', value: 'dynasty' });
+    await click('#analyze-trade');
+    assert.equal(lastInput.comparisonMode, 'dynasty');
+    await change({ id: 'trade-comparison', value: 'league' });
+    assert.equal(element('#main').innerHTML.includes('id="custom-trade-mode"'), false);
     assert.equal(model.players.find((p) => p.id === 'demo_0').owner, 'third');
   } finally {
     for (const timer of timers) clearTimeout(timer);

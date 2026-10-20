@@ -416,6 +416,7 @@ export async function createApplication() {
                 teamA: input.teamA,
                 teamB: input.teamB,
                 customTeams: input.customTeams === true,
+                comparisonMode: input.customTeams === true ? result.settings.mode : undefined,
                 sendA: input.sendA,
                 sendB: input.sendB,
                 includeWaivers: input.includeWaivers !== false,

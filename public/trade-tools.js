@@ -33,7 +33,9 @@ export function tradeSearch(model, query = '') {
 export function tradeTools(model, query = '') {
   return [
     `<section class="panel trade-tools"><div class="panel-heading"><h2>Add players to either side</h2>`,
-    model.linked ? `<button class="trade-button" id="open-finder">Find trade ideas →</button>` : '',
+    model.linked
+      ? `<button class="trade-button" id="open-finder">Find trade ideas →</button>`
+      : '',
     `</div>`,
     `<div class="link-content"><label for="trade-search">Search all ${model.players.length} players</label>${!model.linked ? `<button class="text-button" data-view="players">Browse all ${model.players.length} players →</button>` : ''}`,
     `<input id="trade-search" type="search" placeholder="Player name, position or NFL team" value="${esc(query)}" autocomplete="off"><div id="trade-search-results" aria-live="polite">${tradeSearch(model, query)}</div>`,
@@ -48,22 +50,28 @@ function lineupTable(before, after, available = true) {
 }
 /** Explain both teams' outcomes, uncertainty and scenario-saving controls. */
 export function tradeResult(r, model) {
+  const assetsFor = (report) => {
+    const isA = report.team === r.teamA.team;
+    const list = (assets) =>
+      `<ul>${assets.map((asset) => `<li><strong>${esc(asset.name)}</strong> <span>${esc(asset.position || 'PICK')} · ${fmt(asset.value)} value</span></li>`).join('')}</ul>`;
+    return `<div class="trade-result-assets"><h4>Sends</h4>${list(isA ? r.sent : r.received)}<h4>Receives</h4>${list(isA ? r.received : r.sent)}</div>`;
+  };
   const panel = (report) => {
     if (r.customTeams) {
-      const totals = model.settings.mode === 'dynasty' ? report.future : report.current;
-      return `<article class="panel result-card"><h3>${report.team === r.teamA.team ? 'Team A' : 'Team B'}</h3><div class="result-metric"><span>Asset value sent</span><strong>${fmt(totals.before)}</strong></div><div class="result-metric"><span>Asset value received</span><strong>${fmt(totals.after)}</strong></div><div class="result-metric"><span>Value change</span>${change(totals.change)}</div><p class="muted">Selected assets only, using ${esc(model.settings.mode)} values. Actual rosters, starter lineups and required cuts are not evaluated.</p></article>`;
+      const totals = r.settings.mode === 'dynasty' ? report.future : report.current;
+      return `<article class="panel result-card"><h3>${report.team === r.teamA.team ? 'Team A' : 'Team B'}</h3>${assetsFor(report)}<div class="result-metric"><span>Asset value sent</span><strong>${fmt(totals.before)}</strong></div><div class="result-metric"><span>Asset value received</span><strong>${fmt(totals.after)}</strong></div><div class="result-metric"><span>Value change</span>${change(totals.change)}</div><p class="muted">Selected assets only, using ${esc(r.settings.mode)} values. Actual rosters, starter lineups and required cuts are not evaluated.</p></article>`;
     }
     const roster = report.roster;
     return [
-      `<article class="panel result-card"><h3>${esc(model.teams.find((t) => t.id === report.team)?.name || 'Team')}</h3>`,
+      `<article class="panel result-card"><h3>${esc(model.teams.find((t) => t.id === report.team)?.name || 'Team')}</h3>${assetsFor(report)}`,
       `<div class="horizon-grid"><div><span>Help now · current value</span>${change(report.current.change)}<small>${report.paceAvailable === false ? 'No completed-game production' : fmt(report.current.before) + ' → ' + fmt(report.current.after)}</small></div>`,
-      model.settings.mode === 'dynasty'
+      r.settings.mode === 'dynasty'
         ? `<div><span>Long term · dynasty value</span>${change(report.future.change)}<small>${fmt(report.future.before)} → ${fmt(report.future.after)}</small></div>`
         : '',
       `</div>`,
       `<div class="result-metric"><span>Starter pace change</span>${change(report.paceChange)}</div>`,
       `<p>${report.paceAvailable === false ? 'No completed-game production. Starter pace is unavailable.' : fmt(report.beforePace) + ' → ' + fmt(report.afterPace) + ' pts/week · past production'}</p>`,
-      `<p>${model.settings.mode === 'dynasty' && report.paceChange > 0 && report.future.change < 0 ? 'Contender trade-off: better starter pace, lower dynasty value.' : model.settings.mode === 'dynasty' && report.paceChange < 0 && report.future.change > 0 ? 'Rebuilding trade-off: more dynasty value, lower starter pace.' : 'Consider both your competitive window and roster depth.'}</p>`,
+      `<p>${r.settings.mode === 'dynasty' && report.paceChange > 0 && report.future.change < 0 ? 'Contender trade-off: better starter pace, lower dynasty value.' : r.settings.mode === 'dynasty' && report.paceChange < 0 && report.future.change > 0 ? 'Rebuilding trade-off: more dynasty value, lower starter pace.' : 'Consider both your competitive window and roster depth.'}</p>`,
       `<div class="position-depth">${Object.entries(report.positions)
         .map(([p, n]) => `<span>${p} ${n.before} → ${n.after}</span>`)
         .join('')}</div>`,
@@ -78,7 +86,7 @@ export function tradeResult(r, model) {
     ].join('');
   };
   return [
-    `<section class="result-summary"><span class="eyebrow">${esc(r.settings.mode.toUpperCase())} · MODEL ${esc(r.modelVersion || 'legacy')} · ${model.settings.mode === 'dynasty' ? 'BOTH TIME HORIZONS' : 'THIS SEASON'}</span><h2>${esc(r.summary)}</h2>`,
+    `<section class="result-summary"><span class="eyebrow">${esc(r.settings.mode.toUpperCase())} · MODEL ${esc(r.modelVersion || 'legacy')} · ${r.settings.mode === 'dynasty' ? 'BOTH TIME HORIZONS' : 'THIS SEASON'}</span><h2>${esc(r.summary)}</h2>`,
     `<p>${r.customTeams ? 'Team A sends' : 'Send'} ${fmt(r.give)} · ${r.customTeams ? 'Team B sends' : 'Receive'} ${fmt(r.get)} · ${signed(r.difference)}% exchange difference</p>`,
     `</section>`,
     `<div class="trade-builder">${panel(r.teamA)}${panel(r.teamB)}</div>`,

@@ -24,6 +24,7 @@ let state,
   rosterTeam = null,
   tradeTeam = null,
   customTrade = false,
+  customTradeMode = null,
   showStandings = false;
 let tradeQuery = '',
   finder = null,
@@ -93,7 +94,16 @@ function playerTable(players, ranked = false, mode = model.settings.mode) {
   ].join('');
 }
 const tradeOwn = () => model.teams.find((t) => t.id === tradeTeam) || currentTeam();
-const tradeModel = () => ({ ...model, ownTeam: tradeOwn().id, customTeams: customTrade });
+const tradeMode = () =>
+  !model.linked || customTrade ? customTradeMode || model.settings.mode : model.settings.mode;
+const tradeModel = () => ({
+  ...model,
+  settings: { ...model.settings, mode: tradeMode() },
+  players: model.players.map((p) => ({ ...p, value: p[tradeMode()] ?? p.value })),
+  picks: tradeMode() === 'dynasty' ? model.picks : [],
+  ownTeam: tradeOwn().id,
+  customTeams: !model.linked || customTrade,
+});
 function standingsView() {
   const points = (value) =>
     new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
@@ -181,13 +191,15 @@ function playersView() {
 
 function assetList(team, side) {
   const selected = side === 'A' ? selectedA : selectedB;
-  const players = model.players.filter((p) => p.owner === team).sort((a, b) => b.value - a.value),
-    picks = model.picks.filter((p) => p.owner === team);
+  const players = tradeModel()
+      .players.filter((p) => p.owner === team)
+      .sort((a, b) => b.value - a.value),
+    picks = tradeModel().picks.filter((p) => p.owner === team);
   return `<div class="asset-list">${[...players, ...picks].map((a) => `<label class="asset-option"><input type="checkbox" data-side="${side}" value="${esc(a.id)}" ${selected.has(a.id) ? 'checked' : ''}><span class="position">${a.kind === 'pick' ? 'PICK' : esc(a.position)}</span><span class="asset-name"><strong>${esc(a.name)}</strong><small>${a.kind === 'pick' ? `${esc(a.originalTeam)} · unknown slot` : esc(a.club) + ' · ' + (a.games ? a.games + ' games' : 'low-confidence estimate')}</small></span><b>${fmt(a.value)}</b></label>`).join('')}</div>`;
 }
 function selectedPlayers(side) {
   const ids = side === 'A' ? selectedA : selectedB;
-  const assets = [...model.players, ...model.picks].filter((p) => ids.has(p.id));
+  const assets = [...tradeModel().players, ...tradeModel().picks].filter((p) => ids.has(p.id));
   return `<div class="selected-trade-assets">${assets.map((p) => `<article class="selected-trade-asset"><div><strong>${esc(p.name)}</strong><small>${esc(p.position || 'PICK')} · ${fmt(p.value)} value</small></div><div class="player-side-actions"><button class="text-button" data-add-side="${side === 'A' ? 'B' : 'A'}" data-asset="${esc(p.id)}" aria-label="Move ${esc(p.name)} to Team ${side === 'A' ? 'B' : 'A'}">Move to ${side === 'A' ? 'B' : 'A'}</button><button class="text-button" data-remove-asset="${esc(p.id)}" aria-label="Remove ${esc(p.name)}">Remove</button></div></article>`).join('') || `<p class="empty">No players selected. Use + Team ${side} above.</p>`}</div>`;
 }
 /** Assign a side without duplicates. Linked comparisons swap teams instead of inventing ownership. */
@@ -240,7 +252,7 @@ function tradeView() {
     partner = model.teams.find((t) => t.id !== tradeOwn().id)?.id;
   const own = tradeOwn();
   return [
-    `${intro('Trade Simulator', `Choose players${model.settings.mode === 'dynasty' ? ' and dynasty picks' : ''} to exchange. ${model.linked ? 'Uses your Sleeper league format. Your real roster stays unchanged.' : `Search ${model.players.length} real NFL players. Add them to Team A or Team B, then compare the trade. No roster setup needed.`}`, false)}${model.linked ? `<section class="panel link-content"><label for="trade-comparison">Comparison type</label><select id="trade-comparison"><option value="league" ${!customTrade ? 'selected' : ''}>League trade</option><option value="custom" ${customTrade ? 'selected' : ''}>Custom comparison</option></select><p class="muted">${customTrade ? `Combine players${model.settings.mode === 'dynasty' ? ' and draft picks' : ''} from any roster. Compares selected values only.` : 'Uses actual team ownership. Choose Custom comparison to mix players from different rosters.'}</p></section>` : ''}${tradeTools(tradeModel(), tradeQuery)}<div class="trade-builder"><section class="panel"><div class="panel-heading"><div><span class="eyebrow">TEAM A SENDS</span><label class="sr-only" for="trade-team">Team to trade from</label>${model.linked ? `<select id="trade-team" aria-label="Team to trade from">${model.teams.map((t) => `<option value="${esc(t.id)}" ${own.id === t.id ? 'selected' : ''}>${esc(t.name)}${t.id === model.ownTeam && model.linked ? ' (Your team)' : ''}</option>`).join('')}</select>` : '<h2>Team A</h2>'}`,
+    `${intro('Trade Simulator', `Choose players${tradeMode() === 'dynasty' ? ' and dynasty picks' : ''} to exchange. ${model.linked ? (customTrade ? `Custom ${tradeMode()} values. Your real roster stays unchanged.` : 'Uses your Sleeper league format. Your real roster stays unchanged.') : `Search ${model.players.length} real NFL players. Add them to Team A or Team B, then compare the trade. No roster setup needed.`}`, false)}${model.linked ? `<section class="panel link-content"><label for="trade-comparison">Comparison type</label><select id="trade-comparison"><option value="league" ${!customTrade ? 'selected' : ''}>League trade</option><option value="custom" ${customTrade ? 'selected' : ''}>Custom comparison</option></select><p class="muted">${customTrade ? `Combine players${tradeMode() === 'dynasty' ? ' and draft picks' : ''} from any roster. Compares selected values only.` : 'Uses actual team ownership. Choose Custom comparison to mix players from different rosters.'}</p></section>` : ''}${!model.linked || customTrade ? `<section class="panel link-content"><label for="custom-trade-mode">Custom comparison format</label><select id="custom-trade-mode"><option value="redraft" ${tradeMode() === 'redraft' ? 'selected' : ''}>Redraft</option><option value="dynasty" ${tradeMode() === 'dynasty' ? 'selected' : ''}>Dynasty</option></select><p class="muted">Applies to this comparison only. Your league settings stay the same.</p></section>` : ''}${tradeTools(tradeModel(), tradeQuery)}<div class="trade-builder"><section class="panel"><div class="panel-heading"><div><span class="eyebrow">TEAM A SENDS</span><label class="sr-only" for="trade-team">Team to trade from</label>${model.linked ? `<select id="trade-team" aria-label="Team to trade from">${model.teams.map((t) => `<option value="${esc(t.id)}" ${own.id === t.id ? 'selected' : ''}>${esc(t.name)}${t.id === model.ownTeam && model.linked ? ' (Your team)' : ''}</option>`).join('')}</select>` : '<h2>Team A</h2>'}`,
     `</div>`,
     `<span id="sum-A" class="value-number">${assetSum(selectedA)}</span></div>${selectedPlayers('A')}${model.linked ? picker('A', own.id) : ''}</section>`,
     `<section class="panel"><div class="panel-heading"><div><span class="eyebrow">TEAM B SENDS</span>${
@@ -266,7 +278,7 @@ function tradeView() {
 }
 function assetSum(ids) {
   return fmt(
-    [...model.players, ...model.picks]
+    [...tradeModel().players, ...tradeModel().picks]
       .filter((a) => ids.has(a.id))
       .reduce((s, a) => s + a.value, 0),
   );
@@ -480,6 +492,7 @@ function render() {
 /** Load the account context before reading that account's active analysis. */
 async function reload() {
   customTrade = false;
+  customTradeMode = null;
   rankingsMode = null;
   profileRequest++;
   profileLogs.clear();
@@ -496,6 +509,7 @@ const tradeInput = () => ({
   sendA: [...selectedA],
   sendB: [...selectedB],
   customTeams: !model.linked || customTrade,
+  comparisonMode: !model.linked || customTrade ? tradeMode() : undefined,
   includeWaivers: false,
 });
 async function changeSettings(settings) {
@@ -827,7 +841,8 @@ document.addEventListener('click', async (e) => {
     const load = e.target.closest('[data-load]');
     if (load) {
       const s = model.saved.find((s) => s.id === load.dataset.load);
-      await changeSettings(s.result.settings);
+      if (!s.input.customTeams) await changeSettings(s.result.settings);
+      customTradeMode = s.input.comparisonMode || s.result.settings.mode;
       customTrade = s.input.customTeams === true;
       tradeTeam = s.input.teamA;
       partner = s.input.teamB;
@@ -873,6 +888,19 @@ document.addEventListener('change', async (e) => {
   if (t.id === 'trade-goal') {
     goal = t.value;
     finder = null;
+    render();
+    return;
+  }
+  if (t.id === 'custom-trade-mode') {
+    if (!['redraft', 'dynasty'].includes(t.value)) return;
+    customTradeMode = t.value;
+    if (t.value === 'redraft') {
+      for (const pick of model.picks) {
+        selectedA.delete(pick.id);
+        selectedB.delete(pick.id);
+      }
+    }
+    result = null;
     render();
     return;
   }

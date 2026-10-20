@@ -222,3 +222,28 @@ test('linked custom dynasty comparisons retain picks and use dynasty totals with
     /only valued in dynasty/,
   );
 });
+
+test('custom comparison format is request-scoped, validated, and applied to displayed asset values', () => {
+  const m = fixture();
+  m.linked = true;
+  m.players[0].dynasty = 2300;
+  const original = JSON.stringify(m);
+  const request = { ...input, customTeams: true, comparisonMode: 'redraft' };
+  const redraft = analyzeTrade(m, request);
+  const dynasty = analyzeTrade(m, { ...request, comparisonMode: 'dynasty' });
+  assert.equal(redraft.settings.mode, 'redraft');
+  assert.equal(redraft.sent[0].value, m.players[0].redraft);
+  assert.equal(dynasty.sent[0].value, 2300);
+  assert.equal(JSON.stringify(m), original);
+  assert.throws(() => analyzeTrade(m, { ...request, comparisonMode: 'invalid' }), /valid format/);
+  assert.throws(() => analyzeTrade(m, { ...request, customTeams: false }), /valid format/);
+  for (const result of [redraft, dynasty, analyzeTrade(m, input)]) {
+    const html = tradeResult(result, m);
+    assert.ok(html.includes('<h4>Sends</h4>'));
+    assert.ok(html.includes('<h4>Receives</h4>'));
+    assert.ok(html.includes('<strong>aq</strong>'));
+    assert.ok(html.includes('<strong>bw</strong>'));
+  }
+  const unsafe = { ...dynasty, sent: [{ ...dynasty.sent[0], name: '<script>test</script>' }] };
+  assert.equal(tradeResult(unsafe, m).includes('<script>test</script>'), false);
+});
