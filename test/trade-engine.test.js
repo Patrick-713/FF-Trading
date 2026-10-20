@@ -179,10 +179,46 @@ test('custom public comparisons allow either side without changing ownership or 
   assert.equal(JSON.stringify(m), before);
   assert.throws(() => analyzeTrade(m, { ...reversed, sendB: ['bw'] }), /only once/);
   assert.throws(() => analyzeTrade(m, { ...reversed, sendA: ['unknown'] }), /no longer/);
-  assert.throws(() => analyzeTrade({ ...m, linked: true }, reversed), /actual roster ownership/);
+  assert.equal(analyzeTrade({ ...m, linked: true }, reversed).customTeams, true);
   assert.throws(
     () => analyzeTrade({ ...m, linked: true }, { ...reversed, customTeams: false }),
     /no longer/,
   );
   assert.equal(tradeResult(result, m).includes('Roster consequences'), false);
+});
+
+test('linked custom dynasty comparisons retain picks and use dynasty totals without changing imported assets', () => {
+  const m = fixture();
+  m.linked = true;
+  m.picks = [
+    {
+      id: 'custom-pick',
+      kind: 'pick',
+      owner: 'b',
+      name: '2027 Round 3',
+      round: 3,
+      teams: 12,
+      year: 2027,
+    },
+  ];
+  m.players[0].dynasty = 900;
+  const before = JSON.stringify(m);
+  const input = {
+    teamA: 'a',
+    teamB: 'b',
+    sendA: ['custom-pick', 'bw'],
+    sendB: ['aq'],
+    customTeams: true,
+  };
+  const result = analyzeTrade(m, input);
+  assert.equal(result.sent.length, 2);
+  assert.ok(result.sent.some((a) => a.kind === 'pick' && a.value > 0));
+  assert.equal(result.teamA.roster.replacements.length, 0);
+  assert.ok(tradeResult(result, m).includes('using dynasty values'));
+  assert.equal(JSON.stringify(m), before);
+  assert.throws(() => analyzeTrade(m, { ...input, customTeams: false }), /no longer/);
+  assert.throws(
+    () => analyzeTrade({ ...m, settings: { ...m.settings, mode: 'redraft' } }, input),
+    /only valued in dynasty/,
+  );
 });

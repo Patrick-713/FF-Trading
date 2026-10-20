@@ -188,8 +188,6 @@ export function analyzeTrade(model, input) {
     throw invalid('Invalid comparison setting.');
   const ids = [...sendA, ...sendB];
   if (input.customTeams) {
-    if (model.linked !== false)
-      throw invalid('Linked league trades must use actual roster ownership.');
     // Build an ephemeral comparison from selected assets only. Never write to imported rosters.
     model = {
       ...model,
@@ -204,7 +202,9 @@ export function analyzeTrade(model, input) {
       players: model.players
         .filter((p) => ids.includes(p.id))
         .map((p) => ({ ...p, owner: sendA.includes(p.id) ? input.teamA : input.teamB })),
-      picks: [],
+      picks: model.picks
+        .filter((p) => ids.includes(p.id))
+        .map((p) => ({ ...p, owner: sendA.includes(p.id) ? input.teamA : input.teamB })),
     };
     input = { ...input, includeWaivers: false };
   }
@@ -260,7 +260,7 @@ export function analyzeTrade(model, input) {
             : 'Your partner receives more model value',
     notes: input.customTeams
       ? [
-          'Custom player comparison only. Actual rosters, starter lineups, cuts and waiver additions are not modeled.',
+          'Custom asset comparison only. Actual rosters, starter lineups, cuts and waiver additions are not modeled.',
           'Player values are model estimates, not forecasts. Nothing is submitted to Sleeper.',
         ]
       : [

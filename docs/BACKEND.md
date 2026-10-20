@@ -66,3 +66,7 @@ Queries use parameters. Postgres transactions pin a separate client so concurren
 ## Further reading
 
 Read [Code map](CODE-MAP.md) for file navigation and [Deployment](DEPLOYMENT.md) for maintenance and release procedures.
+
+## Trade builder comparison types
+
+League trades validate actual asset ownership and evaluate roster consequences. Custom comparisons combine selected players and dynasty picks from any roster using the linked league scoring format. They compare selected asset values only and do not model real lineup changes, cuts, or waiver moves. Search preserves earlier selections when adding a player from another roster by switching to a labeled custom comparison. Saved trades retain their comparison type. Roster lists remain expanded while choosing multiple assets.

@@ -10,7 +10,8 @@ const change = (n) =>
   `<strong class="${n === null || n === undefined ? 'muted' : n >= 0 ? 'positive' : 'negative'}">${signed(n)}</strong>`;
 /** Search the imported player pool and keep ownership visible in each result. */
 export function tradeSearch(model, query = '') {
-  const publicPool = model.linked === false;
+  const publicPool = model.linked === false,
+    customPool = publicPool || model.customTeams;
   const players = model.players
     .filter(
       (p) =>
@@ -19,11 +20,11 @@ export function tradeSearch(model, query = '') {
     )
     .sort((a, b) => b.value - a.value)
     .slice(0, query.trim() ? 20 : 6);
-  return `${query.trim() ? '' : `<p class="muted">${publicPool ? 'Search all 300 players, or start with a player below. Add anyone to either side.' : 'Choose a side for each player. Team selectors follow actual Sleeper ownership; moving a player to the opposite side swaps the comparison teams.'}</p>`}${
+  return `${query.trim() ? '' : `<p class="muted">${publicPool ? 'Search all 300 players, or start with a player below. Add anyone to either side.' : 'Search your league or browse a roster below. Custom comparison lets you combine players from different teams.'}</p>`}${
     players
       .map((p) => {
         const team = model.teams.find((t) => t.id === p.owner);
-        return `<div class="search-player"><div><strong>${esc(p.name)}</strong><small>${esc(p.position)} · ${esc(p.club)}${!publicPool ? ` · ${esc(team?.name || 'Free agent')}` : ''} · ${fmt(p.value)} value</small></div>${publicPool || team ? `<div class="player-side-actions"><button class="trade-button" data-add-side="A" data-asset="${esc(p.id)}" aria-label="Add ${esc(p.name)} to Team A">+ Team A</button><button class="trade-button" data-add-side="B" data-asset="${esc(p.id)}" aria-label="Add ${esc(p.name)} to Team B">+ Team B</button></div>` : `<button class="text-button" data-player="${esc(p.id)}">View stats</button>`}</div>`;
+        return `<div class="search-player"><div><strong>${esc(p.name)}</strong><small>${esc(p.position)} · ${esc(p.club)}${!publicPool ? ` · ${esc(team?.name || 'Free agent')}` : ''} · ${fmt(p.value)} value</small></div>${customPool || team ? `<div class="player-side-actions"><button class="trade-button" data-add-side="A" data-asset="${esc(p.id)}" aria-label="Add ${esc(p.name)} to Team A">+ Team A</button><button class="trade-button" data-add-side="B" data-asset="${esc(p.id)}" aria-label="Add ${esc(p.name)} to Team B">+ Team B</button></div>` : `<button class="text-button" data-player="${esc(p.id)}">View stats</button>`}</div>`;
       })
       .join('') || '<p class="empty">No matching players.</p>'
   }`;
@@ -48,8 +49,10 @@ function lineupTable(before, after, available = true) {
 /** Explain both teams' outcomes, uncertainty and scenario-saving controls. */
 export function tradeResult(r, model) {
   const panel = (report) => {
-    if (r.customTeams)
-      return `<article class="panel result-card"><h3>${report.team === r.teamA.team ? 'Team A' : 'Team B'}</h3><div class="result-metric"><span>Player value sent</span><strong>${fmt(report.current.before)}</strong></div><div class="result-metric"><span>Player value received</span><strong>${fmt(report.current.after)}</strong></div><div class="result-metric"><span>Value change</span>${change(report.current.change)}</div><p class="muted">Selected players only. Link Sleeper to include your actual roster, starter lineup and draft picks.</p></article>`;
+    if (r.customTeams) {
+      const totals = model.settings.mode === 'dynasty' ? report.future : report.current;
+      return `<article class="panel result-card"><h3>${report.team === r.teamA.team ? 'Team A' : 'Team B'}</h3><div class="result-metric"><span>Asset value sent</span><strong>${fmt(totals.before)}</strong></div><div class="result-metric"><span>Asset value received</span><strong>${fmt(totals.after)}</strong></div><div class="result-metric"><span>Value change</span>${change(totals.change)}</div><p class="muted">Selected assets only, using ${esc(model.settings.mode)} values. Actual rosters, starter lineups and required cuts are not evaluated.</p></article>`;
+    }
     const roster = report.roster;
     return [
       `<article class="panel result-card"><h3>${esc(model.teams.find((t) => t.id === report.team)?.name || 'Team')}</h3>`,

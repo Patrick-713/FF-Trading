@@ -23,6 +23,7 @@ let state,
   rankingsMode = null,
   rosterTeam = null,
   tradeTeam = null,
+  customTrade = false,
   showStandings = false;
 let tradeQuery = '',
   finder = null,
@@ -92,7 +93,7 @@ function playerTable(players, ranked = false, mode = model.settings.mode) {
   ].join('');
 }
 const tradeOwn = () => model.teams.find((t) => t.id === tradeTeam) || currentTeam();
-const tradeModel = () => ({ ...model, ownTeam: tradeOwn().id });
+const tradeModel = () => ({ ...model, ownTeam: tradeOwn().id, customTeams: customTrade });
 function standingsView() {
   const points = (value) =>
     new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
@@ -193,7 +194,7 @@ function selectedPlayers(side) {
 function addPlayerToSide(id, side) {
   const asset = [...model.players, ...model.picks].find((p) => p.id === id);
   if (!asset || !['A', 'B'].includes(side)) return;
-  if (model.linked) {
+  if (model.linked && !customTrade) {
     const owner = model.teams.find((t) => t.id === asset.owner);
     if (!owner) {
       toast('Free agents cannot be traded in a linked league.');
@@ -207,14 +208,18 @@ function addPlayerToSide(id, side) {
       partner = a;
       [selectedA, selectedB] = [selectedB, selectedA];
     } else if (owner.id !== (side === 'A' ? a : b)) {
-      if (side === 'A') {
+      const existing = side === 'A' ? selectedA : selectedB;
+      if (existing.size) {
+        customTrade = true;
+        toast('Custom comparison keeps players from different rosters.');
+      } else if (side === 'A') {
         tradeTeam = owner.id;
         selectedA.clear();
-      } else {
+      } else if (!customTrade) {
         partner = owner.id;
         selectedB.clear();
       }
-      toast(`Team ${side} changed to ${owner.name}.`);
+      if (!customTrade) toast(`Team ${side} changed to ${owner.name}.`);
     }
   }
   const target = side === 'A' ? selectedA : selectedB,
@@ -229,13 +234,15 @@ function addPlayerToSide(id, side) {
   toast(`${asset.name} added to Team ${side}.`);
 }
 function tradeView() {
+  const picker = (side, team) =>
+    `<details class="team-roster-picker" data-roster-side="${side}" ${rosterPickers[side] ? 'open' : ''}><summary>Choose from this roster</summary>${assetList(team, side)}</details>`;
   if (!partner || !model.teams.some((t) => t.id === partner) || partner === tradeOwn().id)
     partner = model.teams.find((t) => t.id !== tradeOwn().id)?.id;
   const own = tradeOwn();
   return [
-    `${intro('Trade Simulator', `Choose players${model.settings.mode === 'dynasty' ? ' and dynasty picks' : ''} to exchange. ${model.linked ? 'Uses your Sleeper league format. Your real roster stays unchanged.' : `Search ${model.players.length} real NFL players. Add them to Team A or Team B, then compare the trade. No roster setup needed.`}`, false)}${tradeTools(tradeModel(), tradeQuery)}<div class="trade-builder"><section class="panel"><div class="panel-heading"><div><span class="eyebrow">TEAM A SENDS</span><label class="sr-only" for="trade-team">Team to trade from</label>${model.linked ? `<select id="trade-team" aria-label="Team to trade from">${model.teams.map((t) => `<option value="${esc(t.id)}" ${own.id === t.id ? 'selected' : ''}>${esc(t.name)}${t.id === model.ownTeam && model.linked ? ' (Your team)' : ''}</option>`).join('')}</select>` : '<h2>Team A</h2>'}`,
+    `${intro('Trade Simulator', `Choose players${model.settings.mode === 'dynasty' ? ' and dynasty picks' : ''} to exchange. ${model.linked ? 'Uses your Sleeper league format. Your real roster stays unchanged.' : `Search ${model.players.length} real NFL players. Add them to Team A or Team B, then compare the trade. No roster setup needed.`}`, false)}${model.linked ? `<section class="panel link-content"><label for="trade-comparison">Comparison type</label><select id="trade-comparison"><option value="league" ${!customTrade ? 'selected' : ''}>League trade</option><option value="custom" ${customTrade ? 'selected' : ''}>Custom comparison</option></select><p class="muted">${customTrade ? `Combine players${model.settings.mode === 'dynasty' ? ' and draft picks' : ''} from any roster. Compares selected values only.` : 'Uses actual team ownership. Choose Custom comparison to mix players from different rosters.'}</p></section>` : ''}${tradeTools(tradeModel(), tradeQuery)}<div class="trade-builder"><section class="panel"><div class="panel-heading"><div><span class="eyebrow">TEAM A SENDS</span><label class="sr-only" for="trade-team">Team to trade from</label>${model.linked ? `<select id="trade-team" aria-label="Team to trade from">${model.teams.map((t) => `<option value="${esc(t.id)}" ${own.id === t.id ? 'selected' : ''}>${esc(t.name)}${t.id === model.ownTeam && model.linked ? ' (Your team)' : ''}</option>`).join('')}</select>` : '<h2>Team A</h2>'}`,
     `</div>`,
-    `<span id="sum-A" class="value-number">${assetSum(selectedA)}</span></div>${selectedPlayers('A')}${model.linked ? `<details class="team-roster-picker"><summary>Choose from this roster</summary>${assetList(own.id, 'A')}</details>` : ''}</section>`,
+    `<span id="sum-A" class="value-number">${assetSum(selectedA)}</span></div>${selectedPlayers('A')}${model.linked ? picker('A', own.id) : ''}</section>`,
     `<section class="panel"><div class="panel-heading"><div><span class="eyebrow">TEAM B SENDS</span>${
       model.linked
         ? `<select id="trade-partner" aria-label="Trade partner">${model.teams
@@ -248,7 +255,7 @@ function tradeView() {
         : '<h2>Team B</h2>'
     }`,
     `</div>`,
-    `<span id="sum-B" class="value-number">${assetSum(selectedB)}</span></div>${selectedPlayers('B')}${model.linked ? `<details class="team-roster-picker"><summary>Choose from this roster</summary>${assetList(partner, 'B')}</details>` : ''}</section>`,
+    `<span id="sum-B" class="value-number">${assetSum(selectedB)}</span></div>${selectedPlayers('B')}${model.linked ? picker('B', partner) : ''}</section>`,
     `</div>`,
     `<div class="trade-actions"><p id="trade-error" class="error" role="alert">${!selectedA.size || !selectedB.size ? 'Add at least one player to each side.' : ''}</p>`,
     `<button class="trade-button" id="clear-trade">Clear selections</button>`,
@@ -384,7 +391,11 @@ document.addEventListener('visibilitychange', () => {
   if (view === 'news' && !document.hidden && Date.now() - newsRequestedAt >= 600000)
     void loadNews();
 });
+const rosterPickers = { A: false, B: false };
 function render() {
+  document.querySelectorAll('[data-roster-side]').forEach((node) => {
+    rosterPickers[node.dataset.rosterSide] = node.open;
+  });
   if (view !== 'players') rankingsMode = null;
   if (view === 'saved') {
     view = 'account';
@@ -468,6 +479,7 @@ function render() {
 }
 /** Load the account context before reading that account's active analysis. */
 async function reload() {
+  customTrade = false;
   rankingsMode = null;
   profileRequest++;
   profileLogs.clear();
@@ -483,7 +495,7 @@ const tradeInput = () => ({
   teamB: partner,
   sendA: [...selectedA],
   sendB: [...selectedB],
-  customTeams: !model.linked,
+  customTeams: !model.linked || customTrade,
   includeWaivers: false,
 });
 async function changeSettings(settings) {
@@ -734,6 +746,7 @@ document.addEventListener('click', async (e) => {
     const offer = e.target.closest('[data-offer]');
     if (offer) {
       const o = finder.offers[Number(offer.dataset.offer)];
+      customTrade = false;
       tradeTeam = o.input.teamA;
       partner = o.input.teamB;
       selectedA = new Set(o.input.sendA);
@@ -815,6 +828,7 @@ document.addEventListener('click', async (e) => {
     if (load) {
       const s = model.saved.find((s) => s.id === load.dataset.load);
       await changeSettings(s.result.settings);
+      customTrade = s.input.customTeams === true;
       tradeTeam = s.input.teamA;
       partner = s.input.teamB;
       selectedA = new Set(s.input.sendA);
@@ -862,9 +876,31 @@ document.addEventListener('change', async (e) => {
     render();
     return;
   }
+  if (t.id === 'trade-comparison') {
+    customTrade = t.value === 'custom';
+    if (!customTrade) {
+      const owns = (ids, team) =>
+        new Set(
+          [...ids].filter((id) =>
+            [...model.players, ...model.picks].some(
+              (asset) => asset.id === id && asset.owner === team,
+            ),
+          ),
+        );
+      selectedA = owns(selectedA, tradeOwn().id);
+      selectedB = owns(selectedB, partner);
+    }
+    result = null;
+    finder = null;
+    render();
+    return;
+  }
   if (t.matches('[data-side]')) {
     const set = t.dataset.side === 'A' ? selectedA : selectedB;
-    t.checked ? set.add(t.value) : set.delete(t.value);
+    if (t.checked) {
+      (t.dataset.side === 'A' ? selectedB : selectedA).delete(t.value);
+      set.add(t.value);
+    } else set.delete(t.value);
     $('#sum-A').textContent = assetSum(selectedA);
     $('#sum-B').textContent = assetSum(selectedB);
     result = null;
@@ -875,9 +911,11 @@ document.addEventListener('change', async (e) => {
   }
   if (t.id === 'trade-team') {
     tradeTeam = t.value;
-    partner = null;
-    selectedA.clear();
-    selectedB.clear();
+    if (!customTrade || partner === tradeTeam) partner = null;
+    if (!customTrade) {
+      selectedA.clear();
+      selectedB.clear();
+    }
 
     result = null;
     finder = null;
@@ -886,7 +924,7 @@ document.addEventListener('change', async (e) => {
   }
   if (t.id === 'trade-partner') {
     partner = t.value;
-    selectedB.clear();
+    if (!customTrade) selectedB.clear();
     result = null;
     render();
     return;
